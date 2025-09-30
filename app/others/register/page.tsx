@@ -14,16 +14,19 @@ import {
   InputRightElement,
   Text,
   useColorModeValue,
+  useToast,
 } from '@chakra-ui/react';
 import illustration from '/public/img/auth/auth.png';
-import { HSeparator } from '@/components/separator/Separator';
 import DefaultAuth from '@/components/auth';
 import React from 'react';
-import { FcGoogle } from 'react-icons/fc';
 import { MdOutlineRemoveRedEye } from 'react-icons/md';
 import { RiEyeCloseLine } from 'react-icons/ri';
+import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 
 function SignUp() {
+  const router = useRouter();
+  const toast = useToast();
   // Chakra color mode
   const textColor = useColorModeValue('navy.700', 'white');
   const textColorSecondary = 'gray.500';
@@ -36,7 +39,104 @@ function SignUp() {
     { color: 'whiteAlpha.600', fontWeight: '500' },
   );
   const [show, setShow] = React.useState(false);
+  const [name, setName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  
   const handleClick = () => setShow(!show);
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!name || !email || !password || !confirmPassword) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all fields',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast({
+        title: 'Error',
+        description: 'Passwords do not match',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: 'Error',
+        description: 'Password must be at least 6 characters',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast({
+          title: 'Registration Failed',
+          description: data.message || 'Something went wrong',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Account created successfully! Logging you in...',
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+      });
+
+      // Automatically sign in after registration
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.ok) {
+        router.push('/all-templates');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Something went wrong',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <DefaultAuth illustrationBackground={illustration?.src}>
       <Flex
@@ -81,33 +181,7 @@ function SignUp() {
           me="auto"
           mb={{ base: '20px', md: 'auto' }}
         >
-          <Button
-            variant="transparent"
-            border="1px solid"
-            borderColor={borderColor}
-            borderRadius="14px"
-            ms="auto"
-            mb="30px"
-            fontSize="sm"
-            w={{ base: '100%' }}
-            h="54px"
-          >
-            <Icon as={FcGoogle} w="20px" h="20px" me="10px" />
-            Continue with Google
-          </Button>
-          <Flex align="center" mb="25px">
-            <HSeparator />
-            <Text
-              color={textColorSecondary}
-              fontWeight="500"
-              fontSize="sm"
-              mx="14px"
-            >
-              or
-            </Text>
-            <HSeparator />
-          </Flex>
-          <FormControl>
+          <FormControl as="form" onSubmit={handleRegister}>
             <FormLabel
               cursor="pointer"
               htmlFor="name"
@@ -125,7 +199,7 @@ function SignUp() {
               variant="auth"
               id="name"
               fontSize="sm"
-              type="email"
+              type="text"
               placeholder="Enter your name"
               mb="24px"
               size="lg"
@@ -133,6 +207,8 @@ function SignUp() {
               h="54px"
               _placeholder={{ placeholderColor }}
               fontWeight="500"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
             />
             <FormLabel
               cursor="pointer"
@@ -159,6 +235,8 @@ function SignUp() {
               _placeholder={{ placeholderColor }}
               h="54px"
               fontWeight="500"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
             {/* PASSWORD */}
             <FormLabel
@@ -186,6 +264,8 @@ function SignUp() {
                 fontWeight="500"
                 _placeholder={{ placeholderColor }}
                 type={show ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
               <InputRightElement display="flex" alignItems="center" mt="4px">
                 <Icon
@@ -223,6 +303,8 @@ function SignUp() {
                 fontWeight="500"
                 _placeholder={{ placeholderColor }}
                 type={show ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
               />
               <InputRightElement display="flex" alignItems="center" mt="4px">
                 <Icon
@@ -234,6 +316,7 @@ function SignUp() {
               </InputRightElement>
             </InputGroup>
             <Button
+              type="submit"
               variant="primary"
               py="20px"
               px="16px"
@@ -243,6 +326,8 @@ function SignUp() {
               w="100%"
               h="54px"
               mb="24px"
+              isLoading={isLoading}
+              loadingText="Creating account..."
             >
               Create your Account
             </Button>
@@ -251,7 +336,7 @@ function SignUp() {
             <Text color={textColorDetails} fontWeight="500" fontSize="sm">
               Already have an account?
             </Text>
-            <Link href="/others/sign-in" py="0px" lineHeight={'120%'}>
+            <Link href="/auth/login" py="0px" lineHeight={'120%'}>
               <Text
                 color={textColorBrand}
                 fontSize="sm"

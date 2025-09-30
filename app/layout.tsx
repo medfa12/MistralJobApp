@@ -34,7 +34,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body id={'root'}>
         <AppWrappers>
           {/* <ChakraProvider theme={theme}> */}
-          {pathname?.includes('auth/login') ? (
+          {pathname?.includes('auth/login') || 
+           pathname?.includes('auth/signin') || 
+           pathname?.includes('others/register') ||
+           pathname?.includes('others/sign-in') ||
+           pathname?.includes('landing') ? (
             children
           ) : (
             <Box>
