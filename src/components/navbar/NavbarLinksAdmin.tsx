@@ -14,6 +14,7 @@ import {
   Text,
   useColorMode,
   useColorModeValue,
+  Skeleton,
 } from '@chakra-ui/react';
 import { SearchBar } from '@/components/navbar/searchBar/SearchBar';
 import { SidebarResponsive } from '@/components/sidebar/Sidebar';
@@ -22,6 +23,9 @@ import { MdInfoOutline } from 'react-icons/md';
 import APIModal from '@/components/apiModal';
 import NavLink from '../link/NavLink';
 import routes from '@/routes';
+import { useUserData } from '@/hooks/useUserData';
+import { signOut } from 'next-auth/react';
+import Image from 'next/image';
 
 export default function HeaderLinks(props: {
   secondary: boolean;
@@ -29,6 +33,8 @@ export default function HeaderLinks(props: {
 }) {
   const { secondary, setApiKey } = props;
   const { colorMode, toggleColorMode } = useColorMode();
+  const { fullName, initials, avatar, loading } = useUserData();
+  
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.500', 'white');
   let menuBg = useColorModeValue('white', 'navy.800');
@@ -47,6 +53,10 @@ export default function HeaderLinks(props: {
     { bg: 'gray.200' },
     { bg: 'whiteAlpha.200' },
   );
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/auth/login' });
+  };
 
   return (
     <Flex
@@ -180,19 +190,37 @@ export default function HeaderLinks(props: {
       </Button>
       <Menu>
         <MenuButton p="0px" style={{ position: 'relative' }}>
-          <Box
-            _hover={{ cursor: 'pointer' }}
-            color="white"
-            bg="#FA500F"
-            w="40px"
-            h="40px"
-            borderRadius={'50%'}
-          />
-          <Center top={0} left={0} position={'absolute'} w={'100%'} h={'100%'}>
-            <Text fontSize={'xs'} fontWeight="bold" color={'white'}>
-              AP
-            </Text>
-          </Center>
+          {loading ? (
+            <Skeleton w="40px" h="40px" borderRadius="50%" />
+          ) : avatar ? (
+            <Image
+              src={avatar}
+              alt={fullName}
+              width={40}
+              height={40}
+              style={{
+                borderRadius: '50%',
+                objectFit: 'cover',
+                cursor: 'pointer',
+              }}
+            />
+          ) : (
+            <>
+              <Box
+                _hover={{ cursor: 'pointer' }}
+                color="white"
+                bg="#FA500F"
+                w="40px"
+                h="40px"
+                borderRadius={'50%'}
+              />
+              <Center top={0} left={0} position={'absolute'} w={'100%'} h={'100%'}>
+                <Text fontSize={'xs'} fontWeight="bold" color={'white'}>
+                  {initials}
+                </Text>
+              </Center>
+            </>
+          )}
         </MenuButton>
         <MenuList
           boxShadow={shadow}
@@ -203,19 +231,23 @@ export default function HeaderLinks(props: {
           border="none"
         >
           <Flex w="100%" mb="0px">
-            <Text
-              ps="20px"
-              pt="16px"
-              pb="10px"
-              w="100%"
-              borderBottom="1px solid"
-              borderColor={borderColor}
-              fontSize="sm"
-              fontWeight="700"
-              color={textColor}
-            >
-              👋&nbsp; Hey, Adela
-            </Text>
+            {loading ? (
+              <Skeleton h="40px" w="100%" />
+            ) : (
+              <Text
+                ps="20px"
+                pt="16px"
+                pb="10px"
+                w="100%"
+                borderBottom="1px solid"
+                borderColor={borderColor}
+                fontSize="sm"
+                fontWeight="700"
+                color={textColor}
+              >
+                👋&nbsp; Hey, {fullName.split(' ')[0]}
+              </Text>
+            )}
           </Flex>
           <Flex flexDirection="column" p="10px">
             <NavLink href="/settings">
@@ -248,6 +280,7 @@ export default function HeaderLinks(props: {
               color="red.400"
               borderRadius="8px"
               px="14px"
+              onClick={handleLogout}
             >
               <Text fontWeight="500" fontSize="sm">
                 Log out

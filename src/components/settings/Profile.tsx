@@ -12,8 +12,9 @@ export default function Profile(props: {
   avatar: StaticImageData | string;
   banner: string;
   role?: string;
+  onAvatarUpdate?: (newAvatarUrl: string) => void;
 }) {
-  const { name, avatar, banner, role = 'member' } = props;
+  const { name, avatar, banner, role = 'member', onAvatarUpdate } = props;
   // Chakra Color Mode
   const textColorPrimary = useColorModeValue('navy.700', 'white');
   const textColorSecondary = 'gray.500';
@@ -83,6 +84,7 @@ export default function Profile(props: {
       <Box px="20px" pb="20px" width="100%">
         <AvatarUpload 
           currentAvatar={typeof avatar === 'string' ? avatar : undefined}
+          onUploadSuccess={onAvatarUpdate}
         />
       </Box>
     </Card>
