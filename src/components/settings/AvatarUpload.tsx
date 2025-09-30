@@ -100,15 +100,10 @@ export default function AvatarUpload({ currentAvatar, onUploadSuccess }: AvatarU
           isClosable: true,
         });
 
-        // Call success callback if provided
+        // Call success callback to update avatar state
         if (onUploadSuccess && data.avatar) {
           onUploadSuccess(data.avatar);
         }
-
-        // Refresh the page to show new avatar
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
       } else {
         throw new Error(data.message || data.error || 'Upload failed');
       }

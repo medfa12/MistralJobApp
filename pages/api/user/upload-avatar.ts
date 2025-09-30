@@ -70,15 +70,17 @@ export default async function handler(
     }
 
     // Delete the old avatar from Cloudinary if it exists
+    // This ensures we don't accumulate unused images
     if (currentUser.avatar?.includes('cloudinary')) {
       try {
         const urlParts = currentUser.avatar.split('/');
         const publicIdWithExt = urlParts.slice(7).join('/'); // Get path after /upload/
         const publicId = publicIdWithExt.split('.')[0]; // Remove extension
         await cloudinary.uploader.destroy(publicId);
+        console.log('Successfully deleted old avatar:', publicId);
       } catch (error) {
         console.error('Error deleting old avatar:', error);
-        // Continue even if deletion fails
+        // Continue even if deletion fails - new upload is more important
       }
     }
 

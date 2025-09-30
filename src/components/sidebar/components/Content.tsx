@@ -11,6 +11,7 @@ import {
   Stack,
   Text,
   useColorModeValue,
+  Skeleton,
 } from '@chakra-ui/react';
 import NavLink from '@/components/link/NavLink';
 //   Custom components
@@ -27,6 +28,9 @@ import { IoMdPerson } from 'react-icons/io';
 import { FiLogOut } from 'react-icons/fi';
 import { LuHistory } from 'react-icons/lu';
 import { MdOutlineManageAccounts, MdOutlineSettings } from 'react-icons/md';
+import { useUserData } from '@/hooks/useUserData';
+import { signOut } from 'next-auth/react';
+import Image from 'next/image';
 
 // FUNCTIONS
 
@@ -37,6 +41,8 @@ interface SidebarContent extends PropsWithChildren {
 
 function SidebarContent(props: SidebarContent) {
   const { routes, setApiKey } = props;
+  const { fullName, avatar, loading } = useUserData();
+  
   const textColor = useColorModeValue('navy.700', 'white');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
   const bgColor = useColorModeValue('white', 'navy.700');
@@ -50,6 +56,10 @@ function SidebarContent(props: SidebarContent) {
     'none',
   );
   const gray = useColorModeValue('gray.500', 'white');
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/auth/login' });
+  };
   // SIDEBAR
   return (
     <Flex
@@ -80,10 +90,30 @@ function SidebarContent(props: SidebarContent) {
         borderRadius="30px"
         p="14px"
       >
-        <NextAvatar h="34px" w="34px" src={avatar4} me="10px" />
-        <Text color={textColor} fontSize="xs" fontWeight="600" me="10px">
-          Adela Parkson
-        </Text>
+        {loading ? (
+          <Skeleton h="34px" w="34px" borderRadius="full" me="10px" />
+        ) : avatar ? (
+          <Image
+            src={avatar}
+            alt={fullName}
+            width={34}
+            height={34}
+            style={{
+              borderRadius: '50%',
+              objectFit: 'cover',
+              marginRight: '10px',
+            }}
+          />
+        ) : (
+          <NextAvatar h="34px" w="34px" src={avatar4} me="10px" />
+        )}
+        {loading ? (
+          <Skeleton h="16px" w="100px" me="10px" />
+        ) : (
+          <Text color={textColor} fontSize="xs" fontWeight="600" me="10px">
+            {fullName}
+          </Text>
+        )}
         <Menu>
           <MenuButton
             as={Button}
@@ -200,6 +230,7 @@ function SidebarContent(props: SidebarContent) {
           minW="34px"
           justifyContent={'center'}
           alignItems="center"
+          onClick={handleLogout}
         >
           <Icon as={FiLogOut} width="16px" height="16px" color="inherit" />
         </Button>

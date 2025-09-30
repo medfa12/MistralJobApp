@@ -10,6 +10,7 @@ const nextConfig = {
       'images.unsplash.com',
       'i.ibb.co',
       'scontent.fotp8-1.fna.fbcdn.net',
+      'res.cloudinary.com', // For user avatars
     ],
     // Make ENV
     unoptimized: true,
