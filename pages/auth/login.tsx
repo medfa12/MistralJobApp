@@ -1,6 +1,5 @@
 import type {
   GetServerSidePropsContext,
-  InferGetServerSidePropsType,
 } from 'next';
 // Chakra imports
 import {
@@ -17,22 +16,22 @@ import {
   InputRightElement,
   Text,
   useColorModeValue,
+  useToast,
 } from '@chakra-ui/react';
-import { signIn, getProviders } from 'next-auth/react';
+import { signIn } from 'next-auth/react';
 import illustration from '/public/img/auth/auth.png';
-import { HSeparator } from '@/components/separator/Separator';
 import DefaultAuth from '@/components/auth';
 import React from 'react';
-import { FcGoogle } from 'react-icons/fc';
 import { MdOutlineRemoveRedEye } from 'react-icons/md';
 import { RiEyeCloseLine } from 'react-icons/ri';
 import NavLink from '@/components/link/NavLink';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../lib/auth';
+import { useRouter } from 'next/router';
 
-export default function SignUp({
-  providers,
-}: InferGetServerSidePropsType<typeof getServerSideProps>) {
+export default function SignIn() {
+  const router = useRouter();
+  const toast = useToast();
   // Chakra color mode
   const textColor = useColorModeValue('navy.700', 'white');
   const textColorSecondary = 'gray.500';
@@ -45,7 +44,65 @@ export default function SignUp({
     { color: 'whiteAlpha.600', fontWeight: '500' },
   );
   const [show, setShow] = React.useState(false);
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  
   const handleClick = () => setShow(!show);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: 'Error',
+        description: 'Please enter both email and password',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        toast({
+          title: 'Login Failed',
+          description: 'Invalid email or password',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: 'Logged in successfully',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
+        });
+        router.push('/all-templates');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Something went wrong',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <DefaultAuth illustrationBackground={illustration?.src}>
       <Flex
@@ -91,42 +148,7 @@ export default function SignUp({
           me="auto"
           mb={{ base: '20px', md: 'auto' }}
         >
-          {Object.values(providers).map((provider) => (
-            <div key={provider.name}>
-              <button onClick={() => signIn(provider.id)}>
-            Sign in with {provider.name}{provider.id}
-          </button>
-              <Button
-                variant="transparent"
-                border="1px solid"
-                borderColor={borderColor}
-                borderRadius="14px"
-                ms="auto"
-                mb="30px"
-                fontSize="md"
-                w={{ base: '100%' }}
-                h="54px"
-                onClick={() => signIn(provider.id)}
-              >
-                <Icon as={FcGoogle} w="20px" h="20px" me="10px" />
-                Sign in with Google
-              </Button>
-            </div>
-          ))}
-
-          <Flex align="center" mb="25px">
-            <HSeparator />
-            <Text
-              color={textColorSecondary}
-              fontWeight="500"
-              fontSize="sm"
-              mx="14px"
-            >
-              or
-            </Text>
-            <HSeparator />
-          </Flex>
-          <FormControl>
+          <FormControl as="form" onSubmit={handleLogin}>
             <FormLabel
               cursor="pointer"
               display="flex"
@@ -152,6 +174,8 @@ export default function SignUp({
               h="54px"
               fontWeight="500"
               _placeholder={{ placeholderColor }}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
             {/* PASSWORD */}
             <FormLabel
@@ -179,6 +203,8 @@ export default function SignUp({
                 fontWeight="500"
                 _placeholder={{ placeholderColor }}
                 type={show ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
               <InputRightElement display="flex" alignItems="center" mt="4px">
                 <Icon
@@ -219,6 +245,7 @@ export default function SignUp({
             </Flex>
             {/* CONFIRM */}
             <Button
+              type="submit"
               variant="primary"
               py="20px"
               px="16px"
@@ -228,6 +255,8 @@ export default function SignUp({
               w="100%"
               h="54px"
               mb="24px"
+              isLoading={isLoading}
+              loadingText="Signing in..."
             >
               Sign In
             </Button>
@@ -261,11 +290,10 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   // Note: Make sure not to redirect to the same page
   // To avoid an infinite loop!
   if (session) {
-    return { redirect: { destination: '/' } };
+    return { redirect: { destination: '/all-templates' } };
   }
-  const providers = await getProviders();
 
   return {
-    props: { providers: providers ?? [] },
+    props: {},
   };
 }
