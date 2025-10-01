@@ -149,23 +149,6 @@ export default function HeaderLinks(props: {
                 See Documentation
               </Button>
             </Link>
-            <Link
-              w="100%"
-              isExternal
-              href="https://mistral.ai"
-            >
-              <Button
-                w="100%"
-                h="44px"
-                variant="no-hover"
-                color={textColor}
-                fontSize="sm"
-                borderRadius="45px"
-                bg="transparent"
-              >
-                Try Free Version
-              </Button>
-            </Link>
           </Flex>
         </MenuList>
       </Menu>
@@ -263,17 +246,6 @@ export default function HeaderLinks(props: {
                 </Text>
               </MenuItem>
             </NavLink>
-            <MenuItem
-              _hover={{ bg: 'none' }}
-              _focus={{ bg: 'none' }}
-              color={textColor}
-              borderRadius="8px"
-              px="14px"
-            >
-              <Text fontWeight="500" fontSize="sm">
-                Newsletter Settings
-              </Text>
-            </MenuItem>
             <MenuItem
               _hover={{ bg: 'none' }}
               _focus={{ bg: 'none' }}

@@ -1,13 +1,13 @@
 'use client';
 import React, { ReactNode } from 'react';
 import type { AppProps } from 'next/app';
-import { ChakraProvider, Box, Portal, useDisclosure } from '@chakra-ui/react';
+import { ChakraProvider, Box } from '@chakra-ui/react';
 import theme from '@/theme/theme';
 import routes from '@/routes';
 import Sidebar from '@/components/sidebar/Sidebar';
 import Footer from '@/components/footer/FooterAdmin';
-import Navbar from '@/components/navbar/NavbarAdmin';
-import { getActiveRoute, getActiveNavbar } from '@/utils/navigation';
+// import Navbar from '@/components/navbar/NavbarAdmin'; // Retired component - kept for reference
+// import { getActiveRoute, getActiveNavbar } from '@/utils/navigation'; // Retired with navbar
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import '@/styles/App.scss';
@@ -20,7 +20,7 @@ import AppWrappers from './AppWrappers';
 export default function RootLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [apiKey, setApiKey] = useState('');
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  // Removed unused variables: isOpen, onOpen, onClose (were for navbar)
   useEffect(() => {
     const initialKey = localStorage.getItem('apiKey');
     if (initialKey && apiKey !== initialKey) {
@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Box>
               <Sidebar setApiKey={setApiKey} routes={routes} />
               <Box
-                pt={{ base: '60px', md: '100px' }}
+                pt={{ base: '20px', md: '20px' }}
                 float="right"
                 minHeight="100vh"
                 height="100%"
@@ -57,7 +57,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 transitionProperty="top, bottom, width"
                 transitionTimingFunction="linear, linear, ease"
               >
-                <Portal>
+                {/* Navbar retired - component kept for reference */}
+                {/* <Portal>
                   <Box>
                     <Navbar
                       setApiKey={setApiKey}
@@ -67,7 +68,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                       secondary={getActiveNavbar(routes, pathname)}
                     />
                   </Box>
-                </Portal>
+                </Portal> */}
                 <Box
                   mx="auto"
                   p={{ base: '20px', md: '30px' }}

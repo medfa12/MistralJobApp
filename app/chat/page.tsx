@@ -3,7 +3,7 @@
 
 import Link from '@/components/link/Link';
 import MessageBoxChat from '@/components/MessageBoxChat';
-import { ChatBody, MistralModel } from '@/types/types';
+import { ChatBody, MistralModel, Message as MessageType } from '@/types/types';
 import {
   Accordion,
   AccordionButton,
@@ -20,21 +20,100 @@ import {
   Text,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { useEffect, useState } from 'react';
-import { MdAutoAwesome, MdBolt, MdEdit, MdPerson } from 'react-icons/md';
+import { useEffect, useState, useRef } from 'react';
+import { MdAutoAwesome, MdBolt, MdEdit, MdPerson, MdPsychology } from 'react-icons/md';
 import Bg from '../../public/img/chat/bg-image.png';
+import { useSearchParams, useRouter } from 'next/navigation';
+
+// Using MessageType from types.ts
 
 export default function Chat() {
   // *** If you use .env.local variable for your API key, method which we recommend, use the apiKey variable commented below
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const conversationId = searchParams?.get('conversationId') || null;
+
   // Input States
-  const [inputOnSubmit, setInputOnSubmit] = useState<string>('');
   const [inputCode, setInputCode] = useState<string>('');
-  // Response message
-  const [outputCode, setOutputCode] = useState<string>('');
+  // Conversation history
+  const [messages, setMessages] = useState<MessageType[]>([]);
+  // Current streaming response
+  const [streamingMessage, setStreamingMessage] = useState<string>('');
   // ChatGPT model
   const [model, setModel] = useState<MistralModel>('mistral-small-latest');
   // Loading state
   const [loading, setLoading] = useState<boolean>(false);
+  // Current conversation ID
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationId);
+  
+  // Ref for auto-scrolling
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, streamingMessage]);
+
+  // Load conversation when conversationId changes
+  useEffect(() => {
+    if (conversationId) {
+      loadConversation(conversationId);
+      setCurrentConversationId(conversationId);
+    }
+  }, [conversationId]);
+
+  // Load conversation from database
+  const loadConversation = async (convId: string) => {
+    try {
+      const response = await fetch(`/api/chat/messages?conversationId=${convId}`);
+      if (response.ok) {
+        const messagesData = await response.json();
+        const formattedMessages = messagesData.map((msg: any) => ({
+          role: msg.role,
+          content: msg.content,
+        }));
+        setMessages(formattedMessages);
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+    }
+  };
+
+  // Create new conversation
+  const createNewConversation = async (firstMessage: string) => {
+    try {
+      const title = firstMessage.slice(0, 50) + (firstMessage.length > 50 ? '...' : '');
+      const response = await fetch('/api/chat/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, model }),
+      });
+
+      if (response.ok) {
+        const conversation = await response.json();
+        setCurrentConversationId(conversation.id);
+        // Update URL without reloading
+        window.history.pushState({}, '', `/chat?conversationId=${conversation.id}`);
+        return conversation.id;
+      }
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+    }
+    return null;
+  };
+
+  // Save message to database
+  const saveMessage = async (convId: string, role: string, content: string) => {
+    try {
+      await fetch('/api/chat/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: convId, role, content }),
+      });
+    } catch (error) {
+      console.error('Error saving message:', error);
+    }
+  };
 
   // API Key
   // const [apiKey, setApiKey] = useState<string>(apiKeyApp);
@@ -59,7 +138,7 @@ export default function Chat() {
   );
   const handleTranslate = async () => {
     let apiKey = localStorage.getItem('apiKey');
-    setInputOnSubmit(inputCode);
+    const currentInput = inputCode.trim();
 
     // Chat post conditions(maximum number of characters, valid message etc.)
     const maxCodeLength = 4000;
@@ -69,22 +148,42 @@ export default function Chat() {
       return;
     }
 
-    if (!inputCode) {
-      alert('Please enter your subject.');
+    if (!currentInput) {
+      alert('Please enter your message.');
       return;
     }
 
-    if (inputCode.length > maxCodeLength) {
+    if (currentInput.length > maxCodeLength) {
       alert(
-      `Please enter a prompt shorter than ${maxCodeLength} characters. You are currently at ${inputCode.length} characters.`,
+      `Please enter a prompt shorter than ${maxCodeLength} characters. You are currently at ${currentInput.length} characters.`,
       );
       return;
     }
-    setOutputCode(' ');
+
+    // Create new conversation if not exists
+    let convId = currentConversationId;
+    if (!convId) {
+      convId = await createNewConversation(currentInput);
+      if (!convId) {
+        alert('Failed to create conversation');
+        return;
+      }
+    }
+
+    // Add user message to history
+    const userMessage: MessageType = { role: 'user', content: currentInput };
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    setInputCode('');
+    setStreamingMessage('');
     setLoading(true);
+
+    // Save user message to database
+    await saveMessage(convId, 'user', currentInput);
+
     const controller = new AbortController();
     const body: ChatBody = {
-      inputCode,
+      messages: updatedMessages, // Send full conversation history
       model,
       // *** Initializing apiKey with .env.local/ .env value :
       // just remove the `apiKey` variable below
@@ -92,46 +191,59 @@ export default function Chat() {
     };
 
     // -------------- Fetch --------------
-    const response = await fetch('../api/chatAPI', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      signal: controller.signal,
-      body: JSON.stringify(body),
-    });
+    try {
+      const response = await fetch('../api/chatAPI', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify(body),
+      });
 
-    if (!response.ok) {
-      setLoading(false);
-      if (response) {
+      if (!response.ok) {
+        setLoading(false);
         alert(
-          'Something went wrong went fetching from the API. Make sure to use a valid API key.',
+          'Something went wrong when fetching from the API. Make sure to use a valid API key.',
         );
+        return;
       }
-      return;
-    }
 
-    const data = response.body;
+      const data = response.body;
 
-    if (!data) {
+      if (!data) {
+        setLoading(false);
+        alert('Something went wrong');
+        return;
+      }
+
+      const reader = data.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let accumulatedResponse = '';
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value);
+        accumulatedResponse += chunkValue;
+        setStreamingMessage(accumulatedResponse);
+      }
+
+      // Add assistant message to history
+      const assistantMessage: MessageType = { role: 'assistant', content: accumulatedResponse };
+      setMessages((prev) => [...prev, assistantMessage]);
+      setStreamingMessage('');
       setLoading(false);
-      alert('Something went wrong');
-      return;
+
+      // Save assistant message to database
+      if (convId) {
+        await saveMessage(convId, 'assistant', accumulatedResponse);
+      }
+    } catch (error) {
+      setLoading(false);
+      alert('An error occurred. Please try again.');
     }
-
-    const reader = data.getReader();
-    const decoder = new TextDecoder();
-    let done = false;
-
-    while (!done) {
-      setLoading(true);
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      const chunkValue = decoder.decode(value);
-      setOutputCode((prevCode) => prevCode + chunkValue);
-    }
-
-    setLoading(false);
   };
   // -------------- Copy Response --------------
   // const copyToClipboard = (text: string) => {
@@ -145,6 +257,21 @@ export default function Chat() {
 
   const handleChange = (Event: any) => {
     setInputCode(Event.target.value);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleTranslate();
+    }
+  };
+
+  // Start new conversation (called when plus button is clicked)
+  const startNewConversation = () => {
+    setMessages([]);
+    setStreamingMessage('');
+    setCurrentConversationId(null);
+    router.push('/chat');
   };
 
   return (
@@ -161,6 +288,7 @@ export default function Chat() {
         left="50%"
         top="50%"
         transform={'translate(-50%, -50%)'}
+        opacity={messages.length === 0 ? 1 : 0.3}
       />
       <Flex
         direction="column"
@@ -170,13 +298,15 @@ export default function Chat() {
         maxW="1000px"
       >
         {/* Model Change */}
-        <Flex direction={'column'} w="100%" mb={outputCode ? '20px' : 'auto'}>
+        <Flex direction={'column'} w="100%" mb={messages.length > 0 ? '20px' : 'auto'}>
           <Flex
             mx="auto"
             zIndex="2"
             w="max-content"
             mb="20px"
             borderRadius="60px"
+            flexWrap="wrap"
+            gap="10px"
           >
             <Flex
               cursor={'pointer'}
@@ -244,111 +374,182 @@ export default function Chat() {
               </Flex>
               Mistral Large
             </Flex>
+            <Flex
+              cursor={'pointer'}
+              transition="0.3s"
+              justify={'center'}
+              align="center"
+              bg={model === 'magistral-small-latest' ? buttonBg : 'transparent'}
+              w="200px"
+              h="70px"
+              boxShadow={model === 'magistral-small-latest' ? buttonShadow : 'none'}
+              borderRadius="14px"
+              color={textColor}
+              fontSize="18px"
+              fontWeight={'700'}
+              onClick={() => setModel('magistral-small-latest')}
+            >
+              <Flex
+                borderRadius="full"
+                justify="center"
+                align="center"
+                bg={bgIcon}
+                me="10px"
+                h="39px"
+                w="39px"
+              >
+                <Icon
+                  as={MdPsychology}
+                  width="20px"
+                  height="20px"
+                  color={iconColor}
+                />
+              </Flex>
+              Magistral Small
+            </Flex>
+            <Flex
+              cursor={'pointer'}
+              transition="0.3s"
+              justify={'center'}
+              align="center"
+              bg={model === 'magistral-medium-latest' ? buttonBg : 'transparent'}
+              w="220px"
+              h="70px"
+              boxShadow={model === 'magistral-medium-latest' ? buttonShadow : 'none'}
+              borderRadius="14px"
+              color={textColor}
+              fontSize="18px"
+              fontWeight={'700'}
+              onClick={() => setModel('magistral-medium-latest')}
+            >
+              <Flex
+                borderRadius="full"
+                justify="center"
+                align="center"
+                bg={bgIcon}
+                me="10px"
+                h="39px"
+                w="39px"
+              >
+                <Icon
+                  as={MdPsychology}
+                  width="20px"
+                  height="20px"
+                  color={iconColor}
+                />
+              </Flex>
+              Magistral Medium
+            </Flex>
           </Flex>
 
-          <Accordion color={gray} allowToggle w="100%" my="0px" mx="auto">
-            <AccordionItem border="none">
-              <AccordionButton
-                borderBottom="0px solid"
-                maxW="max-content"
-                mx="auto"
-                _hover={{ border: '0px solid', bg: 'none' }}
-                _focus={{ border: '0px solid', bg: 'none' }}
-              >
-                <Box flex="1" textAlign="left">
-                  <Text color={gray} fontWeight="500" fontSize="sm">
-                    No plugins added
-                  </Text>
-                </Box>
-                <AccordionIcon color={gray} />
-              </AccordionButton>
-              <AccordionPanel mx="auto" w="max-content" p="0px 0px 10px 0px">
-                <Text
-                  color={gray}
-                  fontWeight="500"
-                  fontSize="sm"
-                  textAlign={'center'}
-                >
-                  This is a cool text example.
-                </Text>
-              </AccordionPanel>
-            </AccordionItem>
-          </Accordion>
         </Flex>
-        {/* Main Box */}
+        {/* Conversation History */}
         <Flex
           direction="column"
           w="100%"
           mx="auto"
-          display={outputCode ? 'flex' : 'none'}
           mb={'auto'}
+          overflowY="auto"
+          maxH="calc(100vh - 350px)"
         >
-          <Flex w="100%" align={'center'} mb="10px">
+          {messages.map((message, index) => (
             <Flex
-              borderRadius="full"
-              justify="center"
-              align="center"
-              bg={'transparent'}
-              border="1px solid"
-              borderColor={borderColor}
-              me="20px"
-              h="40px"
-              minH="40px"
-              minW="40px"
-            >
-              <Icon
-                as={MdPerson}
-                width="20px"
-                height="20px"
-                color={brandColor}
-              />
-            </Flex>
-            <Flex
-              p="22px"
-              border="1px solid"
-              borderColor={borderColor}
-              borderRadius="14px"
+              key={index}
               w="100%"
-              zIndex={'2'}
+              mb="20px"
+              direction="column"
             >
-              <Text
-                color={textColor}
-                fontWeight="600"
-                fontSize={{ base: 'sm', md: 'md' }}
-                lineHeight={{ base: '24px', md: '26px' }}
+              {message.role === 'user' ? (
+                <Flex w="100%" align={'center'}>
+                  <Flex
+                    borderRadius="full"
+                    justify="center"
+                    align="center"
+                    bg={'transparent'}
+                    border="1px solid"
+                    borderColor={borderColor}
+                    me="20px"
+                    h="40px"
+                    minH="40px"
+                    minW="40px"
+                  >
+                    <Icon
+                      as={MdPerson}
+                      width="20px"
+                      height="20px"
+                      color={brandColor}
+                    />
+                  </Flex>
+                  <Flex
+                    p="22px"
+                    border="1px solid"
+                    borderColor={borderColor}
+                    borderRadius="14px"
+                    w="100%"
+                    zIndex={'2'}
+                  >
+                    <Text
+                      color={textColor}
+                      fontWeight="600"
+                      fontSize={{ base: 'sm', md: 'md' }}
+                      lineHeight={{ base: '24px', md: '26px' }}
+                    >
+                      {message.content}
+                    </Text>
+                  </Flex>
+                </Flex>
+              ) : (
+                <Flex w="100%" align="flex-start">
+                  <Flex
+                    borderRadius="full"
+                    justify="center"
+                    align="center"
+                    bg={'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)'}
+                    me="20px"
+                    h="40px"
+                    minH="40px"
+                    minW="40px"
+                  >
+                    <Icon
+                      as={MdAutoAwesome}
+                      width="20px"
+                      height="20px"
+                      color="white"
+                    />
+                  </Flex>
+                  <Box w="100%">
+                    <MessageBoxChat output={message.content} />
+                  </Box>
+                </Flex>
+              )}
+            </Flex>
+          ))}
+          {/* Streaming Message */}
+          {streamingMessage && (
+            <Flex w="100%" align="flex-start">
+              <Flex
+                borderRadius="full"
+                justify="center"
+                align="center"
+                bg={'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)'}
+                me="20px"
+                h="40px"
+                minH="40px"
+                minW="40px"
               >
-                {inputOnSubmit}
-              </Text>
-              <Icon
-                cursor="pointer"
-                as={MdEdit}
-                ms="auto"
-                width="20px"
-                height="20px"
-                color={gray}
-              />
+                <Icon
+                  as={MdAutoAwesome}
+                  width="20px"
+                  height="20px"
+                  color="white"
+                />
+              </Flex>
+              <Box w="100%">
+                <MessageBoxChat output={streamingMessage} />
+              </Box>
             </Flex>
-          </Flex>
-          <Flex w="100%">
-            <Flex
-              borderRadius="full"
-              justify="center"
-              align="center"
-              bg={'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)'}
-              me="20px"
-              h="40px"
-              minH="40px"
-              minW="40px"
-            >
-              <Icon
-                as={MdAutoAwesome}
-                width="20px"
-                height="20px"
-                color="white"
-              />
-            </Flex>
-            <MessageBoxChat output={outputCode} />
-          </Flex>
+          )}
+          <div ref={messagesEndRef} />
         </Flex>
         {/* Chat Input */}
         <Flex
@@ -370,7 +571,9 @@ export default function Chat() {
             color={inputColor}
             _placeholder={placeholderColor}
             placeholder="Type your message here..."
+            value={inputCode}
             onChange={handleChange}
+            onKeyPress={handleKeyPress}
           />
           <Button
             variant="primary"

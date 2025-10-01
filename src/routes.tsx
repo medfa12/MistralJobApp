@@ -14,18 +14,18 @@ import { IRoute } from './types/navigation';
 
 const routes: IRoute[] = [
   {
-    name: 'My Projects',
-    path: '/my-projects',
-    icon: <Icon as={MdLayers} width="20px" height="20px" color="inherit" />,
-    collapse: false,
-    rightElement: true,
-  },
-  {
     name: 'Chat UI',
     path: '/chat',
     icon: (
       <Icon as={MdAutoAwesome} width="20px" height="20px" color="inherit" />
     ),
+    collapse: false,
+    rightElement: true, // Plus button for new conversation
+  },
+  {
+    name: 'My Projects',
+    path: '/my-projects',
+    icon: <Icon as={MdLayers} width="20px" height="20px" color="inherit" />,
     collapse: false,
   },
   // --- Admin Pages ---
@@ -34,6 +34,7 @@ const routes: IRoute[] = [
     path: '/admin',
     icon: <Icon as={MdLock} width="20px" height="20px" color="inherit" />,
     collapse: true,
+    adminOnly: true, // Flag for admin-only routes
     items: [
       {
         name: 'Users Overview',
@@ -67,7 +68,7 @@ const routes: IRoute[] = [
     name: 'Usage',
     path: '/usage',
     icon: <Icon as={RoundedChart} width="20px" height="20px" color="inherit" />,
-    invisible: true,
+    invisible: true, // Hidden from sidebar, only accessible via menu
     collapse: false,
   },
   {

@@ -7,7 +7,7 @@ export const config = {
 
 const handler = async (req: Request): Promise<Response> => {
   try {
-    const { inputCode, model, apiKey } = (await req.json()) as ChatBody;
+    const { inputCode, messages, model, apiKey } = (await req.json()) as ChatBody;
 
     let apiKeyFinal;
     if (apiKey) {
@@ -16,7 +16,9 @@ const handler = async (req: Request): Promise<Response> => {
       apiKeyFinal = process.env.MISTRAL_API_KEY;
     }
 
-    const stream = await MistralStream(inputCode, model, apiKeyFinal);
+    // Use messages array if provided, otherwise fall back to inputCode (legacy)
+    const messagesOrInput = messages || inputCode;
+    const stream = await MistralStream(messagesOrInput, model, apiKeyFinal);
 
     return new Response(stream);
   } catch (error) {

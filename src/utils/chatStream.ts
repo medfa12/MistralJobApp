@@ -5,16 +5,34 @@ import {
   ReconnectInterval,
    //@ts-ignore
 } from 'eventsource-parser';
+import { Message } from '@/types/types';
 
 const systemPrompt = endent`
   You are Mistral AI, a large language model developed by Mistral. You respond in clear markdown (never rendered), include rich formatting when helpful, avoid mentioning console logs or print statements, and keep a formal yet friendly tone.
 `;
 
 export const MistralStream = async (
-  inputCode: string,
+  messages: Message[] | string,
   model: string,
   key: string | undefined,
 ) => {
+  // Handle both new (messages array) and old (single string) format
+  let apiMessages: Message[];
+  
+  if (typeof messages === 'string') {
+    // Legacy format: single message
+    apiMessages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: messages },
+    ];
+  } else {
+    // New format: full conversation history
+    apiMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages,
+    ];
+  }
+
   const res = await fetch(`https://api.mistral.ai/v1/chat/completions`, {
     headers: {
       'Content-Type': 'application/json',
@@ -23,10 +41,7 @@ export const MistralStream = async (
     method: 'POST',
     body: JSON.stringify({
       model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: inputCode },
-      ],
+      messages: apiMessages,
       temperature: 0,
       stream: true,
     }),
@@ -58,9 +73,35 @@ export const MistralStream = async (
 
           try {
             const json = JSON.parse(data);
-            const text = json.choices?.[0]?.delta?.content;
-            const queue = encoder.encode(text);
-            controller.enqueue(queue);
+            const delta = json.choices?.[0]?.delta;
+            
+            // Handle reasoning models (magistral) with content arrays
+            if (delta?.content && Array.isArray(delta.content)) {
+              for (const contentBlock of delta.content) {
+                if (contentBlock.type === 'thinking' && contentBlock.thinking) {
+                  // Extract thinking content
+                  const thinkingText = contentBlock.thinking
+                    .map((t: any) => t.text)
+                    .join('');
+                  if (thinkingText) {
+                    const thinkingFormatted = `<think>\n${thinkingText}\n</think>\n`;
+                    const queue = encoder.encode(thinkingFormatted);
+                    controller.enqueue(queue);
+                  }
+                } else if (contentBlock.type === 'text' && contentBlock.text) {
+                  // Extract regular text content
+                  const queue = encoder.encode(contentBlock.text);
+                  controller.enqueue(queue);
+                }
+              }
+            } else {
+              // Handle regular models with simple string content
+              const text = delta?.content;
+              if (text) {
+                const queue = encoder.encode(text);
+                controller.enqueue(queue);
+              }
+            }
           } catch (e) {
             controller.error(e);
           }
