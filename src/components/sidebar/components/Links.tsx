@@ -21,8 +21,9 @@ import { FaCircle } from 'react-icons/fa';
 import { IoMdAdd } from 'react-icons/io';
 import NavLink from '@/components/link/NavLink';
 import { IRoute } from '@/types/navigation';
-import { PropsWithChildren, useCallback } from 'react';
+import { PropsWithChildren, useCallback, useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { MdMessage } from 'react-icons/md';
 
 interface SidebarLinksProps extends PropsWithChildren {
   routes: IRoute[];
@@ -38,6 +39,32 @@ export function SidebarLinks(props: SidebarLinksProps) {
   let iconColor = useColorModeValue('navy.700', 'white');
 
   const { routes } = props;
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch chat conversations
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/chat/conversations');
+        if (response.ok) {
+          const data = await response.json();
+          setConversations(data);
+        }
+      } catch (error) {
+        console.error('Error fetching conversations:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchConversations();
+    
+    // Refresh conversations every 30 seconds
+    const interval = setInterval(fetchConversations, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // verifies if routeName is the one active (in browser input)
   const activeRoute = useCallback(
@@ -217,6 +244,13 @@ export function SidebarLinks(props: SidebarLinksProps) {
                           color={iconColor}
                           ms="auto"
                           me="10px"
+                          cursor="pointer"
+                          _hover={{ bg: 'gray.50', _dark: { bg: 'whiteAlpha.100' } }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.location.href = '/chat';
+                          }}
                         >
                           <Icon
                             as={IoMdAdd}
@@ -288,8 +322,70 @@ export function SidebarLinks(props: SidebarLinksProps) {
       );
     });
   };
+
+  // Render chat history
+  const renderChatHistory = () => {
+    return (
+      <Box mt="20px" mb="10px" pt="20px" borderTop="1px solid" borderColor={borderColor}>
+        <Text
+          color={inactiveColor}
+          fontWeight="600"
+          fontSize="xs"
+          ps="20px"
+          mb="10px"
+          textTransform="uppercase"
+        >
+          Recent Chats
+        </Text>
+        {loading ? (
+          <Text color={inactiveColor} fontSize="sm" ps="20px" mb="10px">
+            Loading...
+          </Text>
+        ) : conversations.length === 0 ? (
+          <Text color={inactiveColor} fontSize="sm" ps="20px" mb="10px">
+            No conversations yet
+          </Text>
+        ) : (
+          conversations.map((conversation) => (
+            <NavLink
+              key={conversation.id}
+              href={`/chat?conversationId=${conversation.id}`}
+            >
+              <Flex
+                align="center"
+                ps="17px"
+                mb="10px"
+                _hover={{ bg: 'gray.50', _dark: { bg: 'whiteAlpha.100' } }}
+                borderRadius="8px"
+                py="8px"
+              >
+                <Box color={inactiveColor} me="12px">
+                  <Icon as={MdMessage} width="16px" height="16px" />
+                </Box>
+                <Text
+                  color={inactiveColor}
+                  fontWeight="500"
+                  fontSize="sm"
+                  noOfLines={1}
+                  maxW="180px"
+                >
+                  {conversation.title}
+                </Text>
+              </Flex>
+            </NavLink>
+          ))
+        )}
+      </Box>
+    );
+  };
+
   //  BRAND
-  return <>{createLinks(routes)}</>;
+  return (
+    <>
+      {createLinks(routes)}
+      {renderChatHistory()}
+    </>
+  );
 }
 
 export default SidebarLinks;

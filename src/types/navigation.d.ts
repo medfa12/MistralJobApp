@@ -12,4 +12,5 @@ export interface IRoute {
   items?: IRoute[];
   rightElement?: boolean;
   invisible?: boolean;
+  adminOnly?: boolean; // Flag for admin-only routes
 }

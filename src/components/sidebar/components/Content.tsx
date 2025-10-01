@@ -23,6 +23,7 @@ import Links from '@/components/sidebar/components/Links';
 import SidebarCard from '@/components/sidebar/components/SidebarCard';
 import { RoundedChart } from '@/components/icons/Icons';
 import { PropsWithChildren } from 'react';
+import React from 'react';
 import { IRoute } from '@/types/navigation';
 import { IoMdPerson } from 'react-icons/io';
 import { FiLogOut } from 'react-icons/fi';
@@ -41,7 +42,8 @@ interface SidebarContent extends PropsWithChildren {
 
 function SidebarContent(props: SidebarContent) {
   const { routes, setApiKey } = props;
-  const { fullName, avatar, loading } = useUserData();
+  const { fullName, avatar, loading, role } = useUserData();
+  const [hasApiKey, setHasApiKey] = React.useState(false);
   
   const textColor = useColorModeValue('navy.700', 'white');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
@@ -56,6 +58,20 @@ function SidebarContent(props: SidebarContent) {
     'none',
   );
   const gray = useColorModeValue('gray.500', 'white');
+
+  // Check if API key exists
+  React.useEffect(() => {
+    const apiKey = localStorage.getItem('apiKey');
+    setHasApiKey(!!apiKey);
+  }, []);
+
+  // Filter routes based on user role
+  const filteredRoutes = routes.filter(route => {
+    if (route.adminOnly && role !== 'admin') {
+      return false;
+    }
+    return true;
+  });
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/auth/login' });
@@ -74,14 +90,14 @@ function SidebarContent(props: SidebarContent) {
       <Brand />
       <Stack direction="column" mb="auto" mt="8px">
         <Box ps="0px" pe={{ md: '0px', '2xl': '0px' }}>
-          <Links routes={routes} />
+          <Links routes={filteredRoutes} />
         </Box>
       </Stack>
 
       <Box mt="60px" width={'100%'} display={'flex'} justifyContent={'center'}>
         <SidebarCard />
       </Box>
-      <APIModal setApiKey={setApiKey} sidebar={true} />
+      {!hasApiKey && <APIModal setApiKey={setApiKey} sidebar={true} />}
       <Flex
         mt="8px"
         justifyContent="center"
