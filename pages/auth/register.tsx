@@ -21,8 +21,11 @@ import DefaultAuth from '@/components/auth';
 import React from 'react';
 import { MdOutlineRemoveRedEye } from 'react-icons/md';
 import { RiEyeCloseLine } from 'react-icons/ri';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
 import { signIn } from 'next-auth/react';
+import { GetServerSidePropsContext } from 'next';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 function SignUp() {
   const router = useRouter();
@@ -39,7 +42,8 @@ function SignUp() {
     { color: 'whiteAlpha.600', fontWeight: '500' },
   );
   const [show, setShow] = React.useState(false);
-  const [name, setName] = React.useState('');
+  const [firstName, setFirstName] = React.useState('');
+  const [lastName, setLastName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
@@ -50,10 +54,10 @@ function SignUp() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword) {
       toast({
         title: 'Error',
-        description: 'Please fill in all fields',
+        description: 'Please fill in required fields',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -91,7 +95,12 @@ function SignUp() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ 
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+          email, 
+          password 
+        }),
       });
 
       const data = await response.json();
@@ -123,7 +132,7 @@ function SignUp() {
       });
 
       if (result?.ok) {
-        router.push('/all-templates');
+        router.push('/my-projects');
       }
     } catch (error) {
       toast({
@@ -184,7 +193,7 @@ function SignUp() {
           <FormControl as="form" onSubmit={handleRegister}>
             <FormLabel
               cursor="pointer"
-              htmlFor="name"
+              htmlFor="firstName"
               display="flex"
               ms="4px"
               fontSize="sm"
@@ -192,23 +201,49 @@ function SignUp() {
               color={textColor}
               mb="8px"
             >
-              Name<Text color={brandStars}>*</Text>
+              First Name
             </FormLabel>
             <Input
-              isRequired={true}
               variant="auth"
-              id="name"
+              id="firstName"
               fontSize="sm"
               type="text"
-              placeholder="Enter your name"
+              placeholder="Enter your first name"
               mb="24px"
               size="lg"
               borderColor={borderColor}
               h="54px"
-              _placeholder={{ placeholderColor }}
+              _placeholder={placeholderColor}
               fontWeight="500"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
+            <FormLabel
+              cursor="pointer"
+              htmlFor="lastName"
+              display="flex"
+              ms="4px"
+              fontSize="sm"
+              fontWeight="500"
+              color={textColor}
+              mb="8px"
+            >
+              Last Name
+            </FormLabel>
+            <Input
+              variant="auth"
+              id="lastName"
+              fontSize="sm"
+              type="text"
+              placeholder="Enter your last name"
+              mb="24px"
+              size="lg"
+              borderColor={borderColor}
+              h="54px"
+              _placeholder={placeholderColor}
+              fontWeight="500"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
             />
             <FormLabel
               cursor="pointer"
@@ -232,7 +267,7 @@ function SignUp() {
               placeholder="Enter your email address"
               mb="24px"
               size="lg"
-              _placeholder={{ placeholderColor }}
+              _placeholder={placeholderColor}
               h="54px"
               fontWeight="500"
               value={email}
@@ -262,7 +297,7 @@ function SignUp() {
                 h="54px"
                 borderColor={borderColor}
                 fontWeight="500"
-                _placeholder={{ placeholderColor }}
+                _placeholder={placeholderColor}
                 type={show ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -301,7 +336,7 @@ function SignUp() {
                 borderColor={borderColor}
                 h="54px"
                 fontWeight="500"
-                _placeholder={{ placeholderColor }}
+                _placeholder={placeholderColor}
                 type={show ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -354,4 +389,18 @@ function SignUp() {
   );
 }
 
+export async function getServerSideProps(context: GetServerSidePropsContext) {
+  const session = await getServerSession(context.req, context.res, authOptions);
+
+  // If the user is already logged in, redirect.
+  if (session) {
+    return { redirect: { destination: '/my-projects' } };
+  }
+
+  return {
+    props: {},
+  };
+}
+
 export default SignUp;
+

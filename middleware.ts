@@ -8,11 +8,12 @@ export default withAuth(
     const isAuth = !!token
     const isAuthPage =
       req.nextUrl.pathname.startsWith("/auth/login") ||
-      req.nextUrl.pathname.startsWith("/auth/signin")
+      req.nextUrl.pathname.startsWith("/auth/signin") ||
+      req.nextUrl.pathname.startsWith("/auth/register")
 
     if (isAuthPage) {
       if (isAuth) {
-        return NextResponse.redirect(new URL("/all-templates", req.url))
+        return NextResponse.redirect(new URL("/my-projects", req.url))
       }
 
       return null
@@ -42,5 +43,15 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ["/all-templates", "/editor/:path*", "/login", "/register"],
+  matcher: [
+    "/",
+    "/my-projects",
+    "/my-plan",
+    "/usage",
+    "/history",
+    "/settings",
+    "/chat",
+    "/admin/:path*",
+    "/editor/:path*"
+  ],
 }
