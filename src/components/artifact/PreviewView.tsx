@@ -351,84 +351,113 @@ export const PreviewView: FC<Props> = ({ artifact }) => {
         )}
 
         {/* Hover Highlight */}
-        <AnimatePresence>
-          {inspectMode && highlightBox && !selectedElement && (
-            <MotionBox
-              key="hover-highlight"
-              position="absolute"
-              top={`${highlightBox.top}px`}
-              left={`${highlightBox.left}px`}
-              width={`${highlightBox.width}px`}
-              height={`${highlightBox.height}px`}
-              border="2px solid"
-              borderColor={hoverBorderColor}
-              pointerEvents="none"
-              zIndex={10}
-              variants={hoverHighlightVariants}
-              initial="initial"
-              animate="animate"
-              exit="initial"
-              boxShadow={`0 0 0 4px ${hoverBorderColor}40, 0 0 20px ${hoverBorderColor}20`}
-              borderRadius="4px"
-            />
-          )}
-        </AnimatePresence>
+        {inspectMode && highlightBox && !selectedElement && (
+          <motion.div
+            style={{
+              position: 'absolute',
+              border: `2px solid ${hoverBorderColor}`,
+              borderRadius: '4px',
+              pointerEvents: 'none',
+              zIndex: 10,
+              boxShadow: `0 0 0 4px rgba(66, 153, 225, 0.25), 0 0 20px rgba(66, 153, 225, 0.15)`,
+            }}
+            animate={{
+              top: highlightBox.top,
+              left: highlightBox.left,
+              width: highlightBox.width,
+              height: highlightBox.height,
+              opacity: 1,
+            }}
+            initial={{
+              top: highlightBox.top,
+              left: highlightBox.left,
+              width: highlightBox.width,
+              height: highlightBox.height,
+              opacity: 0,
+            }}
+            transition={{
+              type: 'spring',
+              stiffness: 500,
+              damping: 35,
+              mass: 0.5,
+            }}
+          />
+        )}
 
         {/* Selected Element Highlight */}
         <AnimatePresence>
           {inspectMode && highlightBox && selectedElement && (
-            <MotionBox
+            <motion.div
               key="selected-highlight"
-              position="absolute"
-              top={`${highlightBox.top}px`}
-              left={`${highlightBox.left}px`}
-              width={`${highlightBox.width}px`}
-              height={`${highlightBox.height}px`}
-              border="3px solid"
-              borderColor={borderColor}
-              pointerEvents="none"
-              zIndex={10}
-              variants={selectedHighlightVariants}
-              initial="initial"
-              animate="animate"
-              borderRadius="4px"
               style={{
-                background: `linear-gradient(135deg, ${borderColor}10, ${borderColor}05)`
+                position: 'absolute',
+                border: `3px solid ${borderColor}`,
+                borderRadius: '4px',
+                pointerEvents: 'none',
+                zIndex: 10,
+                background: `linear-gradient(135deg, rgba(255, 130, 5, 0.1), rgba(255, 130, 5, 0.05))`,
               }}
+              animate={{
+                top: highlightBox.top,
+                left: highlightBox.left,
+                width: highlightBox.width,
+                height: highlightBox.height,
+              }}
+              initial={{
+                top: highlightBox.top,
+                left: highlightBox.left,
+                width: highlightBox.width,
+                height: highlightBox.height,
+                opacity: 0,
+                scale: 0.9,
+              }}
+              transition={{
+                type: 'spring',
+                stiffness: 400,
+                damping: 30,
+              }}
+              variants={selectedHighlightVariants}
             />
           )}
         </AnimatePresence>
 
         {/* Hover Tooltip */}
-        <AnimatePresence>
-          {inspectMode && hoveredElement && !selectedElement && highlightBox && (
-            <MotionBox
-              key="hover-tooltip"
-              position="absolute"
-              top={`${Math.max(highlightBox.top - 35, 5)}px`}
-              left={`${highlightBox.left}px`}
-              bg="blue.500"
-              color="white"
-              px={3}
-              py={1.5}
-              borderRadius="md"
-              fontSize="xs"
-              fontWeight="bold"
-              pointerEvents="none"
-              zIndex={11}
-              variants={tooltipVariants}
-              initial="initial"
-              animate="animate"
-              exit="initial"
-              whiteSpace="nowrap"
-              boxShadow="0 4px 12px rgba(0, 0, 0, 0.15)"
-            >
-              {hoveredElement.tagName}
-              {hoveredElement.id && `#${hoveredElement.id}`}
-              {hoveredElement.className && `.${hoveredElement.className.split(' ')[0]}`}
-            </MotionBox>
-          )}
-        </AnimatePresence>
+        {inspectMode && hoveredElement && !selectedElement && highlightBox && (
+          <motion.div
+            style={{
+              position: 'absolute',
+              background: '#3182ce',
+              color: 'white',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              pointerEvents: 'none',
+              zIndex: 11,
+              whiteSpace: 'nowrap',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            }}
+            animate={{
+              top: Math.max(highlightBox.top - 35, 5),
+              left: highlightBox.left,
+              opacity: 1,
+              scale: 1,
+            }}
+            initial={{
+              opacity: 0,
+              scale: 0.9,
+            }}
+            transition={{
+              type: 'spring',
+              stiffness: 500,
+              damping: 30,
+            }}
+          >
+            {hoveredElement.tagName}
+            {hoveredElement.id && `#${hoveredElement.id}`}
+            {hoveredElement.className && `.${hoveredElement.className.split(' ')[0]}`}
+          </motion.div>
+        )}
       </Box>
 
       {/* Inspector Panel */}
@@ -437,19 +466,23 @@ export const PreviewView: FC<Props> = ({ artifact }) => {
       {/* Clear Selection Button */}
       <AnimatePresence>
         {inspectMode && selectedElement && (
-          <MotionBox
+          <motion.button
             key="clear-button"
-            position="absolute"
-            bottom={4}
-            left="50%"
-            bg="gray.800"
-            color="white"
-            px={4}
-            py={2}
-            borderRadius="md"
-            fontSize="sm"
-            zIndex={10}
-            cursor="pointer"
+            style={{
+              position: 'absolute',
+              bottom: '16px',
+              left: '50%',
+              background: '#2D3748',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              border: 'none',
+              cursor: 'pointer',
+              zIndex: 10,
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+              fontWeight: '500',
+            }}
             onClick={() => {
               setSelectedElement(null);
               setHighlightBox(null);
@@ -457,14 +490,11 @@ export const PreviewView: FC<Props> = ({ artifact }) => {
             initial={{ opacity: 0, y: 20, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: 20, x: '-50%' }}
-            // @ts-ignore - framer-motion transition
-            transition={{ duration: 0.2 }}
-            whileHover={{ scale: 1.05, bg: 'gray.700' }}
+            whileHover={{ scale: 1.05, background: '#4A5568' }}
             whileTap={{ scale: 0.95 }}
-            boxShadow="0 4px 12px rgba(0, 0, 0, 0.3)"
           >
             ✕ Clear Selection
-          </MotionBox>
+          </motion.button>
         )}
       </AnimatePresence>
     </Box>
