@@ -4,8 +4,7 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        {/* eslint-disable */}
-        <title>Mistral AI Demo</title>
+        {/* Meta tags and links only - title should be in individual pages */}
       </Head>
       <body suppressHydrationWarning={true}>
         <Main />

@@ -6,38 +6,27 @@ import {
    //@ts-ignore
 } from 'eventsource-parser';
 
-const createPrompt = (inputCode: string) => {
-  const data = (inputCode: string) => {
-    return endent`
-      You are Mistral AI, a large language model trained by Mistral AI. You are very friendly and formal. The generated content must be in markdown format but not rendered, it must include all markdown characteristics.The title must be bold, and there should be a &nbsp between every paragraph.
-      Do not include informations about console logs or print messages.
-      ${inputCode}
-    `;
-  };
+const systemPrompt = endent`
+  You are Mistral AI, a large language model developed by Mistral. You respond in clear markdown (never rendered), include rich formatting when helpful, avoid mentioning console logs or print statements, and keep a formal yet friendly tone.
+`;
 
-  if (inputCode) {
-    return data(inputCode);
-  }
-};
-
-export const OpenAIStream = async (
+export const MistralStream = async (
   inputCode: string,
   model: string,
   key: string | undefined,
 ) => {
-  const prompt = createPrompt(inputCode);
-
-  const system = { role: 'system', content: prompt };
-
-  const res = await fetch(`https://api.openai.com/v1/chat/completions`, {
+  const res = await fetch(`https://api.mistral.ai/v1/chat/completions`, {
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${key || process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
+      Authorization: `Bearer ${key || process.env.MISTRAL_API_KEY || ''}`,
     },
     method: 'POST',
     body: JSON.stringify({
       model,
-      messages: [system],
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: inputCode },
+      ],
       temperature: 0,
       stream: true,
     }),
@@ -50,7 +39,7 @@ export const OpenAIStream = async (
     const statusText = res.statusText;
     const result = await res.body?.getReader().read();
     throw new Error(
-      `OpenAI API returned an error: ${
+      `Mistral API returned an error: ${
         decoder.decode(result?.value) || statusText
       }`,
     );
@@ -69,7 +58,7 @@ export const OpenAIStream = async (
 
           try {
             const json = JSON.parse(data);
-            const text = json.choices[0].delta.content;
+            const text = json.choices?.[0]?.delta?.content;
             const queue = encoder.encode(text);
             controller.enqueue(queue);
           } catch (e) {

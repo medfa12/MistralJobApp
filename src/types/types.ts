@@ -1,7 +1,10 @@
-export type OpenAIModel = 'gpt-3.5-turbo' | 'gpt-4';
+export type MistralModel =
+  | 'mistral-small-latest'
+  | 'mistral-medium-latest'
+  | 'mistral-large-latest';
 
 export interface ChatBody {
   inputCode: string;
-  model: OpenAIModel;
+  model: MistralModel;
   apiKey?: string | undefined | null;
 }

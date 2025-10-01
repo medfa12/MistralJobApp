@@ -1,8 +1,8 @@
 import { ChatBody } from '@/types/types';
-import { OpenAIStream } from '@/utils/chatStream';
+import { MistralStream } from '@/utils/chatStream';
 
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 };
 
 const handler = async (req: Request): Promise<Response> => {
@@ -13,10 +13,10 @@ const handler = async (req: Request): Promise<Response> => {
     if (apiKey) {
       apiKeyFinal = apiKey;
     } else {
-      apiKeyFinal = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+      apiKeyFinal = process.env.MISTRAL_API_KEY;
     }
 
-    const stream = await OpenAIStream(inputCode, model, apiKeyFinal);
+    const stream = await MistralStream(inputCode, model, apiKeyFinal);
 
     return new Response(stream);
   } catch (error) {
@@ -26,3 +26,4 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 export default handler;
+
