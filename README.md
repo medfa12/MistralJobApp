@@ -37,7 +37,7 @@ This demo application showcases the advanced capabilities of Mistral AI through 
 
 ### Requirements
 
-- **OpenAI API Key**: Required for AI functionality
+- **Mistral API Key**: Required for AI functionality
 - **Node.js LTS**: For development and production
 - **Modern Browser**: For best user experience
 
@@ -49,7 +49,8 @@ This demo application showcases the advanced capabilities of Mistral AI through 
 - **Database**: Prisma ORM
 - **Authentication**: NextAuth.js
 - **Payments**: Stripe
-- **AI Integration**: OpenAI API
+- **AI Integration**: Mistral Chat Completions API
+- **Local Key Storage**: Keys persisted in browser `localStorage`
 
 ### Getting Started
 
@@ -69,7 +70,7 @@ This demo application showcases the advanced capabilities of Mistral AI through 
    ```bash
    NEXTAUTH_URL=http://localhost:3000
    NEXTAUTH_SECRET=your-secret-key
-   NEXT_PUBLIC_OPENAI_API_KEY=your-openai-key
+   MISTRAL_API_KEY=your-mistral-key
 
    # Google OAuth
    GOOGLE_CLIENT_ID=your-google-client-id

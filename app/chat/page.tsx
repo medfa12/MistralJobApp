@@ -3,7 +3,7 @@
 
 import Link from '@/components/link/Link';
 import MessageBoxChat from '@/components/MessageBoxChat';
-import { ChatBody, OpenAIModel } from '@/types/types';
+import { ChatBody, MistralModel } from '@/types/types';
 import {
   Accordion,
   AccordionButton,
@@ -32,7 +32,7 @@ export default function Chat() {
   // Response message
   const [outputCode, setOutputCode] = useState<string>('');
   // ChatGPT model
-  const [model, setModel] = useState<OpenAIModel>('gpt-3.5-turbo');
+  const [model, setModel] = useState<MistralModel>('mistral-small-latest');
   // Loading state
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -62,10 +62,10 @@ export default function Chat() {
     setInputOnSubmit(inputCode);
 
     // Chat post conditions(maximum number of characters, valid message etc.)
-    const maxCodeLength = model === 'gpt-3.5-turbo' ? 700 : 700;
+    const maxCodeLength = 4000;
 
-    if (!apiKey?.includes('sk-')) {
-      alert('Please enter an API key.');
+    if (!apiKey) {
+      alert('Please enter a Mistral API key from https://console.mistral.ai/.');
       return;
     }
 
@@ -76,7 +76,7 @@ export default function Chat() {
 
     if (inputCode.length > maxCodeLength) {
       alert(
-        `Please enter code less than ${maxCodeLength} characters. You are currently at ${inputCode.length} characters.`,
+      `Please enter a prompt shorter than ${maxCodeLength} characters. You are currently at ${inputCode.length} characters.`,
       );
       return;
     }
@@ -183,15 +183,15 @@ export default function Chat() {
               transition="0.3s"
               justify={'center'}
               align="center"
-              bg={model === 'gpt-3.5-turbo' ? buttonBg : 'transparent'}
+              bg={model === 'mistral-small-latest' ? buttonBg : 'transparent'}
               w="174px"
               h="70px"
-              boxShadow={model === 'gpt-3.5-turbo' ? buttonShadow : 'none'}
+              boxShadow={model === 'mistral-small-latest' ? buttonShadow : 'none'}
               borderRadius="14px"
               color={textColor}
               fontSize="18px"
               fontWeight={'700'}
-              onClick={() => setModel('gpt-3.5-turbo')}
+              onClick={() => setModel('mistral-small-latest')}
             >
               <Flex
                 borderRadius="full"
@@ -209,22 +209,22 @@ export default function Chat() {
                   color={iconColor}
                 />
               </Flex>
-              GPT-3.5
+              Mistral Small
             </Flex>
             <Flex
               cursor={'pointer'}
               transition="0.3s"
               justify={'center'}
               align="center"
-              bg={model === 'gpt-4' ? buttonBg : 'transparent'}
+              bg={model === 'mistral-large-latest' ? buttonBg : 'transparent'}
               w="164px"
               h="70px"
-              boxShadow={model === 'gpt-4' ? buttonShadow : 'none'}
+              boxShadow={model === 'mistral-large-latest' ? buttonShadow : 'none'}
               borderRadius="14px"
               color={textColor}
               fontSize="18px"
               fontWeight={'700'}
-              onClick={() => setModel('gpt-4')}
+              onClick={() => setModel('mistral-large-latest')}
             >
               <Flex
                 borderRadius="full"
@@ -242,7 +242,7 @@ export default function Chat() {
                   color={iconColor}
                 />
               </Flex>
-              GPT-4
+              Mistral Large
             </Flex>
           </Flex>
 
@@ -403,17 +403,16 @@ export default function Chat() {
           alignItems="center"
         >
           <Text fontSize="xs" textAlign="center" color={gray}>
-            Free Research Preview. ChatGPT may produce inaccurate information
-            about people, places, or facts.
+           AI can make mistakes.
           </Text>
-          <Link href="https://help.openai.com/en/articles/6825453-chatgpt-release-notes">
+          <Link href="https://docs.mistral.ai">
             <Text
               fontSize="xs"
               color={textColor}
               fontWeight="500"
               textDecoration="underline"
             >
-              ChatGPT May 12 Version
+              Mistral AI Docs
             </Text>
           </Link>
         </Flex>

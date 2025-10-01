@@ -23,8 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   useEffect(() => {
     const initialKey = localStorage.getItem('apiKey');
-    console.log(initialKey);
-    if (initialKey?.includes('sk-') && apiKey !== initialKey) {
+    if (initialKey && apiKey !== initialKey) {
       setApiKey(initialKey);
     }
   }, [apiKey]);

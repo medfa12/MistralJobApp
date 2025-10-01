@@ -13,7 +13,7 @@ function App({ Component, pageProps }: AppProps<{}>) {
   const [apiKey, setApiKey] = useState('');
   useEffect(() => {
     const initialKey = localStorage.getItem('apiKey');
-    if (initialKey?.includes('sk-') && apiKey !== initialKey) {
+    if (initialKey && apiKey !== initialKey) {
       setApiKey(initialKey);
     }
   }, [apiKey]);
