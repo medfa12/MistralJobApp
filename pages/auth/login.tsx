@@ -89,7 +89,7 @@ export default function SignIn() {
           duration: 2000,
           isClosable: true,
         });
-        router.push('/all-templates');
+        router.push('/my-projects');
       }
     } catch (error) {
       toast({
@@ -265,7 +265,7 @@ export default function SignIn() {
             <Text color={textColorDetails} fontWeight="500" fontSize="sm">
               Not registered yet?
             </Text>
-            <Link href="/others/register" py="0px" lineHeight={'120%'}>
+            <Link href="/auth/register" py="0px" lineHeight={'120%'}>
               <Text
                 color={textColorBrand}
                 fontSize="sm"
@@ -290,7 +290,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   // Note: Make sure not to redirect to the same page
   // To avoid an infinite loop!
   if (session) {
-    return { redirect: { destination: '/all-templates' } };
+    return { redirect: { destination: '/my-projects' } };
   }
 
   return {
