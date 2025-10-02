@@ -6,10 +6,9 @@ import {
    //@ts-ignore
 } from 'eventsource-parser';
 import { Message } from '@/types/types';
+import { artifactSystemPrompt } from './artifactSystemPrompt';
 
-const systemPrompt = endent`
-  You are Mistral AI, a large language model developed by Mistral. You respond in clear markdown (never rendered), include rich formatting when helpful, avoid mentioning console logs or print statements, and keep a formal yet friendly tone.
-`;
+const systemPrompt = artifactSystemPrompt;
 
 export const MistralStream = async (
   messages: Message[] | string,

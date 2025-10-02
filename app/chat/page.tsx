@@ -2,7 +2,9 @@
 
 import Link from '@/components/link/Link';
 import MessageBoxChat from '@/components/MessageBoxChat';
-import { ChatBody, MistralModel, Message as MessageType, Attachment } from '@/types/types';
+import { ChatBody, MistralModel, Message as MessageType, Attachment, ArtifactData, InspectedCodeAttachment } from '@/types/types';
+import { parseArtifacts, hasArtifacts, ParsedArtifact } from '@/utils/artifactParser';
+import { ArtifactSidePanel, ArtifactToggleButton } from '@/components/artifact';
 import {
   Accordion,
   AccordionButton,
@@ -24,7 +26,7 @@ import {
   IconButton,
 } from '@chakra-ui/react';
 import { useEffect, useState, useRef, Suspense, useCallback } from 'react';
-import { MdAutoAwesome, MdBolt, MdEdit, MdPerson, MdPsychology, MdExpandMore, MdExpandLess, MdImage, MdDescription, MdClose, MdAttachFile } from 'react-icons/md';
+import { MdAutoAwesome, MdBolt, MdEdit, MdPerson, MdPsychology, MdExpandMore, MdExpandLess, MdImage, MdDescription, MdClose, MdAttachFile, MdCode } from 'react-icons/md';
 import Bg from '../../public/img/chat/bg-image.png';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { MISTRAL_MODELS, getModelInfo, formatContextWindow, formatPricing } from '@/config/models';
@@ -46,6 +48,9 @@ function ChatContent() {
   const [hoveredModel, setHoveredModel] = useState<MistralModel | null>(null);
   const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | undefined>();
   const [attachments, setAttachments] = useState<Array<{ type: string; file: File; preview?: string }>>([]);
+  const [inspectedCodeAttachment, setInspectedCodeAttachment] = useState<InspectedCodeAttachment | null>(null);
+  const [currentArtifact, setCurrentArtifact] = useState<ArtifactData | null>(null);
+  const [isArtifactPanelOpen, setIsArtifactPanelOpen] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -75,6 +80,10 @@ function ChatContent() {
   const tokenPercentage = modelInfo ? (currentTokens / modelInfo.contextWindow) * 100 : 0;
 
   const loadConversation = useCallback(async (convId: string) => {
+    // Clear artifact when loading a different conversation
+    setCurrentArtifact(null);
+    setIsArtifactPanelOpen(false);
+    
     try {
       const response = await fetch(`/api/chat/messages?conversationId=${convId}`);
       if (response.ok) {
@@ -135,6 +144,8 @@ function ChatContent() {
       setMessages([]);
       setStreamingMessage('');
       setCurrentConversationId(null);
+      setCurrentArtifact(null);
+      setIsArtifactPanelOpen(false);
       setInputCode('');
       setAttachments([]);
     }
@@ -196,6 +207,8 @@ function ChatContent() {
     { color: 'whiteAlpha.600' },
   );
   const attachmentBg = useColorModeValue('gray.50', 'whiteAlpha.100');
+  const inspectedCodeBg = useColorModeValue('purple.50', 'purple.900');
+  const inspectedCodeBorder = useColorModeValue('purple.300', 'purple.600');
   
   const uploadToCloudinary = async (file: File, type: string) => {
     const formData = new FormData();
@@ -319,6 +332,19 @@ function ChatContent() {
     let userMessageContent: any = currentInput;
     let uploadedAttachments: Attachment[] = [];
     
+    // Include context about current artifact (for AI awareness)
+    let artifactContext = '';
+    if (currentArtifact) {
+      artifactContext = `\n\n[Context: An artifact titled "${currentArtifact.title}" (type: ${currentArtifact.type}) is currently active. Use <artifact operation="edit"> to modify it, or <artifact operation="delete"> to remove it before creating a new one.]`;
+    }
+    
+    // Include inspected code in the message
+    if (inspectedCodeAttachment) {
+      userMessageContent += `\n\n---\n**Inspected Element:** <${inspectedCodeAttachment.elementTag}>${inspectedCodeAttachment.elementId ? ` #${inspectedCodeAttachment.elementId}` : ''}${inspectedCodeAttachment.elementClasses ? ` .${inspectedCodeAttachment.elementClasses}` : ''}\n\n\`\`\`${inspectedCodeAttachment.sourceArtifactId.includes('react') ? 'jsx' : 'html'}\n${inspectedCodeAttachment.code}\n\`\`\`${inspectedCodeAttachment.styles ? `\n\n**Styles:** ${inspectedCodeAttachment.styles}` : ''}`;
+    }
+    
+    userMessageContent += artifactContext;
+    
     if (attachments.length > 0) {
       const contentArray: any[] = [{ type: 'text', text: currentInput }];
       
@@ -375,6 +401,7 @@ function ChatContent() {
     setMessages(updatedMessages);
     setInputCode('');
     setStreamingMessage('');
+    setInspectedCodeAttachment(null);
     setLoading(true);
 
     const currentAttachments = [...attachments];
@@ -460,13 +487,116 @@ function ChatContent() {
         setStreamingMessage(accumulatedResponse);
       }
 
-      const assistantMessage: MessageType = { role: 'assistant', content: accumulatedResponse };
+      // Parse artifacts from the response
+      let artifactData: ArtifactData | undefined;
+      let cleanContent = accumulatedResponse;
+
+      if (hasArtifacts(accumulatedResponse)) {
+        const { cleanText, artifacts } = parseArtifacts(accumulatedResponse);
+        cleanContent = cleanText;
+        
+        // Process artifact operations
+        if (artifacts.length > 0) {
+          const latestArtifact = artifacts[artifacts.length - 1];
+          
+          if (latestArtifact.operation === 'delete') {
+            // Delete operation: close panel and clear artifact
+            setCurrentArtifact(null);
+            setIsArtifactPanelOpen(false);
+            
+            toast({
+              title: 'Artifact Deleted',
+              description: 'The artifact has been removed',
+              status: 'info',
+              duration: 3000,
+              isClosable: true,
+              position: 'top',
+            });
+          } else if (latestArtifact.operation === 'create') {
+            // Create operation: only allow if no artifact exists
+            if (currentArtifact) {
+              toast({
+                title: 'Artifact Already Exists',
+                description: 'Please edit the existing artifact or ask me to delete it first',
+                status: 'warning',
+                duration: 4000,
+                isClosable: true,
+                position: 'top',
+              });
+              // Don't create, keep existing
+            } else {
+              // No artifact exists, create new one
+              artifactData = {
+                identifier: latestArtifact.identifier,
+                type: latestArtifact.type,
+                title: latestArtifact.title,
+                code: latestArtifact.code,
+                language: latestArtifact.language,
+                createdAt: latestArtifact.createdAt,
+              };
+              
+              setCurrentArtifact(artifactData);
+              setIsArtifactPanelOpen(true);
+              
+              toast({
+                title: 'Artifact Created',
+                description: `"${artifactData.title}" is ready to preview`,
+                status: 'success',
+                duration: 3000,
+                isClosable: true,
+                position: 'top',
+              });
+            }
+          } else if (latestArtifact.operation === 'edit') {
+            // Edit operation: update existing artifact
+            if (!currentArtifact) {
+              toast({
+                title: 'No Artifact to Edit',
+                description: 'Please create an artifact first',
+                status: 'warning',
+                duration: 3000,
+                isClosable: true,
+                position: 'top',
+              });
+            } else {
+              artifactData = {
+                ...currentArtifact,
+                type: latestArtifact.type,
+                title: latestArtifact.title,
+                code: latestArtifact.code,
+                language: latestArtifact.language,
+                updatedAt: new Date().toISOString(),
+              };
+              
+              setCurrentArtifact(artifactData);
+              if (!isArtifactPanelOpen) {
+                setIsArtifactPanelOpen(true);
+              }
+              
+              toast({
+                title: 'Artifact Updated',
+                description: `"${artifactData.title}" has been modified`,
+                status: 'success',
+                duration: 3000,
+                isClosable: true,
+                position: 'top',
+              });
+            }
+          }
+        }
+      }
+
+      const assistantMessage: MessageType = { 
+        role: 'assistant', 
+        content: cleanContent,
+        artifact: artifactData
+      };
       setMessages((prev) => [...prev, assistantMessage]);
       setStreamingMessage('');
       setLoading(false);
 
       if (convId) {
-        await saveMessage(convId, 'assistant', getMessageText(accumulatedResponse));
+        await saveMessage(convId, 'assistant', getMessageText(cleanContent));
       }
     } catch (error) {
       setLoading(false);
@@ -486,6 +616,18 @@ function ChatContent() {
     setInputCode(Event.target.value);
   };
 
+  const handleCodeAttach = useCallback((attachment: InspectedCodeAttachment) => {
+    setInspectedCodeAttachment(attachment);
+    toast({
+      title: 'Element Code Attached',
+      description: `<${attachment.elementTag}> code ready to include in your next message`,
+      status: 'info',
+      duration: 3000,
+      isClosable: true,
+      position: 'top',
+    });
+  }, [toast]);
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -497,6 +639,8 @@ function ChatContent() {
     setMessages([]);
     setStreamingMessage('');
     setCurrentConversationId(null);
+    setCurrentArtifact(null);
+    setIsArtifactPanelOpen(false);
     router.push('/chat');
   };
 
@@ -515,6 +659,7 @@ function ChatContent() {
   };
 
   return (
+    <>
     <Flex
       w="100%"
       h="100vh"
@@ -883,6 +1028,8 @@ function ChatContent() {
                     <MessageBoxChat 
                       output={getMessageText(message.content)} 
                       attachments={message.attachments}
+                      artifact={message.artifact}
+                      onCodeAttach={handleCodeAttach}
                     />
                   </Box>
                 </Flex>
@@ -909,7 +1056,9 @@ function ChatContent() {
                 />
               </Flex>
               <Box w="100%">
-                <MessageBoxChat output={streamingMessage} />
+                <MessageBoxChat 
+                  output={streamingMessage}
+                />
               </Box>
             </Flex>
           )}
@@ -1028,6 +1177,60 @@ function ChatContent() {
             </Flex>
           )}
 
+          {/* Artifact Toggle Button */}
+          {currentArtifact && (
+            <Box mb={3}>
+              <ArtifactToggleButton
+                artifact={currentArtifact}
+                isOpen={isArtifactPanelOpen}
+                onClick={() => setIsArtifactPanelOpen(!isArtifactPanelOpen)}
+              />
+            </Box>
+          )}
+
+          {/* Inspected Code Attachment */}
+          {inspectedCodeAttachment && (
+            <Flex
+              bg={inspectedCodeBg}
+              border="2px solid"
+              borderColor={inspectedCodeBorder}
+              borderRadius="12px"
+              p={3}
+              align="center"
+              gap={3}
+            >
+              <Flex
+                bg="purple.500"
+                borderRadius="full"
+                p={2}
+                color="white"
+              >
+                <Icon as={MdCode} boxSize={5} />
+              </Flex>
+              <Box flex={1} minW="0">
+                <Text fontSize="sm" fontWeight="bold" color={textColor} mb={1}>
+                  Inspected: &lt;{inspectedCodeAttachment.elementTag}&gt;
+                  {inspectedCodeAttachment.elementId && ` #${inspectedCodeAttachment.elementId}`}
+                  {inspectedCodeAttachment.elementClasses && ` .${inspectedCodeAttachment.elementClasses.split(' ')[0]}`}
+                </Text>
+                <Text fontSize="xs" color={gray} noOfLines={2} fontFamily="mono">
+                  {inspectedCodeAttachment.code.slice(0, 100)}
+                  {inspectedCodeAttachment.code.length > 100 ? '...' : ''}
+                </Text>
+              </Box>
+              <Tooltip label="Remove attachment">
+                <IconButton
+                  aria-label="Remove inspected code"
+                  icon={<Icon as={MdClose} />}
+                  size="sm"
+                  variant="ghost"
+                  colorScheme="purple"
+                  onClick={() => setInspectedCodeAttachment(null)}
+                />
+              </Tooltip>
+            </Flex>
+          )}
+
           <Flex gap="10px">
               <Input
                 minH="54px"
@@ -1096,6 +1299,15 @@ function ChatContent() {
         </Flex>
       </Flex>
     </Flex>
+
+    {/* Artifact Side Panel */}
+    <ArtifactSidePanel
+      artifact={currentArtifact}
+      isOpen={isArtifactPanelOpen}
+      onClose={() => setIsArtifactPanelOpen(false)}
+      onCodeAttach={handleCodeAttach}
+    />
+    </>
   );
 }
 

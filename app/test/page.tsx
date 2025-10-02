@@ -11,11 +11,13 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 import { ArtifactRenderer } from '@/components/artifact';
-import { ArtifactData } from '@/components/artifact/types';
+import { ArtifactData } from '@/types/types';
 
 // Sample artifacts for testing
 const sampleArtifacts: { [key: string]: ArtifactData } = {
   'react-button': {
+    identifier: 'react-button-demo',
+    title: 'Interactive Counter',
     code: `function App() {
   const [count, setCount] = React.useState(0);
   
@@ -84,9 +86,13 @@ const sampleArtifacts: { [key: string]: ArtifactData } = {
 // Render the app
 window.App = App;`,
     type: 'react',
+    language: 'jsx',
+    createdAt: new Date().toISOString(),
   },
 
   'html-card': {
+    identifier: 'html-card-demo',
+    title: 'Mistral AI Card',
     code: `<div style="max-width: 400px; margin: 20px auto; font-family: Arial, sans-serif;">
   <div style="
     border: 1px solid #e2e8f0;
@@ -130,9 +136,13 @@ window.App = App;`,
   </div>
 </div>`,
     type: 'html',
+    language: 'html',
+    createdAt: new Date().toISOString(),
   },
 
   'interactive-form': {
+    identifier: 'form-demo',
+    title: 'Contact Form',
     code: `function App() {
   const [formData, setFormData] = React.useState({
     name: '',
@@ -260,9 +270,13 @@ window.App = App;`,
 
 window.App = App;`,
     type: 'react',
+    language: 'jsx',
+    createdAt: new Date().toISOString(),
   },
 
   'dashboard-layout': {
+    identifier: 'dashboard-demo',
+    title: 'Dashboard Layout',
     code: `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; padding: 20px; background-color: #f5f5f5;">
   <!-- Card 1 -->
   <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -325,6 +339,8 @@ window.App = App;`,
   </div>
 </div>`,
     type: 'html',
+    language: 'html',
+    createdAt: new Date().toISOString(),
   },
 };
 

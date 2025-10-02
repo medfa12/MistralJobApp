@@ -23,10 +23,11 @@ const MotionBox = motion(Box);
 
 export const InspectorPanel: FC<Props> = ({ element, isVisible }) => {
   const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const textColor = useColorModeValue('gray.700', 'gray.200');
-  const labelColor = useColorModeValue('gray.500', 'gray.400');
-  const classBgColor = useColorModeValue('gray.50', 'gray.700');
+  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const textColor = useColorModeValue('gray.800', 'white');
+  const labelColor = useColorModeValue('gray.600', 'gray.400');
+  const classBgColor = useColorModeValue('gray.100', 'gray.700');
+  const sectionBg = useColorModeValue('gray.50', 'gray.900');
 
   return (
     <AnimatePresence>

@@ -4,19 +4,21 @@ import { FC, useState } from 'react';
 import { Box, Flex, Icon, useColorModeValue, Tooltip } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdCode, MdVisibility } from 'react-icons/md';
-import { ArtifactData, ArtifactTab } from './types';
+import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
+import { ArtifactTab } from './types';
 import { CodeView } from './CodeView';
 import { PreviewView } from './PreviewView';
 import { tabContentVariants } from './animations';
 
 interface Props {
   artifact: ArtifactData;
+  onCodeAttach?: (attachment: InspectedCodeAttachment) => void;
 }
 
 const MotionBox = motion(Box);
 const MotionFlex = motion(Flex);
 
-export const ArtifactRenderer: FC<Props> = ({ artifact }) => {
+export const ArtifactRenderer: FC<Props> = ({ artifact, onCodeAttach }) => {
   const [activeTab, setActiveTab] = useState<ArtifactTab>('code');
 
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -102,7 +104,7 @@ export const ArtifactRenderer: FC<Props> = ({ artifact }) => {
               animate="visible"
               exit="exit"
             >
-              <PreviewView artifact={artifact} />
+              <PreviewView artifact={artifact} onCodeAttach={onCodeAttach} />
             </MotionBox>
           )}
         </AnimatePresence>
