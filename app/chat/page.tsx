@@ -131,6 +131,12 @@ function ChatContent() {
     if (conversationId) {
       loadConversation(conversationId);
       setCurrentConversationId(conversationId);
+    } else {
+      setMessages([]);
+      setStreamingMessage('');
+      setCurrentConversationId(null);
+      setInputCode('');
+      setAttachments([]);
     }
   }, [conversationId, loadConversation]);
 
@@ -147,6 +153,9 @@ function ChatContent() {
         const conversation = await response.json();
         setCurrentConversationId(conversation.id);
         window.history.pushState({}, '', `/chat?conversationId=${conversation.id}`);
+        
+        window.dispatchEvent(new CustomEvent('conversationUpdated'));
+        
         return conversation.id;
       }
     } catch (error) {
