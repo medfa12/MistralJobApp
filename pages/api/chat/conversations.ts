@@ -23,12 +23,14 @@ export default async function handler(
   }
 
   if (req.method === 'GET') {
-    // Get all conversations for the user
     try {
+      const { limit } = req.query;
+      const take = limit ? parseInt(limit as string) : undefined;
+
       const conversations = await db.chatConversation.findMany({
         where: { userId: user.id },
         orderBy: { updatedAt: 'desc' },
-        take: 20, // Limit to 20 most recent conversations
+        ...(take && { take }),
       });
 
       return res.status(200).json(conversations);

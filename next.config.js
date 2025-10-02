@@ -2,7 +2,6 @@
 
 const nextConfig = {
   reactStrictMode: false,
-  swcMinify: true,
   basePath: process.env.NEXT_PUBLIC_BASE_PATH,
   assetPrefix: process.env.NEXT_PUBLIC_BASE_PATH,
   images: {
@@ -10,13 +9,9 @@ const nextConfig = {
       'images.unsplash.com',
       'i.ibb.co',
       'scontent.fotp8-1.fna.fbcdn.net',
-      'res.cloudinary.com', // For user avatars
+      'res.cloudinary.com',
     ],
-    // Make ENV
     unoptimized: true,
-  },
-  experimental: {
-    appDir: true,
   },
 };
 

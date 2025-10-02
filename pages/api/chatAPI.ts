@@ -16,8 +16,7 @@ const handler = async (req: Request): Promise<Response> => {
       apiKeyFinal = process.env.MISTRAL_API_KEY;
     }
 
-    // Use messages array if provided, otherwise fall back to inputCode (legacy)
-    const messagesOrInput = messages || inputCode;
+    const messagesOrInput = messages || inputCode || '';
     const stream = await MistralStream(messagesOrInput, model, apiKeyFinal);
 
     return new Response(stream);

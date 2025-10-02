@@ -5,9 +5,8 @@ import { ChakraProvider, Box } from '@chakra-ui/react';
 import theme from '@/theme/theme';
 import routes from '@/routes';
 import Sidebar from '@/components/sidebar/Sidebar';
+import MobileSidebarButton from '@/components/sidebar/MobileSidebarButton';
 import Footer from '@/components/footer/FooterAdmin';
-// import Navbar from '@/components/navbar/NavbarAdmin'; // Retired component - kept for reference
-// import { getActiveRoute, getActiveNavbar } from '@/utils/navigation'; // Retired with navbar
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import '@/styles/App.scss';
@@ -20,7 +19,7 @@ import AppWrappers from './AppWrappers';
 export default function RootLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [apiKey, setApiKey] = useState('');
-  // Removed unused variables: isOpen, onOpen, onClose (were for navbar)
+
   useEffect(() => {
     const initialKey = localStorage.getItem('apiKey');
     if (initialKey && apiKey !== initialKey) {
@@ -32,7 +31,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body id={'root'}>
         <AppWrappers>
-          {/* <ChakraProvider theme={theme}> */}
           {pathname?.includes('auth/login') || 
            pathname?.includes('auth/signin') || 
            pathname?.includes('others/register') ||
@@ -42,6 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           ) : (
             <Box>
               <Sidebar setApiKey={setApiKey} routes={routes} />
+              <MobileSidebarButton setApiKey={setApiKey} routes={routes} />
               <Box
                 pt={{ base: '20px', md: '20px' }}
                 float="right"
@@ -57,18 +56,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 transitionProperty="top, bottom, width"
                 transitionTimingFunction="linear, linear, ease"
               >
-                {/* Navbar retired - component kept for reference */}
-                {/* <Portal>
-                  <Box>
-                    <Navbar
-                      setApiKey={setApiKey}
-                      onOpen={onOpen}
-                      logoText={'Mistral AI Demo'}
-                      brandText={getActiveRoute(routes, pathname)}
-                      secondary={getActiveNavbar(routes, pathname)}
-                    />
-                  </Box>
-                </Portal> */}
                 <Box
                   mx="auto"
                   p={{ base: '20px', md: '30px' }}
@@ -77,7 +64,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   pt="50px"
                 >
                   {children}
-                  {/* <Component apiKeyApp={apiKey} {...pageProps} /> */}
                 </Box>
                 <Box>
                   <Footer />
@@ -85,11 +71,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </Box>
             </Box>
           )}
-          {/* </ChakraProvider> */}
         </AppWrappers>
       </body>
     </html>
   );
 }
-
-

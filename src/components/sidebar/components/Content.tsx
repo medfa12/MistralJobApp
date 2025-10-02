@@ -1,5 +1,4 @@
 'use client';
-// chakra imports
 import {
   Box,
   Button,
@@ -14,26 +13,23 @@ import {
   Skeleton,
 } from '@chakra-ui/react';
 import NavLink from '@/components/link/NavLink';
-//   Custom components
 import avatar4 from '/public/img/avatars/avatar4.png';
 import { NextAvatar } from '@/components/image/Avatar';
 import APIModal from '@/components/apiModal';
 import Brand from '@/components/sidebar/components/Brand';
 import Links from '@/components/sidebar/components/Links';
-import SidebarCard from '@/components/sidebar/components/SidebarCard';
 import { RoundedChart } from '@/components/icons/Icons';
 import { PropsWithChildren } from 'react';
 import React from 'react';
 import { IRoute } from '@/types/navigation';
-import { IoMdPerson } from 'react-icons/io';
+import { IoMdPerson, IoMdMoon, IoMdSunny } from 'react-icons/io';
 import { FiLogOut } from 'react-icons/fi';
 import { LuHistory } from 'react-icons/lu';
-import { MdOutlineManageAccounts, MdOutlineSettings } from 'react-icons/md';
+import { MdOutlineManageAccounts, MdOutlineSettings, MdLock } from 'react-icons/md';
 import { useUserData } from '@/hooks/useUserData';
 import { signOut } from 'next-auth/react';
 import Image from 'next/image';
-
-// FUNCTIONS
+import { useColorMode } from '@chakra-ui/react';
 
 interface SidebarContent extends PropsWithChildren {
   routes: IRoute[];
@@ -44,6 +40,8 @@ function SidebarContent(props: SidebarContent) {
   const { routes, setApiKey } = props;
   const { fullName, avatar, loading, role } = useUserData();
   const [hasApiKey, setHasApiKey] = React.useState(false);
+  const [isApiModalOpen, setIsApiModalOpen] = React.useState(false);
+  const { colorMode, toggleColorMode } = useColorMode();
   
   const textColor = useColorModeValue('navy.700', 'white');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
@@ -59,13 +57,11 @@ function SidebarContent(props: SidebarContent) {
   );
   const gray = useColorModeValue('gray.500', 'white');
 
-  // Check if API key exists
   React.useEffect(() => {
     const apiKey = localStorage.getItem('apiKey');
     setHasApiKey(!!apiKey);
   }, []);
 
-  // Filter routes based on user role
   const filteredRoutes = routes.filter(route => {
     if (route.adminOnly && role !== 'admin') {
       return false;
@@ -73,10 +69,16 @@ function SidebarContent(props: SidebarContent) {
     return true;
   });
 
+  const handleApiKeySet = () => {
+    setHasApiKey(true);
+  };
+
   const handleLogout = async () => {
+    localStorage.removeItem('apiKey');
+    localStorage.removeItem('apiKeyDate');
     await signOut({ callbackUrl: '/auth/login' });
   };
-  // SIDEBAR
+
   return (
     <Flex
       direction="column"
@@ -94,12 +96,15 @@ function SidebarContent(props: SidebarContent) {
         </Box>
       </Stack>
 
-      <Box mt="60px" width={'100%'} display={'flex'} justifyContent={'center'}>
-        <SidebarCard />
-      </Box>
-      {!hasApiKey && <APIModal setApiKey={setApiKey} sidebar={true} />}
+      {!hasApiKey && <APIModal setApiKey={setApiKey} sidebar={true} onApiKeySet={handleApiKeySet} />}
+      <APIModal 
+        setApiKey={setApiKey} 
+        externalOpen={isApiModalOpen} 
+        onExternalClose={() => setIsApiModalOpen(false)}
+        onApiKeySet={handleApiKeySet}
+      />
       <Flex
-        mt="8px"
+        mt="20px"
         justifyContent="center"
         alignItems="center"
         boxShadow={shadowPillBar}
@@ -130,7 +135,7 @@ function SidebarContent(props: SidebarContent) {
             {fullName}
           </Text>
         )}
-        <Menu>
+        <Menu id="sidebar-menu">
           <MenuButton
             as={Button}
             variant="transparent"
@@ -147,6 +152,7 @@ function SidebarContent(props: SidebarContent) {
             justifyContent={'center'}
             alignItems="center"
             color={iconColor}
+            suppressHydrationWarning
           >
             <Flex align="center" justifyContent="center">
               <Icon
@@ -217,7 +223,7 @@ function SidebarContent(props: SidebarContent) {
                 </Flex>
               </NavLink>
             </Box>
-            <Box>
+            <Box mb="30px">
               <NavLink href="/my-plan">
                 <Flex align="center">
                   <Icon
@@ -232,6 +238,44 @@ function SidebarContent(props: SidebarContent) {
                   </Text>
                 </Flex>
               </NavLink>
+            </Box>
+            <Box mb="30px">
+              <Flex 
+                align="center" 
+                cursor="pointer" 
+                onClick={() => setIsApiModalOpen(true)}
+                _hover={{ opacity: 0.8 }}
+              >
+                <Icon
+                  as={MdLock}
+                  width="24px"
+                  height="24px"
+                  color={gray}
+                  me="12px"
+                />
+                <Text color={gray} fontWeight="500" fontSize="sm">
+                  Setup API Key
+                </Text>
+              </Flex>
+            </Box>
+            <Box>
+              <Flex 
+                align="center" 
+                cursor="pointer" 
+                onClick={toggleColorMode}
+                _hover={{ opacity: 0.8 }}
+              >
+                <Icon
+                  as={colorMode === 'light' ? IoMdMoon : IoMdSunny}
+                  width="24px"
+                  height="24px"
+                  color={gray}
+                  me="12px"
+                />
+                <Text color={gray} fontWeight="500" fontSize="sm">
+                  {colorMode === 'light' ? 'Dark Mode' : 'Light Mode'}
+                </Text>
+              </Flex>
             </Box>
           </MenuList>
         </Menu>

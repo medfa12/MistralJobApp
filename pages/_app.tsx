@@ -1,4 +1,3 @@
-'use client';
 import type { AppProps } from 'next/app';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from '@/theme/theme';
@@ -13,10 +12,10 @@ function App({ Component, pageProps }: AppProps<{}>) {
   const [apiKey, setApiKey] = useState('');
   useEffect(() => {
     const initialKey = localStorage.getItem('apiKey');
-    if (initialKey && apiKey !== initialKey) {
+    if (initialKey) {
       setApiKey(initialKey);
     }
-  }, [apiKey]);
+  }, []);
 
   return (
     <ChakraProvider theme={theme}>
