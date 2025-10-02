@@ -16,24 +16,28 @@ import {
 } from '@chakra-ui/react';
 import { MdSearch, MdSearchOff } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArtifactData, InspectedElement } from './types';
+import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
+import { InspectedElement } from './types';
 import { InspectorPanel } from './InspectorPanel';
 import { hoverHighlightVariants, selectedHighlightVariants, tooltipVariants } from './animations';
+import { extractElementCode } from '@/utils/artifactParser';
 
 interface Props {
   artifact: ArtifactData;
+  onCodeAttach?: (attachment: InspectedCodeAttachment) => void;
 }
 
 const MotionBox = motion(Box);
 const MotionIconButton = motion(IconButton);
 
-export const PreviewView: FC<Props> = ({ artifact }) => {
+export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [inspectMode, setInspectMode] = useState(false);
   const [hoveredElement, setHoveredElement] = useState<InspectedElement | null>(null);
   const [selectedElement, setSelectedElement] = useState<InspectedElement | null>(null);
+  const [attachedElement, setAttachedElement] = useState<Element | null>(null);
   const [highlightBox, setHighlightBox] = useState<{
     top: number;
     left: number;
@@ -44,6 +48,7 @@ export const PreviewView: FC<Props> = ({ artifact }) => {
   const borderColor = useColorModeValue('orange.400', 'orange.300');
   const hoverBorderColor = useColorModeValue('blue.400', 'blue.300');
   const overlayBg = useColorModeValue('rgba(0, 0, 0, 0.02)', 'rgba(255, 255, 255, 0.02)');
+  const previewBg = useColorModeValue('white', 'gray.900');
 
   const getElementPath = (element: Element): string[] => {
     const path: string[] = [];
@@ -145,7 +150,36 @@ export const PreviewView: FC<Props> = ({ artifact }) => {
     }
 
     setSelectedElement(extractElementInfo(element, iframeRect));
-  }, [inspectMode, extractElementInfo]);
+    setAttachedElement(element);
+
+    // Create code attachment if callback provided
+    if (onCodeAttach) {
+      const code = extractElementCode(element, artifact.type);
+      const computed = iframeRef.current?.contentWindow?.getComputedStyle(element);
+      
+      // Extract important styles
+      const importantStyles = ['backgroundColor', 'color', 'padding', 'margin', 'fontSize', 'fontWeight'];
+      const styles = importantStyles
+        .map(prop => {
+          const value = computed?.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase());
+          return value && value !== 'none' ? `${prop}: ${value}` : '';
+        })
+        .filter(Boolean)
+        .join('; ');
+
+      const attachment: InspectedCodeAttachment = {
+        type: 'inspected-code',
+        elementTag: element.tagName.toLowerCase(),
+        elementId: element.id || undefined,
+        elementClasses: element.className.toString() || undefined,
+        code,
+        styles: styles || undefined,
+        sourceArtifactId: artifact.identifier,
+      };
+
+      onCodeAttach(attachment);
+    }
+  }, [inspectMode, extractElementInfo, onCodeAttach, artifact]);
 
   const toggleInspectMode = () => {
     setInspectMode(!inspectMode);
@@ -315,19 +349,19 @@ export const PreviewView: FC<Props> = ({ artifact }) => {
 
       <Box position="relative" w="100%" h="100%">
         {/* Preview Iframe */}
-        <Box
-          as="iframe"
-          ref={iframeRef}
-          w="100%"
-          h="600px"
-          border="1px solid"
-          borderColor="gray.200"
-          borderRadius="lg"
-          bg="white"
-          sandbox="allow-scripts allow-same-origin"
-          title="Preview"
-          pointerEvents={inspectMode ? 'none' : 'auto'}
-        />
+              <Box
+                as="iframe"
+                ref={iframeRef}
+                w="100%"
+                h="600px"
+                border="1px solid"
+                borderColor={useColorModeValue('gray.200', 'gray.700')}
+                borderRadius="lg"
+                bg={previewBg}
+                sandbox="allow-scripts allow-same-origin"
+                title="Preview"
+                pointerEvents={inspectMode ? 'none' : 'auto'}
+              />
 
         {/* Inspect Mode Overlay */}
         {inspectMode && (

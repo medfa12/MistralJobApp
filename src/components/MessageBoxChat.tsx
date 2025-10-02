@@ -22,10 +22,15 @@ import {
 import Card from '@/components/card/Card'
 import { useState, useEffect } from 'react'
 import { MdImage, MdDescription } from 'react-icons/md'
-import { Attachment } from '@/types/types'
+import { Attachment, ArtifactData, InspectedCodeAttachment } from '@/types/types'
 
-export default function MessageBox(props: { output: string; attachments?: Attachment[] }) {
-  const { output, attachments } = props
+export default function MessageBox(props: { 
+  output: string; 
+  attachments?: Attachment[]; 
+  artifact?: ArtifactData;
+  onCodeAttach?: (attachment: InspectedCodeAttachment) => void;
+}) {
+  const { output, attachments, artifact, onCodeAttach } = props
   const textColor = useColorModeValue('navy.700', 'white')
   const thinkingBg = useColorModeValue('gray.50', 'whiteAlpha.100')
   const thinkingBorder = useColorModeValue('purple.200', 'purple.600')
@@ -202,6 +207,8 @@ export default function MessageBox(props: { output: string; attachments?: Attach
       >
         {answer ? answer : ''}
       </ReactMarkdown>
+
+      {/* Artifact reference removed - now shown in side panel */}
     </Card>
   )
 }
