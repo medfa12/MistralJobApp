@@ -93,6 +93,34 @@ export function SidebarLinks(props: SidebarLinksProps) {
     return () => clearInterval(interval);
   }, [fetchConversations]);
 
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchConversations();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchConversations();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    const handleConversationUpdate = () => {
+      fetchConversations();
+    };
+    
+    window.addEventListener('conversationUpdated', handleConversationUpdate);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('conversationUpdated', handleConversationUpdate);
+    };
+  }, [fetchConversations]);
+
   const handleRenameClick = (conversation: any, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -121,6 +149,8 @@ export function SidebarLinks(props: SidebarLinksProps) {
         });
         fetchConversations();
         onClose();
+        
+        window.dispatchEvent(new CustomEvent('conversationUpdated'));
       } else {
         throw new Error('Failed to rename');
       }
@@ -165,6 +195,8 @@ export function SidebarLinks(props: SidebarLinksProps) {
         }
         
         fetchConversations();
+        
+        window.dispatchEvent(new CustomEvent('conversationUpdated'));
       } else {
         throw new Error('Failed to delete');
       }
