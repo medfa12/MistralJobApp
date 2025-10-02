@@ -762,7 +762,7 @@ function ChatContent() {
               direction="column"
             >
               {message.role === 'user' ? (
-                <Flex w="100%" align={'center'}>
+                <Flex w="100%" align={'flex-start'}>
                   <Flex
                     borderRadius="full"
                     justify="center"
@@ -783,21 +783,81 @@ function ChatContent() {
                     />
                   </Flex>
                   <Flex
-                    p="22px"
-                    border="1px solid"
-                    borderColor={borderColor}
-                    borderRadius="14px"
+                    direction="column"
                     w="100%"
-                    zIndex={'2'}
+                    gap="10px"
                   >
-                    <Text
-                      color={textColor}
-                      fontWeight="600"
-                      fontSize={{ base: 'sm', md: 'md' }}
-                      lineHeight={{ base: '24px', md: '26px' }}
+                    {message.attachments && message.attachments.length > 0 && (
+                      <Flex gap="8px" flexWrap="wrap">
+                        {message.attachments.map((attachment, idx) => (
+                          <Box key={idx}>
+                            {attachment.type === 'image' ? (
+                              <Box
+                                borderRadius="12px"
+                                overflow="hidden"
+                                border="1px solid"
+                                borderColor={borderColor}
+                                cursor="pointer"
+                                onClick={() => window.open(attachment.cloudinaryUrl, '_blank')}
+                                _hover={{ opacity: 0.8 }}
+                                transition="opacity 0.2s"
+                                maxW="200px"
+                              >
+                                <Image
+                                  src={attachment.cloudinaryUrl}
+                                  alt={attachment.fileName}
+                                  w="100%"
+                                  h="150px"
+                                  objectFit="cover"
+                                />
+                              </Box>
+                            ) : (
+                              <Flex
+                                p="10px"
+                                bg={attachmentBg}
+                                borderRadius="12px"
+                                border="1px solid"
+                                borderColor={borderColor}
+                                align="center"
+                                gap="8px"
+                                cursor="pointer"
+                                onClick={() => window.open(attachment.cloudinaryUrl, '_blank')}
+                                _hover={{ opacity: 0.8 }}
+                                transition="opacity 0.2s"
+                                maxW="250px"
+                              >
+                                <Icon as={MdDescription} boxSize="24px" color="orange.500" />
+                                <Box flex="1" minW="0">
+                                  <Text fontSize="xs" color={textColor} noOfLines={1} fontWeight="600">
+                                    {attachment.fileName}
+                                  </Text>
+                                  <Text fontSize="xs" color={gray}>
+                                    {(attachment.fileSize / 1024).toFixed(1)} KB
+                                  </Text>
+                                </Box>
+                              </Flex>
+                            )}
+                          </Box>
+                        ))}
+                      </Flex>
+                    )}
+                    <Flex
+                      p="22px"
+                      border="1px solid"
+                      borderColor={borderColor}
+                      borderRadius="14px"
+                      w="100%"
+                      zIndex={'2'}
                     >
-                      {getMessageText(message.content)}
-                    </Text>
+                      <Text
+                        color={textColor}
+                        fontWeight="600"
+                        fontSize={{ base: 'sm', md: 'md' }}
+                        lineHeight={{ base: '24px', md: '26px' }}
+                      >
+                        {getMessageText(message.content)}
+                      </Text>
+                    </Flex>
                   </Flex>
                 </Flex>
               ) : (

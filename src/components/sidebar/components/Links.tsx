@@ -72,9 +72,11 @@ export function SidebarLinks(props: SidebarLinksProps) {
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [newTitle, setNewTitle] = useState('');
 
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const response = await fetch('/api/chat/conversations?limit=20');
       if (response.ok) {
         const data = await response.json();
@@ -83,33 +85,35 @@ export function SidebarLinks(props: SidebarLinksProps) {
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchConversations();
-    const interval = setInterval(fetchConversations, 30000);
+    fetchConversations(true);
+    const interval = setInterval(() => fetchConversations(false), 30000);
     return () => clearInterval(interval);
   }, [fetchConversations]);
 
   useEffect(() => {
     const handleFocus = () => {
-      fetchConversations();
+      fetchConversations(false);
     };
     
     window.addEventListener('focus', handleFocus);
     
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        fetchConversations();
+        fetchConversations(false);
       }
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     const handleConversationUpdate = () => {
-      fetchConversations();
+      fetchConversations(false);
     };
     
     window.addEventListener('conversationUpdated', handleConversationUpdate);
@@ -147,7 +151,6 @@ export function SidebarLinks(props: SidebarLinksProps) {
           isClosable: true,
           position: 'top',
         });
-        fetchConversations();
         onClose();
         
         window.dispatchEvent(new CustomEvent('conversationUpdated'));
@@ -193,8 +196,6 @@ export function SidebarLinks(props: SidebarLinksProps) {
         if (isCurrentConversation) {
           router.push('/chat');
         }
-        
-        fetchConversations();
         
         window.dispatchEvent(new CustomEvent('conversationUpdated'));
       } else {
