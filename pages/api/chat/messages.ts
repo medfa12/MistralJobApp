@@ -23,7 +23,6 @@ export default async function handler(
   }
 
   if (req.method === 'GET') {
-    // Get all messages for a conversation
     try {
       const { conversationId } = req.query;
 
@@ -31,7 +30,6 @@ export default async function handler(
         return res.status(400).json({ error: 'Conversation ID is required' });
       }
 
-      // Verify the conversation belongs to the user
       const conversation = await db.chatConversation.findFirst({
         where: {
           id: conversationId,
@@ -46,6 +44,9 @@ export default async function handler(
       const messages = await db.chatMessage.findMany({
         where: { conversationId },
         orderBy: { createdAt: 'asc' },
+        include: {
+          attachments: true,
+        },
       });
 
       return res.status(200).json(messages);
@@ -54,9 +55,8 @@ export default async function handler(
       return res.status(500).json({ error: 'Failed to fetch messages' });
     }
   } else if (req.method === 'POST') {
-    // Add a message to a conversation
     try {
-      const { conversationId, role, content } = req.body;
+      const { conversationId, role, content, attachments } = req.body;
 
       if (!conversationId || !role || !content) {
         return res.status(400).json({
@@ -64,7 +64,6 @@ export default async function handler(
         });
       }
 
-      // Verify the conversation belongs to the user
       const conversation = await db.chatConversation.findFirst({
         where: {
           id: conversationId,
@@ -81,10 +80,24 @@ export default async function handler(
           conversationId,
           role,
           content,
+          ...(attachments && attachments.length > 0 && {
+            attachments: {
+              create: attachments.map((att: any) => ({
+                type: att.type,
+                fileName: att.fileName,
+                fileSize: att.fileSize,
+                mimeType: att.mimeType,
+                cloudinaryPublicId: att.cloudinaryPublicId,
+                cloudinaryUrl: att.cloudinaryUrl,
+              })),
+            },
+          }),
+        },
+        include: {
+          attachments: true,
         },
       });
 
-      // Update conversation's updatedAt timestamp
       await db.chatConversation.update({
         where: { id: conversationId },
         data: { updatedAt: new Date() },

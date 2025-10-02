@@ -55,15 +55,31 @@ model ChatConversation {
 }
 
 model ChatMessage {
-  id             String           @id @default(auto()) @map("_id") @db.ObjectId
-  conversationId String           @db.ObjectId
-  role           String           // "user" or "assistant"
-  content        String           // Message content
-  createdAt      DateTime         @default(now()) @map(name: "created_at")
+  id             String              @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String              @db.ObjectId
+  role           String
+  content        String
+  createdAt      DateTime            @default(now()) @map(name: "created_at")
   
-  // Relations
-  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   ChatConversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  attachments    MessageAttachment[]
 
   @@map(name: "chat_messages")
+}
+
+model MessageAttachment {
+  id                 String      @id @default(auto()) @map("_id") @db.ObjectId
+  messageId          String      @db.ObjectId
+  type               String
+  fileName           String      @map(name: "file_name")
+  fileSize           Int         @map(name: "file_size")
+  mimeType           String      @map(name: "mime_type")
+  cloudinaryPublicId String      @map(name: "cloudinary_public_id")
+  cloudinaryUrl      String      @map(name: "cloudinary_url")
+  createdAt          DateTime    @default(now()) @map(name: "created_at")
+  
+  message            ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map(name: "message_attachments")
 }
 

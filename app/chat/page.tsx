@@ -1,9 +1,8 @@
 'use client';
-/*eslint-disable*/
 
 import Link from '@/components/link/Link';
 import MessageBoxChat from '@/components/MessageBoxChat';
-import { ChatBody, MistralModel, Message as MessageType } from '@/types/types';
+import { ChatBody, MistralModel, Message as MessageType, Attachment } from '@/types/types';
 import {
   Accordion,
   AccordionButton,
@@ -19,67 +18,122 @@ import {
   Input,
   Text,
   useColorModeValue,
+  useToast,
+  Tooltip,
+  Collapse,
+  IconButton,
 } from '@chakra-ui/react';
-import { useEffect, useState, useRef } from 'react';
-import { MdAutoAwesome, MdBolt, MdEdit, MdPerson, MdPsychology } from 'react-icons/md';
+import { useEffect, useState, useRef, Suspense, useCallback } from 'react';
+import { MdAutoAwesome, MdBolt, MdEdit, MdPerson, MdPsychology, MdExpandMore, MdExpandLess, MdImage, MdDescription, MdClose, MdAttachFile } from 'react-icons/md';
 import Bg from '../../public/img/chat/bg-image.png';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { MISTRAL_MODELS, getModelInfo, formatContextWindow, formatPricing } from '@/config/models';
+import { ModelOverviewCard } from '@/components/ModelOverviewCard';
 
-// Using MessageType from types.ts
-
-export default function Chat() {
-  // *** If you use .env.local variable for your API key, method which we recommend, use the apiKey variable commented below
+function ChatContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const conversationId = searchParams?.get('conversationId') || null;
+  const toast = useToast();
 
-  // Input States
   const [inputCode, setInputCode] = useState<string>('');
-  // Conversation history
   const [messages, setMessages] = useState<MessageType[]>([]);
-  // Current streaming response
   const [streamingMessage, setStreamingMessage] = useState<string>('');
-  // ChatGPT model
   const [model, setModel] = useState<MistralModel>('mistral-small-latest');
-  // Loading state
   const [loading, setLoading] = useState<boolean>(false);
-  // Current conversation ID
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationId);
+  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState<boolean>(false);
+  const [hoveredModel, setHoveredModel] = useState<MistralModel | null>(null);
+  const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | undefined>();
+  const [attachments, setAttachments] = useState<Array<{ type: string; file: File; preview?: string }>>([]);
   
-  // Ref for auto-scrolling
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const modelButtonRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingMessage]);
-
-  // Load conversation when conversationId changes
-  useEffect(() => {
-    if (conversationId) {
-      loadConversation(conversationId);
-      setCurrentConversationId(conversationId);
+  const estimateTokens = (text: string) => Math.ceil(text.length / 4);
+  
+  const getMessageText = (content: any): string => {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      return content.map(item => item.text || '').join(' ');
     }
-  }, [conversationId]);
+    return '';
+  };
+  
+  const getCurrentTokenCount = () => {
+    let total = estimateTokens('You are Mistral AI...');
+    messages.forEach(msg => {
+      total += estimateTokens(getMessageText(msg.content));
+    });
+    total += estimateTokens(inputCode);
+    return total;
+  };
 
-  // Load conversation from database
-  const loadConversation = async (convId: string) => {
+  const currentTokens = getCurrentTokenCount();
+  const modelInfo = getModelInfo(model);
+  const tokenPercentage = modelInfo ? (currentTokens / modelInfo.contextWindow) * 100 : 0;
+
+  const loadConversation = useCallback(async (convId: string) => {
     try {
       const response = await fetch(`/api/chat/messages?conversationId=${convId}`);
       if (response.ok) {
         const messagesData = await response.json();
-        const formattedMessages = messagesData.map((msg: any) => ({
-          role: msg.role,
-          content: msg.content,
-        }));
+        const formattedMessages = await Promise.all(
+          messagesData.map(async (msg: any) => {
+            if (msg.attachments && msg.attachments.length > 0) {
+              const content: any[] = [{ type: 'text', text: msg.content }];
+              
+              for (const att of msg.attachments) {
+                const fileResponse = await fetch(att.cloudinaryUrl);
+                const blob = await fileResponse.blob();
+                const base64 = await new Promise<string>((resolve) => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    const result = reader.result as string;
+                    resolve(result.split(',')[1]);
+                  };
+                  reader.readAsDataURL(blob);
+                });
+
+                if (att.type === 'image') {
+                  content.push({
+                    type: 'image_url',
+                    image_url: `data:${att.mimeType};base64,${base64}`
+                  });
+                } else if (att.type === 'document') {
+                  content.push({
+                    type: 'document_url',
+                    document_url: `data:${att.mimeType};base64,${base64}`
+                  });
+                }
+              }
+
+              return { role: msg.role, content, attachments: msg.attachments };
+            }
+            return { role: msg.role, content: msg.content, attachments: [] };
+          })
+        );
         setMessages(formattedMessages);
       }
     } catch (error) {
       console.error('Error loading conversation:', error);
     }
-  };
+  }, []);
 
-  // Create new conversation
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages, streamingMessage]);
+
+  useEffect(() => {
+    if (conversationId) {
+      loadConversation(conversationId);
+      setCurrentConversationId(conversationId);
+    }
+  }, [conversationId, loadConversation]);
+
   const createNewConversation = async (firstMessage: string) => {
     try {
       const title = firstMessage.slice(0, 50) + (firstMessage.length > 50 ? '...' : '');
@@ -92,7 +146,6 @@ export default function Chat() {
       if (response.ok) {
         const conversation = await response.json();
         setCurrentConversationId(conversation.id);
-        // Update URL without reloading
         window.history.pushState({}, '', `/chat?conversationId=${conversation.id}`);
         return conversation.id;
       }
@@ -102,21 +155,18 @@ export default function Chat() {
     return null;
   };
 
-  // Save message to database
-  const saveMessage = async (convId: string, role: string, content: string) => {
+  const saveMessage = async (convId: string, role: string, content: string, attachments?: Attachment[]) => {
     try {
       await fetch('/api/chat/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId: convId, role, content }),
+        body: JSON.stringify({ conversationId: convId, role, content, attachments }),
       });
     } catch (error) {
       console.error('Error saving message:', error);
     }
   };
 
-  // API Key
-  // const [apiKey, setApiKey] = useState<string>(apiKeyApp);
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const inputColor = useColorModeValue('navy.700', 'white');
   const iconColor = useColorModeValue('brand.500', 'white');
@@ -136,61 +186,211 @@ export default function Chat() {
     { color: 'gray.500' },
     { color: 'whiteAlpha.600' },
   );
+  const attachmentBg = useColorModeValue('gray.50', 'whiteAlpha.100');
+  
+  const uploadToCloudinary = async (file: File, type: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+
+    const response = await fetch('/api/chat/upload-attachment', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+
+    return await response.json();
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const handleTranslate = async () => {
     let apiKey = localStorage.getItem('apiKey');
     const currentInput = inputCode.trim();
 
-    // Chat post conditions(maximum number of characters, valid message etc.)
-    const maxCodeLength = 4000;
+    const modelInfo = getModelInfo(model);
+    if (!modelInfo) {
+      toast({
+        title: 'Invalid Model',
+        description: 'Selected model is not configured properly.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top',
+      });
+      return;
+    }
 
     if (!apiKey) {
-      alert('Please enter a Mistral API key from https://console.mistral.ai/.');
+      toast({
+        title: 'API Key Required',
+        description: 'Please enter a Mistral API key from https://console.mistral.ai/.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top',
+      });
       return;
     }
 
     if (!currentInput) {
-      alert('Please enter your message.');
+      toast({
+        title: 'Message Required',
+        description: 'Please enter your message.',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+        position: 'top',
+      });
       return;
     }
 
-    if (currentInput.length > maxCodeLength) {
-      alert(
-      `Please enter a prompt shorter than ${maxCodeLength} characters. You are currently at ${currentInput.length} characters.`,
-      );
+    let totalTokens = estimateTokens('You are Mistral AI...');
+    messages.forEach(msg => {
+      totalTokens += estimateTokens(getMessageText(msg.content));
+    });
+    totalTokens += estimateTokens(currentInput);
+
+    const maxInputTokens = Math.floor(modelInfo.contextWindow * 0.8);
+    
+    if (totalTokens > maxInputTokens) {
+      toast({
+        title: 'Context Window Exceeded',
+        description: `This conversation (≈${totalTokens.toLocaleString()} tokens) exceeds ${modelInfo.displayName}'s context limit of ${formatContextWindow(modelInfo.contextWindow)} tokens. Please start a new conversation or use a model with a larger context window.`,
+        status: 'error',
+        duration: 8000,
+        isClosable: true,
+        position: 'top',
+      });
       return;
     }
 
-    // Create new conversation if not exists
+    const warningThreshold = Math.floor(modelInfo.contextWindow * 0.7);
+    if (totalTokens > warningThreshold && totalTokens <= maxInputTokens) {
+      toast({
+        title: 'Approaching Context Limit',
+        description: `You're using ≈${totalTokens.toLocaleString()} of ${formatContextWindow(modelInfo.contextWindow)} tokens (${Math.round((totalTokens / modelInfo.contextWindow) * 100)}%). Consider starting a new conversation soon.`,
+        status: 'warning',
+        duration: 6000,
+        isClosable: true,
+        position: 'top',
+      });
+    }
+
     let convId = currentConversationId;
     if (!convId) {
       convId = await createNewConversation(currentInput);
       if (!convId) {
-        alert('Failed to create conversation');
+        toast({
+          title: 'Error',
+          description: 'Failed to create conversation. Please try again.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+          position: 'top',
+        });
         return;
       }
     }
 
-    // Add user message to history
-    const userMessage: MessageType = { role: 'user', content: currentInput };
+    let userMessageContent: any = currentInput;
+    let uploadedAttachments: Attachment[] = [];
+    
+    if (attachments.length > 0) {
+      const contentArray: any[] = [{ type: 'text', text: currentInput }];
+      
+      for (const attachment of attachments) {
+        try {
+          const uploadResult = await uploadToCloudinary(attachment.file, attachment.type);
+          
+          uploadedAttachments.push({
+            type: uploadResult.type,
+            fileName: uploadResult.fileName,
+            fileSize: uploadResult.fileSize,
+            mimeType: uploadResult.mimeType,
+            cloudinaryPublicId: uploadResult.cloudinaryPublicId,
+            cloudinaryUrl: uploadResult.cloudinaryUrl,
+          });
+
+          const base64 = await fileToBase64(attachment.file);
+          if (attachment.type === 'image') {
+            const mimeType = attachment.file.type;
+            contentArray.push({
+              type: 'image_url',
+              image_url: `data:${mimeType};base64,${base64}`
+            });
+          } else if (attachment.type === 'document') {
+            contentArray.push({
+              type: 'document_url',
+              document_url: `data:application/pdf;base64,${base64}`
+            });
+          }
+        } catch (error) {
+          console.error('Error uploading attachment:', error);
+          toast({
+            title: 'Upload Error',
+            description: `Failed to upload ${attachment.file.name}`,
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+            position: 'top',
+          });
+          setLoading(false);
+          return;
+        }
+      }
+      
+      userMessageContent = contentArray;
+    }
+
+    const userMessage: MessageType = { 
+      role: 'user', 
+      content: userMessageContent,
+      attachments: uploadedAttachments
+    };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInputCode('');
     setStreamingMessage('');
     setLoading(true);
 
-    // Save user message to database
-    await saveMessage(convId, 'user', currentInput);
+    const currentAttachments = [...attachments];
+    setAttachments([]);
+    currentAttachments.forEach(att => {
+      if (att.preview) {
+        URL.revokeObjectURL(att.preview);
+      }
+    });
+
+    await saveMessage(convId, 'user', getMessageText(userMessageContent), uploadedAttachments);
 
     const controller = new AbortController();
+    
+    const apiMessages = updatedMessages.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+
     const body: ChatBody = {
-      messages: updatedMessages, // Send full conversation history
+      messages: apiMessages,
       model,
-      // *** Initializing apiKey with .env.local/ .env value :
-      // just remove the `apiKey` variable below
       apiKey,
     };
 
-    // -------------- Fetch --------------
     try {
       const response = await fetch('../api/chatAPI', {
         method: 'POST',
@@ -203,9 +403,23 @@ export default function Chat() {
 
       if (!response.ok) {
         setLoading(false);
-        alert(
-          'Something went wrong when fetching from the API. Make sure to use a valid API key.',
-        );
+        const errorText = await response.text();
+        let errorMessage = 'Something went wrong when fetching from the API. Make sure to use a valid API key.';
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorJson.error || errorMessage;
+        } catch (e) {
+        }
+        
+        toast({
+          title: 'API Error',
+          description: errorMessage,
+          status: 'error',
+          duration: 7000,
+          isClosable: true,
+          position: 'top',
+        });
         return;
       }
 
@@ -213,7 +427,14 @@ export default function Chat() {
 
       if (!data) {
         setLoading(false);
-        alert('Something went wrong');
+        toast({
+          title: 'Error',
+          description: 'No response data received from the API.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+          position: 'top',
+        });
         return;
       }
 
@@ -230,30 +451,27 @@ export default function Chat() {
         setStreamingMessage(accumulatedResponse);
       }
 
-      // Add assistant message to history
       const assistantMessage: MessageType = { role: 'assistant', content: accumulatedResponse };
       setMessages((prev) => [...prev, assistantMessage]);
       setStreamingMessage('');
       setLoading(false);
 
-      // Save assistant message to database
       if (convId) {
-        await saveMessage(convId, 'assistant', accumulatedResponse);
+        await saveMessage(convId, 'assistant', getMessageText(accumulatedResponse));
       }
     } catch (error) {
       setLoading(false);
-      alert('An error occurred. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        status: 'error',
+        duration: 7000,
+        isClosable: true,
+        position: 'top',
+      });
     }
   };
-  // -------------- Copy Response --------------
-  // const copyToClipboard = (text: string) => {
-  //   const el = document.createElement('textarea');
-  //   el.value = text;
-  //   document.body.appendChild(el);
-  //   el.select();
-  //   document.execCommand('copy');
-  //   document.body.removeChild(el);
-  // };
 
   const handleChange = (Event: any) => {
     setInputCode(Event.target.value);
@@ -266,7 +484,6 @@ export default function Chat() {
     }
   };
 
-  // Start new conversation (called when plus button is clicked)
   const startNewConversation = () => {
     setMessages([]);
     setStreamingMessage('');
@@ -274,9 +491,24 @@ export default function Chat() {
     router.push('/chat');
   };
 
+  const handleModelHover = (modelId: MistralModel, event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const position = {
+      x: rect.left + rect.width / 2,
+      y: rect.bottom,
+    };
+    setHoverPosition(position);
+    setHoveredModel(modelId);
+  };
+
+  const handleModelLeave = () => {
+    setHoveredModel(null);
+  };
+
   return (
     <Flex
       w="100%"
+      h="100vh"
       pt={{ base: '70px', md: '0px' }}
       direction="column"
       position="relative"
@@ -294,163 +526,224 @@ export default function Chat() {
         direction="column"
         mx="auto"
         w={{ base: '100%', md: '100%', xl: '100%' }}
-        minH={{ base: '75vh', '2xl': '85vh' }}
+        h="100%"
         maxW="1000px"
       >
-        {/* Model Change */}
-        <Flex direction={'column'} w="100%" mb={messages.length > 0 ? '20px' : 'auto'}>
+        <Flex direction={'column'} w="100%" mb="10px" flexShrink={0}>
           <Flex
             mx="auto"
             zIndex="2"
-            w="max-content"
-            mb="20px"
-            borderRadius="60px"
+            w="100%"
+            maxW="1000px"
+            mb="10px"
+            align="center"
+            justify="space-between"
             flexWrap="wrap"
             gap="10px"
           >
-            <Flex
-              cursor={'pointer'}
-              transition="0.3s"
-              justify={'center'}
-              align="center"
-              bg={model === 'mistral-small-latest' ? buttonBg : 'transparent'}
-              w="174px"
-              h="70px"
-              boxShadow={model === 'mistral-small-latest' ? buttonShadow : 'none'}
-              borderRadius="14px"
-              color={textColor}
-              fontSize="18px"
-              fontWeight={'700'}
-              onClick={() => setModel('mistral-small-latest')}
-            >
-              <Flex
-                borderRadius="full"
-                justify="center"
-                align="center"
-                bg={bgIcon}
-                me="10px"
-                h="39px"
-                w="39px"
+            <Flex direction="column" align="flex-start">
+              <Text
+                color={textColor}
+                fontSize="sm"
+                fontWeight="600"
               >
-                <Icon
-                  as={MdAutoAwesome}
-                  width="20px"
-                  height="20px"
-                  color={iconColor}
-                />
-              </Flex>
-              Mistral Small
+                Selected: {getModelInfo(model)?.displayName || model}
+              </Text>
+              {messages.length > 0 && modelInfo && (
+                <Text
+                  color={tokenPercentage > 70 ? 'orange.500' : tokenPercentage > 50 ? 'yellow.600' : gray}
+                  fontSize="xs"
+                  fontWeight="500"
+                >
+                  {currentTokens.toLocaleString()} / {formatContextWindow(modelInfo.contextWindow)} tokens ({Math.round(tokenPercentage)}%)
+                </Text>
+              )}
             </Flex>
-            <Flex
-              cursor={'pointer'}
-              transition="0.3s"
-              justify={'center'}
-              align="center"
-              bg={model === 'mistral-large-latest' ? buttonBg : 'transparent'}
-              w="164px"
-              h="70px"
-              boxShadow={model === 'mistral-large-latest' ? buttonShadow : 'none'}
-              borderRadius="14px"
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
+              rightIcon={<Icon as={isModelSelectorOpen ? MdExpandLess : MdExpandMore} />}
               color={textColor}
-              fontSize="18px"
-              fontWeight={'700'}
-              onClick={() => setModel('mistral-large-latest')}
             >
-              <Flex
-                borderRadius="full"
-                justify="center"
-                align="center"
-                bg={bgIcon}
-                me="10px"
-                h="39px"
-                w="39px"
-              >
-                <Icon
-                  as={MdBolt}
-                  width="20px"
-                  height="20px"
-                  color={iconColor}
-                />
-              </Flex>
-              Mistral Large
-            </Flex>
-            <Flex
-              cursor={'pointer'}
-              transition="0.3s"
-              justify={'center'}
-              align="center"
-              bg={model === 'magistral-small-latest' ? buttonBg : 'transparent'}
-              w="200px"
-              h="70px"
-              boxShadow={model === 'magistral-small-latest' ? buttonShadow : 'none'}
-              borderRadius="14px"
-              color={textColor}
-              fontSize="18px"
-              fontWeight={'700'}
-              onClick={() => setModel('magistral-small-latest')}
-            >
-              <Flex
-                borderRadius="full"
-                justify="center"
-                align="center"
-                bg={bgIcon}
-                me="10px"
-                h="39px"
-                w="39px"
-              >
-                <Icon
-                  as={MdPsychology}
-                  width="20px"
-                  height="20px"
-                  color={iconColor}
-                />
-              </Flex>
-              Magistral Small
-            </Flex>
-            <Flex
-              cursor={'pointer'}
-              transition="0.3s"
-              justify={'center'}
-              align="center"
-              bg={model === 'magistral-medium-latest' ? buttonBg : 'transparent'}
-              w="220px"
-              h="70px"
-              boxShadow={model === 'magistral-medium-latest' ? buttonShadow : 'none'}
-              borderRadius="14px"
-              color={textColor}
-              fontSize="18px"
-              fontWeight={'700'}
-              onClick={() => setModel('magistral-medium-latest')}
-            >
-              <Flex
-                borderRadius="full"
-                justify="center"
-                align="center"
-                bg={bgIcon}
-                me="10px"
-                h="39px"
-                w="39px"
-              >
-                <Icon
-                  as={MdPsychology}
-                  width="20px"
-                  height="20px"
-                  color={iconColor}
-                />
-              </Flex>
-              Magistral Medium
-            </Flex>
+              {isModelSelectorOpen ? 'Hide Models' : 'Change Model'}
+            </Button>
           </Flex>
+          <Collapse in={isModelSelectorOpen} animateOpacity>
+            <Box position="relative">
+              <Flex
+                mx="auto"
+                zIndex="2"
+                w="max-content"
+                mb="20px"
+                borderRadius="60px"
+                flexWrap="wrap"
+                gap="10px"
+              >
+                <Flex
+                  cursor={'pointer'}
+                  transition="0.3s"
+                  justify={'center'}
+                  align="center"
+                  bg={model === 'mistral-small-latest' ? buttonBg : 'transparent'}
+                  w="174px"
+                  h="70px"
+                  boxShadow={model === 'mistral-small-latest' ? buttonShadow : 'none'}
+                  borderRadius="14px"
+                  color={textColor}
+                  fontSize="18px"
+                  fontWeight={'700'}
+                  onClick={() => setModel('mistral-small-latest')}
+                  onMouseEnter={(e) => handleModelHover('mistral-small-latest', e)}
+                  onMouseLeave={handleModelLeave}
+                  ref={(el) => (modelButtonRefs.current['mistral-small-latest'] = el)}
+                >
+                  <Flex
+                    borderRadius="full"
+                    justify="center"
+                    align="center"
+                    bg={bgIcon}
+                    me="10px"
+                    h="39px"
+                    w="39px"
+                  >
+                    <Icon
+                      as={MdAutoAwesome}
+                      width="20px"
+                      height="20px"
+                      color={iconColor}
+                    />
+                  </Flex>
+                  Mistral Small
+                </Flex>
+                <Flex
+                  cursor={'pointer'}
+                  transition="0.3s"
+                  justify={'center'}
+                  align="center"
+                  bg={model === 'mistral-large-latest' ? buttonBg : 'transparent'}
+                  w="164px"
+                  h="70px"
+                  boxShadow={model === 'mistral-large-latest' ? buttonShadow : 'none'}
+                  borderRadius="14px"
+                  color={textColor}
+                  fontSize="18px"
+                  fontWeight={'700'}
+                  onClick={() => setModel('mistral-large-latest')}
+                  onMouseEnter={(e) => handleModelHover('mistral-large-latest', e)}
+                  onMouseLeave={handleModelLeave}
+                  ref={(el) => (modelButtonRefs.current['mistral-large-latest'] = el)}
+                >
+                  <Flex
+                    borderRadius="full"
+                    justify="center"
+                    align="center"
+                    bg={bgIcon}
+                    me="10px"
+                    h="39px"
+                    w="39px"
+                  >
+                    <Icon
+                      as={MdBolt}
+                      width="20px"
+                      height="20px"
+                      color={iconColor}
+                    />
+                  </Flex>
+                  Mistral Large
+                </Flex>
+                <Flex
+                  cursor={'pointer'}
+                  transition="0.3s"
+                  justify={'center'}
+                  align="center"
+                  bg={model === 'magistral-small-latest' ? buttonBg : 'transparent'}
+                  w="200px"
+                  h="70px"
+                  boxShadow={model === 'magistral-small-latest' ? buttonShadow : 'none'}
+                  borderRadius="14px"
+                  color={textColor}
+                  fontSize="18px"
+                  fontWeight={'700'}
+                  onClick={() => setModel('magistral-small-latest')}
+                  onMouseEnter={(e) => handleModelHover('magistral-small-latest', e)}
+                  onMouseLeave={handleModelLeave}
+                  ref={(el) => (modelButtonRefs.current['magistral-small-latest'] = el)}
+                >
+                  <Flex
+                    borderRadius="full"
+                    justify="center"
+                    align="center"
+                    bg={bgIcon}
+                    me="10px"
+                    h="39px"
+                    w="39px"
+                  >
+                    <Icon
+                      as={MdPsychology}
+                      width="20px"
+                      height="20px"
+                      color={iconColor}
+                    />
+                  </Flex>
+                  Magistral Small
+                </Flex>
+                <Flex
+                  cursor={'pointer'}
+                  transition="0.3s"
+                  justify={'center'}
+                  align="center"
+                  bg={model === 'magistral-medium-latest' ? buttonBg : 'transparent'}
+                  w="220px"
+                  h="70px"
+                  boxShadow={model === 'magistral-medium-latest' ? buttonShadow : 'none'}
+                  borderRadius="14px"
+                  color={textColor}
+                  fontSize="18px"
+                  fontWeight={'700'}
+                  onClick={() => setModel('magistral-medium-latest')}
+                  onMouseEnter={(e) => handleModelHover('magistral-medium-latest', e)}
+                  onMouseLeave={handleModelLeave}
+                  ref={(el) => (modelButtonRefs.current['magistral-medium-latest'] = el)}
+                >
+                  <Flex
+                    borderRadius="full"
+                    justify="center"
+                    align="center"
+                    bg={bgIcon}
+                    me="10px"
+                    h="39px"
+                    w="39px"
+                  >
+                    <Icon
+                      as={MdPsychology}
+                      width="20px"
+                      height="20px"
+                      color={iconColor}
+                    />
+                  </Flex>
+                  Magistral Medium
+                </Flex>
+              </Flex>
+              {hoveredModel && MISTRAL_MODELS[hoveredModel] && (
+                <ModelOverviewCard
+                  model={MISTRAL_MODELS[hoveredModel]}
+                  isVisible={!!hoveredModel}
+                  position={hoverPosition}
+                />
+              )}
+            </Box>
+          </Collapse>
 
         </Flex>
-        {/* Conversation History */}
         <Flex
+          ref={chatContainerRef}
           direction="column"
           w="100%"
           mx="auto"
-          mb={'auto'}
+          flex="1"
           overflowY="auto"
-          maxH="calc(100vh - 350px)"
+          minH="0"
         >
           {messages.map((message, index) => (
             <Flex
@@ -494,7 +787,7 @@ export default function Chat() {
                       fontSize={{ base: 'sm', md: 'md' }}
                       lineHeight={{ base: '24px', md: '26px' }}
                     >
-                      {message.content}
+                      {getMessageText(message.content)}
                     </Text>
                   </Flex>
                 </Flex>
@@ -518,13 +811,15 @@ export default function Chat() {
                     />
                   </Flex>
                   <Box w="100%">
-                    <MessageBoxChat output={message.content} />
+                    <MessageBoxChat 
+                      output={getMessageText(message.content)} 
+                      attachments={message.attachments}
+                    />
                   </Box>
                 </Flex>
               )}
             </Flex>
           ))}
-          {/* Streaming Message */}
           {streamingMessage && (
             <Flex w="100%" align="flex-start">
               <Flex
@@ -551,59 +846,170 @@ export default function Chat() {
           )}
           <div ref={messagesEndRef} />
         </Flex>
-        {/* Chat Input */}
         <Flex
           ms={{ base: '0px', xl: '60px' }}
           mt="20px"
-          justifySelf={'flex-end'}
+          mb="10px"
+          flexShrink={0}
+          direction="column"
+          gap="10px"
         >
-          <Input
-            minH="54px"
-            h="100%"
-            border="1px solid"
-            borderColor={borderColor}
-            borderRadius="45px"
-            p="15px 20px"
-            me="10px"
-            fontSize="sm"
-            fontWeight="500"
-            _focus={{ borderColor: 'none' }}
-            color={inputColor}
-            _placeholder={placeholderColor}
-            placeholder="Type your message here..."
-            value={inputCode}
-            onChange={handleChange}
-            onKeyPress={handleKeyPress}
-          />
-          <Button
-            variant="primary"
-            py="20px"
-            px="16px"
-            fontSize="sm"
-            borderRadius="45px"
-            ms="auto"
-            w={{ base: '160px', md: '210px' }}
-            h="54px"
-            _hover={{
-              boxShadow:
-                '0px 21px 27px -10px rgba(250, 80, 15, 0.48) !important',
-              bg: 'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%) !important',
-              _disabled: {
-                bg: 'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)',
-              },
-            }}
-            onClick={handleTranslate}
-            isLoading={loading ? true : false}
-          >
-            Submit
-          </Button>
-        </Flex>
+          {modelInfo && modelInfo.supportedAttachments.length > 0 && (
+            <Flex gap="8px" align="center" flexWrap="wrap">
+              <Icon as={MdAttachFile} color={textColor} boxSize="18px" />
+              {modelInfo.supportedAttachments.includes('image') && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  leftIcon={<Icon as={MdImage} />}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/png,image/jpeg,image/webp,image/gif';
+                    input.onchange = async (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        const preview = URL.createObjectURL(file);
+                        setAttachments([...attachments, { type: 'image', file, preview }]);
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  Image
+                </Button>
+              )}
+              {modelInfo.supportedAttachments.includes('document') && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  leftIcon={<Icon as={MdDescription} />}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'application/pdf';
+                    input.onchange = async (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        setAttachments([...attachments, { type: 'document', file }]);
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  PDF
+                </Button>
+              )}
+              {attachments.length > 0 && (
+                <Text fontSize="xs" color={textColor} ml="auto">
+                  {attachments.length} file(s) attached
+                </Text>
+              )}
+            </Flex>
+          )}
+
+          {attachments.length > 0 && (
+            <Flex gap="8px" flexWrap="wrap">
+              {attachments.map((attachment, index) => (
+                <Flex
+                  key={index}
+                  bg={attachmentBg}
+                  border="1px solid"
+                  borderColor={borderColor}
+                  borderRadius="8px"
+                  p="8px"
+                  align="center"
+                  gap="8px"
+                >
+                  {attachment.preview ? (
+                    <Box
+                      as="img"
+                      src={attachment.preview}
+                      alt={attachment.file.name}
+                      w="40px"
+                      h="40px"
+                      objectFit="cover"
+                      borderRadius="4px"
+                    />
+                  ) : (
+                    <Icon as={MdDescription} boxSize="20px" color={textColor} />
+                  )}
+                  <Box flex="1" minW="0">
+                    <Text fontSize="xs" color={textColor} noOfLines={1}>
+                      {attachment.file.name}
+                    </Text>
+                    <Text fontSize="xs" color={gray}>
+                      {(attachment.file.size / 1024).toFixed(1)} KB
+                    </Text>
+                  </Box>
+                  <IconButton
+                    aria-label="Remove"
+                    icon={<Icon as={MdClose} />}
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => {
+                      if (attachment.preview) {
+                        URL.revokeObjectURL(attachment.preview);
+                      }
+                      setAttachments(attachments.filter((_, i) => i !== index));
+                    }}
+                  />
+                </Flex>
+              ))}
+            </Flex>
+          )}
+
+          <Flex gap="10px">
+              <Input
+                minH="54px"
+                h="100%"
+                border="1px solid"
+                borderColor={borderColor}
+                borderRadius="45px"
+                p="15px 20px"
+                me="10px"
+                fontSize="sm"
+                fontWeight="500"
+                _focus={{ borderColor: 'none' }}
+                color={inputColor}
+                _placeholder={placeholderColor}
+                placeholder="Type your message here..."
+                value={inputCode}
+                onChange={handleChange}
+                onKeyPress={handleKeyPress}
+              />
+              <Button
+                variant="primary"
+                py="20px"
+                px="16px"
+                fontSize="sm"
+                borderRadius="45px"
+                ms="auto"
+                w={{ base: '160px', md: '210px' }}
+                h="54px"
+                _hover={{
+                  boxShadow:
+                    '0px 21px 27px -10px rgba(250, 80, 15, 0.48) !important',
+                  bg: 'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%) !important',
+                  _disabled: {
+                    bg: 'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)',
+                  },
+                }}
+                onClick={handleTranslate}
+                isLoading={loading ? true : false}
+              >
+                Submit
+              </Button>
+            </Flex>
+          </Flex>
 
         <Flex
           justify="center"
-          mt="20px"
+          mt="10px"
+          mb="10px"
           direction={{ base: 'column', md: 'row' }}
           alignItems="center"
+          flexShrink={0}
         >
           <Text fontSize="xs" textAlign="center" color={gray}>
            AI can make mistakes.
@@ -621,5 +1027,13 @@ export default function Chat() {
         </Flex>
       </Flex>
     </Flex>
+  );
+}
+
+export default function Chat() {
+  return (
+    <Suspense fallback={<Flex w="100%" h="100vh" align="center" justify="center"><Text>Loading...</Text></Flex>}>
+      <ChatContent />
+    </Suspense>
   );
 }

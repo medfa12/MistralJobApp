@@ -16,22 +16,50 @@ import {
   Icon,
   ListItem,
   useColorModeValue,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  IconButton,
+  useToast,
+  useDisclosure,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  Input,
+  Button,
+  Portal,
 } from '@chakra-ui/react';
 import { FaCircle } from 'react-icons/fa';
 import { IoMdAdd } from 'react-icons/io';
 import NavLink from '@/components/link/NavLink';
 import { IRoute } from '@/types/navigation';
 import { PropsWithChildren, useCallback, useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
-import { MdMessage } from 'react-icons/md';
+import { usePathname, useRouter } from 'next/navigation';
+import { MdMessage, MdMoreVert, MdEdit, MdDelete } from 'react-icons/md';
 
 interface SidebarLinksProps extends PropsWithChildren {
   routes: IRoute[];
 }
 
 export function SidebarLinks(props: SidebarLinksProps) {
-  //   Chakra color mode
   const pathname = usePathname();
+  const router = useRouter();
+  const toast = useToast();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  
+  const getCurrentConversationId = () => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('conversationId');
+    }
+    return null;
+  };
+  
   let activeColor = useColorModeValue('navy.700', 'white');
   let inactiveColor = useColorModeValue('gray.500', 'gray.500');
   let borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
@@ -41,30 +69,115 @@ export function SidebarLinks(props: SidebarLinksProps) {
   const { routes } = props;
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedConversation, setSelectedConversation] = useState<any>(null);
+  const [newTitle, setNewTitle] = useState('');
 
-  // Fetch chat conversations
-  useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/chat/conversations');
-        if (response.ok) {
-          const data = await response.json();
-          setConversations(data);
-        }
-      } catch (error) {
-        console.error('Error fetching conversations:', error);
-      } finally {
-        setLoading(false);
+  const fetchConversations = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/chat/conversations?limit=20');
+      if (response.ok) {
+        const data = await response.json();
+        setConversations(data);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
     fetchConversations();
-    
-    // Refresh conversations every 30 seconds
     const interval = setInterval(fetchConversations, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchConversations]);
+
+  const handleRenameClick = (conversation: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedConversation(conversation);
+    setNewTitle(conversation.title);
+    onOpen();
+  };
+
+  const handleRename = async () => {
+    if (!selectedConversation || !newTitle.trim()) return;
+
+    try {
+      const response = await fetch(`/api/chat/conversations/${selectedConversation.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle.trim() }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: 'Conversation renamed',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
+          position: 'top',
+        });
+        fetchConversations();
+        onClose();
+      } else {
+        throw new Error('Failed to rename');
+      }
+    } catch (error) {
+      toast({
+        title: 'Failed to rename conversation',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'top',
+      });
+    }
+  };
+
+  const handleDelete = async (conversationId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!confirm('Are you sure you want to delete this conversation?')) {
+      return;
+    }
+
+    const currentConversationId = getCurrentConversationId();
+    const isCurrentConversation = currentConversationId === conversationId;
+
+    try {
+      const response = await fetch(`/api/chat/conversations/${conversationId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: 'Conversation deleted',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
+          position: 'top',
+        });
+        
+        if (isCurrentConversation) {
+          router.push('/chat');
+        }
+        
+        fetchConversations();
+      } else {
+        throw new Error('Failed to delete');
+      }
+    } catch (error) {
+      toast({
+        title: 'Failed to delete conversation',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'top',
+      });
+    }
+  };
 
   // verifies if routeName is the one active (in browser input)
   const activeRoute = useCallback(
@@ -337,27 +450,49 @@ export function SidebarLinks(props: SidebarLinksProps) {
         >
           Recent Chats
         </Text>
-        {loading ? (
-          <Text color={inactiveColor} fontSize="sm" ps="20px" mb="10px">
-            Loading...
-          </Text>
-        ) : conversations.length === 0 ? (
-          <Text color={inactiveColor} fontSize="sm" ps="20px" mb="10px">
-            No conversations yet
-          </Text>
-        ) : (
-          conversations.map((conversation) => (
-            <NavLink
+        <Box
+          maxH="300px"
+          overflowY="auto"
+          css={{
+            '&::-webkit-scrollbar': {
+              width: '4px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: 'transparent',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: useColorModeValue('gray.300', 'whiteAlpha.300'),
+              borderRadius: '24px',
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              background: useColorModeValue('gray.400', 'whiteAlpha.400'),
+            },
+          }}
+        >
+          {loading ? (
+            <Text color={inactiveColor} fontSize="sm" ps="20px" mb="10px">
+              Loading...
+            </Text>
+          ) : conversations.length === 0 ? (
+            <Text color={inactiveColor} fontSize="sm" ps="20px" mb="10px">
+              No conversations yet
+            </Text>
+          ) : (
+            conversations.map((conversation) => (
+            <Flex
               key={conversation.id}
-              href={`/chat?conversationId=${conversation.id}`}
+              align="center"
+              ps="17px"
+              mb="10px"
+              _hover={{ bg: 'gray.50', _dark: { bg: 'whiteAlpha.100' } }}
+              borderRadius="8px"
+              py="8px"
+              position="relative"
+              role="group"
             >
-              <Flex
-                align="center"
-                ps="17px"
-                mb="10px"
-                _hover={{ bg: 'gray.50', _dark: { bg: 'whiteAlpha.100' } }}
-                borderRadius="8px"
-                py="8px"
+              <NavLink
+                href={`/chat?conversationId=${conversation.id}`}
+                styles={{ width: '100%', display: 'flex', alignItems: 'center' }}
               >
                 <Box color={inactiveColor} me="12px">
                   <Icon as={MdMessage} width="16px" height="16px" />
@@ -367,23 +502,104 @@ export function SidebarLinks(props: SidebarLinksProps) {
                   fontWeight="500"
                   fontSize="sm"
                   noOfLines={1}
-                  maxW="180px"
+                  maxW="140px"
                 >
                   {conversation.title}
                 </Text>
-              </Flex>
-            </NavLink>
-          ))
-        )}
+              </NavLink>
+              <Menu>
+                <MenuButton
+                  as={IconButton}
+                  icon={<Icon as={MdMoreVert} />}
+                  variant="ghost"
+                  size="xs"
+                  minW="20px"
+                  h="20px"
+                  opacity={0}
+                  _groupHover={{ opacity: 1 }}
+                  position="absolute"
+                  right="8px"
+                  aria-label="Options"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <Portal>
+                  <MenuList minW="150px" zIndex={9999}>
+                    <MenuItem
+                      icon={<Icon as={MdEdit} />}
+                      onClick={(e) => handleRenameClick(conversation, e)}
+                    >
+                      Rename
+                    </MenuItem>
+                    <MenuItem
+                      icon={<Icon as={MdDelete} />}
+                      onClick={(e) => handleDelete(conversation.id, e)}
+                      color="red.500"
+                    >
+                      Delete
+                    </MenuItem>
+                  </MenuList>
+                </Portal>
+              </Menu>
+            </Flex>
+            ))
+          )}
+        </Box>
       </Box>
     );
   };
 
-  //  BRAND
   return (
     <>
       {createLinks(routes)}
       {renderChatHistory()}
+      
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
+        <ModalContent
+          bg={useColorModeValue('white', 'navy.800')}
+          color={useColorModeValue('navy.700', 'white')}
+          borderRadius="20px"
+          boxShadow="xl"
+        >
+          <ModalHeader>Rename Conversation</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <Input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="Enter new name"
+              bg={useColorModeValue('white', 'navy.700')}
+              border="1px solid"
+              borderColor={useColorModeValue('gray.200', 'whiteAlpha.200')}
+              _focus={{
+                borderColor: useColorModeValue('brand.500', 'brand.400'),
+              }}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleRename();
+                }
+              }}
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button 
+              bg="linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)"
+              color="white"
+              _hover={{
+                bg: "linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)",
+                opacity: 0.9,
+              }}
+              onClick={handleRename}
+              isDisabled={!newTitle.trim()}
+            >
+              Rename
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   );
 }

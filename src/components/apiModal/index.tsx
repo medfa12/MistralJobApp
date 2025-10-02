@@ -25,21 +25,44 @@ import {
   useDisclosure,
   useToast,
 } from '@chakra-ui/react';
-import { useState } from 'react';
-import { MdLock } from 'react-icons/md';
+import { useState, useEffect } from 'react';
 
-function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
-  const { setApiKey, sidebar } = props;
-  const { isOpen, onOpen, onClose } = useDisclosure();
+function APIModal(props: { setApiKey: any; sidebar?: boolean; externalOpen?: boolean; onExternalClose?: () => void; onApiKeySet?: () => void }) {
+  const { setApiKey, sidebar, externalOpen, onExternalClose, onApiKeySet } = props;
+  const { isOpen: internalIsOpen, onOpen: internalOnOpen, onClose: internalOnClose } = useDisclosure();
   const [inputCode, setInputCode] = useState<string>('');
+  const [existingKey, setExistingKey] = useState<string | null>(null);
+  const [keyDate, setKeyDate] = useState<string | null>(null);
+
+  const isOpen = externalOpen !== undefined ? externalOpen : internalIsOpen;
+  const onOpen = internalOnOpen;
+  const onClose = () => {
+    if (onExternalClose) {
+      onExternalClose();
+    } else {
+      internalOnClose();
+    }
+  };
 
   const textColor = useColorModeValue('navy.700', 'white');
   const grayColor = useColorModeValue('gray.500', 'gray.500');
   const inputBorder = useColorModeValue('gray.200', 'whiteAlpha.200');
   const inputColor = useColorModeValue('navy.700', 'white');
   const link = useColorModeValue('brand.500', 'white');
-  const navbarIcon = useColorModeValue('gray.500', 'white');
   const toast = useToast();
+
+  useEffect(() => {
+    const storedKey = localStorage.getItem('apiKey');
+    const storedDate = localStorage.getItem('apiKeyDate');
+    
+    if (storedKey) {
+      setExistingKey(storedKey);
+      setKeyDate(storedDate);
+    } else {
+      setExistingKey(null);
+      setKeyDate(null);
+    }
+  }, [isOpen]);
 
   const handleChange = (Event: any) => {
     setInputCode(Event.target.value);
@@ -48,12 +71,37 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
   const handleApiKeyChange = (value: string) => {
     setApiKey(value);
 
+    const newDate = new Date().toISOString();
     localStorage.setItem('apiKey', value);
+    localStorage.setItem('apiKeyDate', newDate);
+    
+    setExistingKey(value);
+    setKeyDate(newDate);
+    
+    if (onApiKeySet) {
+      onApiKeySet();
+    }
+  };
+
+  const getLastFourDigits = () => {
+    if (existingKey && existingKey.length > 4) {
+      return existingKey.slice(-4);
+    }
+    return 'xxxx';
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
   };
   return (
     <>
-      {sidebar ? (
-        // @ts-ignore
+      {sidebar && (
         <Button
           onClick={onOpen}
           display="flex"
@@ -65,19 +113,6 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
           minH="40px"
         >
           Set API Key
-        </Button>
-      ) : (
-        <Button
-          onClick={onOpen}
-          minW="max-content !important"
-          p="0px"
-          me="10px"
-          _hover={{ bg: 'none' }}
-          _focus={{ bg: 'none' }}
-          _selected={{ bg: 'none' }}
-          bg="none !important"
-        >
-          <Icon w="18px" h="18px" as={MdLock} color={navbarIcon} />
         </Button>
       )}
 
@@ -92,7 +127,7 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
               textAlign={'center'}
               color={textColor}
             >
-              Enter your Mistral API Key
+              {existingKey ? 'Change your Mistral API Key' : 'Enter your Mistral API Key'}
             </ModalHeader>
             <ModalCloseButton _focus={{ boxShadow: 'none' }} />
             <ModalBody p="0px">
@@ -103,11 +138,20 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
                 lineHeight="28px"
                 mb="22px"
               >
-                You need a Mistral API Key to use Mistral AI Demo's
                 You need a Mistral API Key to use Mistral AI Demo's features.
                 Your API Key is stored locally in your browser and never sent
                 to our servers.
               </Text>
+              {existingKey && keyDate && (
+                <Text
+                  color={grayColor}
+                  fontWeight="600"
+                  fontSize="sm"
+                  mb="12px"
+                >
+                  Current Key: mst-...{getLastFourDigits()} • Added: {formatDate(keyDate)}
+                </Text>
+              )}
               <Flex mb="20px">
                 <Input
                   h="100%"
@@ -121,7 +165,7 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
                   _focus={{ borderColor: 'none' }}
                   _placeholder={{ color: 'gray.500' }}
                   color={inputColor}
-                  placeholder="mst-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  placeholder={existingKey ? `mst-...${getLastFourDigits()}` : 'mst-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
                   onChange={handleChange}
                   value={inputCode}
                 />
