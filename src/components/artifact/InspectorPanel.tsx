@@ -12,7 +12,7 @@ import {
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { inspectorPanelVariants } from './animations';
-import { InspectedElement } from './types';
+import { InspectedElement } from './PreviewView';
 
 interface Props {
   element: InspectedElement | null;

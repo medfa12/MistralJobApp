@@ -110,6 +110,12 @@ export const ArtifactSidePanel: FC<Props> = ({ artifact, isOpen, onClose, onCode
                         UPDATED
                       </Badge>
                     )}
+                    {artifact.versions && artifact.versions.length > 0 && (
+                      <Badge colorScheme="purple" fontSize="xs">
+                        V{artifact.currentVersion || artifact.versions.length + 1} 
+                        ({artifact.versions.length + 1} {artifact.versions.length === 0 ? 'version' : 'versions'})
+                      </Badge>
+                    )}
                   </Flex>
                 </Box>
               </Flex>

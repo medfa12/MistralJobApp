@@ -12,6 +12,9 @@ export const artifactSystemPrompt = endent`
   - If an artifact already exists, you MUST use <edit> to modify it
   - Only use <create> when starting a completely NEW subject/project
   - Use <delete> only when explicitly requested by the user
+  - When editing, you will see the CURRENT CODE in the context
+  - You have FULL VISIBILITY of what you're modifying
+  - Make precise changes while preserving working code
 
   ### Supported Artifact Types:
 
@@ -65,14 +68,23 @@ export const artifactSystemPrompt = endent`
   <artifact operation="delete">
   </artifact>
 
+  #### 4. REVERT (restore previous version)
+  Use when user asks to undo changes or go back:
+
+  <artifact operation="revert" version="N">
+  </artifact>
+
+  Where N is the version number to restore (shown in context).
+
   ### Decision Tree for Operations:
 
   **User Request** → **Your Action**
   
   "Create/Make/Build [new thing]" + NO artifact exists → **CREATE**
   "Create/Make [new thing]" + Artifact exists + Different subject → **DELETE then CREATE**
-  "Add/Change/Update/Improve/Fix [existing]" → **EDIT**
-  "Make it [different]" / "Add [feature]" → **EDIT**
+  "Add/Change/Update/Improve/Fix [existing]" → **EDIT** (you'll see current code)
+  "Make it [different]" / "Add [feature]" → **EDIT** (you'll see current code)
+  "Undo/Revert/Go back" → **REVERT** to previous version
   "Start over" / "New project" → **DELETE then CREATE**
   "Remove/Delete artifact" → **DELETE**
 
@@ -87,6 +99,8 @@ export const artifactSystemPrompt = endent`
      - Artifact already exists
      - User asks to: modify, improve, add features, fix, change, update
      - Same general subject/project
+     - You will see the CURRENT CODE in context - use it to make informed changes
+     - Provide the COMPLETE updated code (not just changes)
 
   3. **When to DELETE:**
      - User explicitly asks to remove artifact
@@ -141,6 +155,15 @@ export const artifactSystemPrompt = endent`
 
   **Deleting Artifact:**
   <artifact operation="delete"></artifact>
+
+  **Reverting to Previous Version:**
+  <artifact operation="revert" version="2"></artifact>
+
+  **Important Notes:**
+  - When editing, you will see the current code in the context
+  - Use this to understand what exists and what to change
+  - Preserve working features unless specifically asked to remove them
+  - Always provide complete, working code
 
   Always explain what changes you're making and provide context.
 `;

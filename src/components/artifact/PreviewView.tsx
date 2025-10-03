@@ -17,8 +17,24 @@ import {
 import { MdSearch, MdSearchOff } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
-import { InspectedElement } from './types';
 import { InspectorPanel } from './InspectorPanel';
+
+export interface InspectedElement {
+  tagName: string;
+  id?: string;
+  className?: string;
+  styles?: CSSStyleDeclaration;
+  dimensions?: {
+    width: number;
+    height: number;
+  };
+  position?: {
+    x: number;
+    y: number;
+  };
+  path?: string[];
+  attributes?: { [key: string]: string };
+}
 import { hoverHighlightVariants, selectedHighlightVariants, tooltipVariants } from './animations';
 import { extractElementCode } from '@/utils/artifactParser';
 
@@ -213,6 +229,7 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
               <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data: https:;">
                 <style>
                   body { 
                     margin: 0; 
@@ -236,6 +253,7 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
               <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'unsafe-inline'; img-src data: https:;">
                 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
                 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
                 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -274,6 +292,7 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
               <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'unsafe-inline'; img-src data: https:;">
                 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
                 <style>
                   body { 
@@ -358,8 +377,9 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
                 borderColor={useColorModeValue('gray.200', 'gray.700')}
                 borderRadius="lg"
                 bg={previewBg}
-                sandbox="allow-scripts allow-same-origin"
-                title="Preview"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
+                referrerPolicy="no-referrer"
+                title="Artifact Preview"
                 pointerEvents={inspectMode ? 'none' : 'auto'}
               />
 

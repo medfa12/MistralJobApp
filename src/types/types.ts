@@ -30,6 +30,7 @@ export interface Message {
   content: MessageContent;
   attachments?: Attachment[];
   artifact?: ArtifactData;
+  toolCall?: ToolCall;
 }
 
 export interface ChatBody {
@@ -41,15 +42,24 @@ export interface ChatBody {
 
 // Artifact Types
 export type ArtifactType = 'react' | 'html' | 'javascript' | 'vue';
+export type ArtifactOperation = 'create' | 'edit' | 'delete' | 'revert';
+
+export interface ArtifactVersion {
+  code: string;
+  timestamp: string;
+  description: string;
+}
 
 export interface ArtifactData {
   identifier: string;      // Unique ID for the artifact
   type: ArtifactType;      // Type of artifact
   title: string;           // Display title
-  code: string;            // The actual code
+  code: string;            // The actual code (current version)
   language?: string;       // Code language for syntax highlighting
   createdAt: string;       // ISO timestamp
   updatedAt?: string;      // ISO timestamp for updates
+  versions?: ArtifactVersion[]; // Version history
+  currentVersion?: number; // Index of current version
 }
 
 export interface InspectedCodeAttachment {
@@ -60,4 +70,11 @@ export interface InspectedCodeAttachment {
   code: string;            // Extracted HTML/JSX
   styles?: string;         // Computed styles
   sourceArtifactId: string; // Which artifact this came from
+}
+
+export interface ToolCall {
+  operation: ArtifactOperation;
+  artifactType?: ArtifactType;
+  artifactTitle?: string;
+  revertToVersion?: number;
 }
