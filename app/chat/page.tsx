@@ -2,9 +2,11 @@
 
 import Link from '@/components/link/Link';
 import MessageBoxChat from '@/components/MessageBoxChat';
-import { ChatBody, MistralModel, Message as MessageType, Attachment, ArtifactData, InspectedCodeAttachment } from '@/types/types';
+import { ChatBody, MistralModel, Message as MessageType, Attachment, ArtifactData, InspectedCodeAttachment, ToolCall } from '@/types/types';
 import { parseArtifacts, hasArtifacts, ParsedArtifact } from '@/utils/artifactParser';
-import { ArtifactSidePanel, ArtifactToggleButton } from '@/components/artifact';
+import { ArtifactSidePanel, ArtifactToggleButton, ArtifactErrorBoundary } from '@/components/artifact';
+import { ArtifactLoadingCard } from '@/components/ArtifactLoadingCard';
+import { artifactSystemPrompt } from '@/utils/enhancedArtifactSystemPrompt';
 import {
   Accordion,
   AccordionButton,
@@ -51,6 +53,8 @@ function ChatContent() {
   const [inspectedCodeAttachment, setInspectedCodeAttachment] = useState<InspectedCodeAttachment | null>(null);
   const [currentArtifact, setCurrentArtifact] = useState<ArtifactData | null>(null);
   const [isArtifactPanelOpen, setIsArtifactPanelOpen] = useState(false);
+  const [isGeneratingArtifact, setIsGeneratingArtifact] = useState(false);
+  const [artifactLoadingInfo, setArtifactLoadingInfo] = useState<{ operation: string; title?: string } | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -134,7 +138,7 @@ function ChatContent() {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [messages, streamingMessage]);
+  }, [messages.length, streamingMessage]);
 
   useEffect(() => {
     if (conversationId) {
@@ -332,18 +336,38 @@ function ChatContent() {
     let userMessageContent: any = currentInput;
     let uploadedAttachments: Attachment[] = [];
     
-    // Include context about current artifact (for AI awareness)
-    let artifactContext = '';
-    if (currentArtifact) {
-      artifactContext = `\n\n[Context: An artifact titled "${currentArtifact.title}" (type: ${currentArtifact.type}) is currently active. Use <artifact operation="edit"> to modify it, or <artifact operation="delete"> to remove it before creating a new one.]`;
-    }
-    
-    // Include inspected code in the message
+    // Include inspected code in the message (visible to user)
     if (inspectedCodeAttachment) {
       userMessageContent += `\n\n---\n**Inspected Element:** <${inspectedCodeAttachment.elementTag}>${inspectedCodeAttachment.elementId ? ` #${inspectedCodeAttachment.elementId}` : ''}${inspectedCodeAttachment.elementClasses ? ` .${inspectedCodeAttachment.elementClasses}` : ''}\n\n\`\`\`${inspectedCodeAttachment.sourceArtifactId.includes('react') ? 'jsx' : 'html'}\n${inspectedCodeAttachment.code}\n\`\`\`${inspectedCodeAttachment.styles ? `\n\n**Styles:** ${inspectedCodeAttachment.styles}` : ''}`;
     }
     
-    userMessageContent += artifactContext;
+    // Prepare artifact context for API ONLY (not saved to DB or shown to user)
+    let artifactContext = '';
+    let toolSuggestion = '';
+    
+    if (currentArtifact) {
+      artifactContext = `\n\n---
+**CURRENT ARTIFACT CONTEXT**
+Title: "${currentArtifact.title}"
+Type: ${currentArtifact.type}
+Version: ${currentArtifact.currentVersion || (currentArtifact.versions ? currentArtifact.versions.length + 1 : 1)}
+${currentArtifact.versions && currentArtifact.versions.length > 0 ? `Previous Versions: ${currentArtifact.versions.length}` : ''}
+
+Current Code:
+\`\`\`${currentArtifact.language || currentArtifact.type}
+${currentArtifact.code}
+\`\`\`
+
+Available Operations:
+- EDIT: Modify the artifact (provide complete updated code)
+${currentArtifact.versions && currentArtifact.versions.length > 0 ? `- REVERT: Go back to version 1-${currentArtifact.versions.length}` : ''}
+- DELETE: Remove the artifact
+---`;
+
+      toolSuggestion = `\n\n[System Context: User has an active artifact. If they're asking to modify/improve/add features, use <artifact operation="edit">. If they want to undo changes, use <artifact operation="revert" version="N">. Only delete if explicitly requested.]`;
+    } else {
+      toolSuggestion = `\n\n[System Context: No artifact exists. If user requests a component/widget/interactive demo, use <artifact operation="create">.]`;
+    }
     
     if (attachments.length > 0) {
       const contentArray: any[] = [{ type: 'text', text: currentInput }];
@@ -416,10 +440,22 @@ function ChatContent() {
 
     const controller = new AbortController();
     
-    const apiMessages = updatedMessages.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
+    const systemPromptWithToolContext = artifactSystemPrompt + toolSuggestion;
+    
+    // Build API messages: system + history + current user message with context
+    const apiMessages = [
+      { role: 'system' as const, content: systemPromptWithToolContext },
+      // Map all previous messages (NOT including current user message)
+      ...messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      })),
+      // Current user message with artifact context (ONLY to API)
+      { 
+        role: 'user' as const, 
+        content: userMessageContent + artifactContext
+      }
+    ];
 
     const body: ChatBody = {
       messages: apiMessages,
@@ -484,20 +520,47 @@ function ChatContent() {
         done = doneReading;
         const chunkValue = decoder.decode(value);
         accumulatedResponse += chunkValue;
-        setStreamingMessage(accumulatedResponse);
+        
+        // Check if we're generating an artifact
+        const hasArtifactTag = /<artifact[^>]*>/i.test(accumulatedResponse);
+        
+        if (hasArtifactTag) {
+          // Extract artifact info for loading state
+          const artifactMatch = accumulatedResponse.match(/<artifact\s+operation="([^"]+)"(?:\s+type="([^"]+)")?(?:\s+title="([^"]+)")?/i);
+          if (artifactMatch && !isGeneratingArtifact) {
+            setIsGeneratingArtifact(true);
+            setArtifactLoadingInfo({
+              operation: artifactMatch[1],
+              title: artifactMatch[3] || undefined
+            });
+          }
+          // Don't show streaming message during artifact generation
+          setStreamingMessage('');
+        } else {
+          // Normal message - show streaming text
+          setIsGeneratingArtifact(false);
+          setArtifactLoadingInfo(null);
+          setStreamingMessage(accumulatedResponse);
+        }
       }
 
-      // Parse artifacts from the response
       let artifactData: ArtifactData | undefined;
+      let toolCallData: ToolCall | undefined;
       let cleanContent = accumulatedResponse;
 
       if (hasArtifacts(accumulatedResponse)) {
         const { cleanText, artifacts } = parseArtifacts(accumulatedResponse);
         cleanContent = cleanText;
         
-        // Process artifact operations
         if (artifacts.length > 0) {
           const latestArtifact = artifacts[artifacts.length - 1];
+          
+          toolCallData = {
+            operation: latestArtifact.operation,
+            artifactType: latestArtifact.type,
+            artifactTitle: latestArtifact.title,
+            revertToVersion: latestArtifact.revertToVersion,
+          };
           
           if (latestArtifact.operation === 'delete') {
             // Delete operation: close panel and clear artifact
@@ -559,6 +622,14 @@ function ChatContent() {
                 position: 'top',
               });
             } else {
+              // Save current version to history
+              const versions = currentArtifact.versions || [];
+              const newVersion = {
+                code: currentArtifact.code,
+                timestamp: currentArtifact.updatedAt || currentArtifact.createdAt,
+                description: `Version ${versions.length + 1}`,
+              };
+              
               artifactData = {
                 ...currentArtifact,
                 type: latestArtifact.type,
@@ -566,6 +637,8 @@ function ChatContent() {
                 code: latestArtifact.code,
                 language: latestArtifact.language,
                 updatedAt: new Date().toISOString(),
+                versions: [...versions, newVersion],
+                currentVersion: versions.length + 1,
               };
               
               setCurrentArtifact(artifactData);
@@ -575,25 +648,77 @@ function ChatContent() {
               
               toast({
                 title: 'Artifact Updated',
-                description: `"${artifactData.title}" has been modified`,
+                description: `"${artifactData.title}" - Version ${artifactData.currentVersion}`,
                 status: 'success',
                 duration: 3000,
                 isClosable: true,
                 position: 'top',
               });
             }
+          } else if (latestArtifact.operation === 'revert') {
+            // Revert operation: restore previous version
+            if (!currentArtifact || !currentArtifact.versions || currentArtifact.versions.length === 0) {
+              toast({
+                title: 'No Version History',
+                description: 'No previous versions available to revert to',
+                status: 'warning',
+                duration: 3000,
+                isClosable: true,
+                position: 'top',
+              });
+            } else {
+              const targetVersion = latestArtifact.revertToVersion;
+              if (targetVersion === undefined || targetVersion < 1 || targetVersion > currentArtifact.versions.length) {
+                toast({
+                  title: 'Invalid Version',
+                  description: `Version ${targetVersion} does not exist. Available: 1-${currentArtifact.versions.length}`,
+                  status: 'error',
+                  duration: 3000,
+                  isClosable: true,
+                  position: 'top',
+                });
+              } else {
+                const revertToVersion = currentArtifact.versions[targetVersion - 1];
+                
+                artifactData = {
+                  ...currentArtifact,
+                  code: revertToVersion.code,
+                  updatedAt: new Date().toISOString(),
+                  currentVersion: targetVersion,
+                };
+                
+                setCurrentArtifact(artifactData);
+                if (!isArtifactPanelOpen) {
+                  setIsArtifactPanelOpen(true);
+                }
+                
+                toast({
+                  title: 'Artifact Reverted',
+                  description: `Restored to Version ${targetVersion}`,
+                  status: 'info',
+                  duration: 3000,
+                  isClosable: true,
+                  position: 'top',
+                });
+              }
+            }
           }
         }
       }
 
+      // Clear streaming message and loading states FIRST to prevent double display
+      setStreamingMessage('');
+      setIsGeneratingArtifact(false);
+      setArtifactLoadingInfo(null);
+      setLoading(false);
+      
       const assistantMessage: MessageType = { 
         role: 'assistant', 
         content: cleanContent,
-        artifact: artifactData
+        artifact: artifactData,
+        toolCall: toolCallData,
       };
       setMessages((prev) => [...prev, assistantMessage]);
-      setStreamingMessage('');
-      setLoading(false);
 
       if (convId) {
         await saveMessage(convId, 'assistant', getMessageText(cleanContent));
@@ -1028,15 +1153,41 @@ function ChatContent() {
                     <MessageBoxChat 
                       output={getMessageText(message.content)} 
                       attachments={message.attachments}
-                      artifact={message.artifact}
-                      onCodeAttach={handleCodeAttach}
+                      toolCall={message.toolCall}
                     />
                   </Box>
                 </Flex>
               )}
             </Flex>
           ))}
-          {streamingMessage && (
+          {isGeneratingArtifact && artifactLoadingInfo && (
+            <Flex w="100%" align="flex-start">
+              <Flex
+                borderRadius="full"
+                justify="center"
+                align="center"
+                bg={'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)'}
+                me="20px"
+                h="40px"
+                minH="40px"
+                minW="40px"
+              >
+                <Icon
+                  as={MdAutoAwesome}
+                  width="20px"
+                  height="20px"
+                  color="white"
+                />
+              </Flex>
+              <Box w="100%">
+                <ArtifactLoadingCard 
+                  operation={artifactLoadingInfo.operation}
+                  title={artifactLoadingInfo.title}
+                />
+              </Box>
+            </Flex>
+          )}
+          {streamingMessage && !isGeneratingArtifact && (
             <Flex w="100%" align="flex-start">
               <Flex
                 borderRadius="full"
@@ -1301,12 +1452,14 @@ function ChatContent() {
     </Flex>
 
     {/* Artifact Side Panel */}
-    <ArtifactSidePanel
-      artifact={currentArtifact}
-      isOpen={isArtifactPanelOpen}
-      onClose={() => setIsArtifactPanelOpen(false)}
-      onCodeAttach={handleCodeAttach}
-    />
+    <ArtifactErrorBoundary onReset={() => setCurrentArtifact(null)}>
+      <ArtifactSidePanel
+        artifact={currentArtifact}
+        isOpen={isArtifactPanelOpen}
+        onClose={() => setIsArtifactPanelOpen(false)}
+        onCodeAttach={handleCodeAttach}
+      />
+    </ArtifactErrorBoundary>
     </>
   );
 }

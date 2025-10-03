@@ -20,22 +20,44 @@ import {
   SimpleGrid
 } from '@chakra-ui/react'
 import Card from '@/components/card/Card'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { MdImage, MdDescription } from 'react-icons/md'
-import { Attachment, ArtifactData, InspectedCodeAttachment } from '@/types/types'
+import { Attachment, ToolCall } from '@/types/types'
+import ToolCallBox from '@/components/ToolCallBox'
+import CodeSnippet from '@/components/CodeSnippet'
 
 export default function MessageBox(props: { 
   output: string; 
   attachments?: Attachment[]; 
-  artifact?: ArtifactData;
-  onCodeAttach?: (attachment: InspectedCodeAttachment) => void;
+  toolCall?: ToolCall;
 }) {
-  const { output, attachments, artifact, onCodeAttach } = props
+  const { output, attachments, toolCall } = props
   const textColor = useColorModeValue('navy.700', 'white')
   const thinkingBg = useColorModeValue('gray.50', 'whiteAlpha.100')
   const thinkingBorder = useColorModeValue('purple.200', 'purple.600')
   const [thinking, setThinking] = useState<string>('')
   const [answer, setAnswer] = useState<string>('')
+
+  const extractCodeSnippets = (text: string): { text: string; snippets: Array<{ language: string; code: string; index: number }> } => {
+    const snippets: Array<{ language: string; code: string; index: number }> = [];
+    const codeBlockRegex = /```(\w+)\n([\s\S]*?)```/g;
+    let match;
+    let processedText = text;
+    let index = 0;
+
+    while ((match = codeBlockRegex.exec(text)) !== null) {
+      const [fullMatch, language, code] = match;
+      const supportedLanguages = ['python', 'rust', 'svelte', 'go', 'java', 'c', 'cpp', 'ruby', 'php', 'sql', 'kotlin', 'swift'];
+      
+      if (supportedLanguages.includes(language.toLowerCase())) {
+        snippets.push({ language, code: code.trim(), index });
+        processedText = processedText.replace(fullMatch, `__CODE_SNIPPET_${index}__`);
+        index++;
+      }
+    }
+
+    return { text: processedText, snippets };
+  };
 
   const processLatex = (text: string) => {
     let processed = text;
@@ -68,7 +90,13 @@ export default function MessageBox(props: {
 
   useEffect(() => {
     const thinkRegex = /<think>([\s\S]*?)<\/think>/g
-    const matches = output.match(thinkRegex)
+    const artifactRegex = /<artifact[^>]*>[\s\S]*?<\/artifact>/g
+    let processedOutput = output;
+    
+    // Hide artifact code blocks from chat display (they show in side panel instead)
+    processedOutput = processedOutput.replace(artifactRegex, '');
+    
+    const matches = processedOutput.match(thinkRegex)
     
     if (matches && matches.length > 0) {
       const thinkingContent = matches
@@ -76,11 +104,11 @@ export default function MessageBox(props: {
         .join('\n\n')
       setThinking(processLatex(thinkingContent))
       
-      const cleanAnswer = output.replace(thinkRegex, '').trim()
+      const cleanAnswer = processedOutput.replace(thinkRegex, '').trim()
       setAnswer(processLatex(cleanAnswer))
     } else {
       setThinking('')
-      setAnswer(processLatex(output))
+      setAnswer(processLatex(processedOutput))
     }
   }, [output])
 
@@ -163,6 +191,56 @@ export default function MessageBox(props: {
         </Box>
       )}
       
+      {toolCall && (
+        <ToolCallBox 
+          operation={toolCall.operation}
+          artifactType={toolCall.artifactType}
+          artifactTitle={toolCall.artifactTitle}
+          revertToVersion={toolCall.revertToVersion}
+        />
+      )}
+      
+      {(() => {
+        const { text: processedText, snippets } = extractCodeSnippets(answer);
+        let renderedText = processedText;
+        
+        return (
+          <>
+            {snippets.map((snippet, idx) => {
+              const placeholder = `__CODE_SNIPPET_${idx}__`;
+              const parts = renderedText.split(placeholder);
+              if (parts.length > 1) {
+                renderedText = parts.slice(1).join(placeholder);
+                return (
+                  <Fragment key={idx}>
+                    <ReactMarkdown 
+                      className="font-medium"
+                      remarkPlugins={[remarkMath] as any}
+                      rehypePlugins={[rehypeKatex] as any}
+                    >
+                      {parts[0]}
+                    </ReactMarkdown>
+                    <CodeSnippet 
+                      code={snippet.code}
+                      language={snippet.language}
+                      title={`${snippet.language.charAt(0).toUpperCase() + snippet.language.slice(1)} Code`}
+                    />
+                  </Fragment>
+                );
+              }
+              return null;
+            })}
+            <ReactMarkdown 
+              className="font-medium"
+              remarkPlugins={[remarkMath] as any}
+              rehypePlugins={[rehypeKatex] as any}
+            >
+              {renderedText}
+            </ReactMarkdown>
+          </>
+        );
+      })()}
+      
       {thinking && (
         <Accordion allowToggle mb="20px">
           <AccordionItem 
@@ -207,8 +285,6 @@ export default function MessageBox(props: {
       >
         {answer ? answer : ''}
       </ReactMarkdown>
-
-      {/* Artifact reference removed - now shown in side panel */}
     </Card>
   )
 }

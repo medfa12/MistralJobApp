@@ -1,9 +1,10 @@
 import { ArtifactData, ArtifactType } from '@/types/types';
 
-export type ArtifactOperation = 'create' | 'edit' | 'delete';
+export type ArtifactOperation = 'create' | 'edit' | 'delete' | 'revert';
 
 export interface ParsedArtifact extends ArtifactData {
   operation: ArtifactOperation;
+  revertToVersion?: number; // For revert operations
 }
 
 /**
@@ -17,8 +18,8 @@ export function parseArtifacts(text: string): {
 } {
   const artifacts: ParsedArtifact[] = [];
   
-  // New format regex: <artifact operation="..." type="..." title="...">
-  const newFormatRegex = /<artifact\s+operation=["']([^"']+)["'](?:\s+type=["']([^"']+)["'])?(?:\s+title=["']([^"']+)["'])?>([\s\S]*?)<\/artifact>/g;
+  // New format regex: <artifact operation="..." type="..." title="..." version="...">
+  const newFormatRegex = /<artifact\s+operation=["']([^"']+)["'](?:\s+type=["']([^"']+)["'])?(?:\s+title=["']([^"']+)["'])?(?:\s+version=["']([^"']+)["'])?>([\s\S]*?)<\/artifact>/g;
   
   // Legacy format regex (for backward compatibility)
   const legacyFormatRegex = /<artifact\s+identifier=["']([^"']+)["']\s+type=["']([^"']+)["']\s+title=["']([^"']+)["']>([\s\S]*?)<\/artifact>/g;
@@ -28,7 +29,7 @@ export function parseArtifacts(text: string): {
   // Parse new format
   let match;
   while ((match = newFormatRegex.exec(text)) !== null) {
-    const [fullMatch, operation, type, title, content] = match;
+    const [fullMatch, operation, type, title, version, content] = match;
     
     // Handle delete operation
     if (operation === 'delete') {
@@ -46,6 +47,24 @@ export function parseArtifacts(text: string): {
       continue;
     }
     
+    // Handle revert operation
+    if (operation === 'revert') {
+      const versionNumber = version ? parseInt(version, 10) : undefined;
+      artifacts.push({
+        operation: 'revert',
+        identifier: 'current-artifact',
+        type: 'react',
+        title: 'Reverted',
+        code: '',
+        language: 'jsx',
+        createdAt: new Date().toISOString(),
+        revertToVersion: versionNumber,
+      });
+      
+      cleanText = cleanText.replace(fullMatch, `\n\n[Artifact reverted to version ${versionNumber}]\n\n`);
+      continue;
+    }
+    
     // Validate type for create/edit
     if (!type || !isValidArtifactType(type)) {
       console.warn(`Invalid or missing artifact type: ${type}`);
@@ -58,7 +77,8 @@ export function parseArtifacts(text: string): {
     // Validate code
     const validation = validateArtifactCode(code, type as ArtifactType);
     if (!validation.valid) {
-      console.warn(`Invalid artifact code:`, validation.errors);
+      console.warn(`Invalid artifact code for ${type}:`, validation.errors);
+      console.warn(`Code preview:`, code.substring(0, 200));
       continue;
     }
     
@@ -96,7 +116,8 @@ export function parseArtifacts(text: string): {
     const code = extractCode(content.trim());
     const validation = validateArtifactCode(code, type as ArtifactType);
     if (!validation.valid) {
-      console.warn(`Invalid artifact code:`, validation.errors);
+      console.warn(`Invalid legacy artifact code for ${type}:`, validation.errors);
+      console.warn(`Code preview:`, code.substring(0, 200));
       continue;
     }
 
@@ -158,20 +179,60 @@ export function validateArtifactCode(code: string, type: ArtifactType): {
   }
 
   // Security checks - dangerous patterns
+  // Note: Some patterns are commented out as they may be too restrictive for legitimate use
   const dangerousPatterns = [
-    /eval\s*\(/gi,
-    /Function\s*\(/gi,
-    /setTimeout\s*\(\s*["'`]/gi,
-    /setInterval\s*\(\s*["'`]/gi,
-    /<script[^>]*src=/gi,
-    /document\.write/gi,
-    /innerHTML\s*=/gi,
-    /outerHTML\s*=/gi,
+    { pattern: /eval\s*\(/gi, name: 'eval()' },
+    { pattern: /Function\s*\(/gi, name: 'Function constructor' },
+    { pattern: /new\s+Function/gi, name: 'new Function()' },
+    { pattern: /setTimeout\s*\(\s*["'`]/gi, name: 'setTimeout with string' },
+    { pattern: /setInterval\s*\(\s*["'`]/gi, name: 'setInterval with string' },
+    { pattern: /<script[^>]*src=/gi, name: 'external script' },
+    { pattern: /document\.write/gi, name: 'document.write' },
+    // innerHTML and outerHTML are commonly used, only block if needed
+    // { pattern: /innerHTML\s*=/gi, name: 'innerHTML assignment' },
+    // { pattern: /outerHTML\s*=/gi, name: 'outerHTML assignment' },
+    { pattern: /import\s*\(/gi, name: 'dynamic import()' },
+    { pattern: /XMLHttpRequest/gi, name: 'XMLHttpRequest' },
+    // fetch is commonly used for APIs, consider allowing it
+    // { pattern: /fetch\s*\(/gi, name: 'fetch() API' },
+    { pattern: /WebSocket/gi, name: 'WebSocket' },
+    { pattern: /<iframe/gi, name: 'nested iframe' },
+    { pattern: /javascript:/gi, name: 'javascript: protocol' },
+    // Only block HTML inline handlers like onclick="...", not React's onClick={...}
+    { pattern: /<[^>]+\s+on\w+\s*=\s*["']/gi, name: 'inline event handler (in HTML)' },
+    { pattern: /\.call\s*\(\s*null/gi, name: 'suspicious .call()' },
+    { pattern: /\.apply\s*\(\s*null/gi, name: 'suspicious .apply()' },
+    { pattern: /__proto__/gi, name: 'prototype pollution' },
+    { pattern: /constructor\[/gi, name: 'constructor access' },
+    { pattern: /\[\s*["']constructor["']\s*\]/gi, name: 'constructor string access' },
+    { pattern: /globalThis/gi, name: 'globalThis access' },
+    { pattern: /process\./gi, name: 'process object access' },
+    { pattern: /require\s*\(/gi, name: 'require()' },
+    { pattern: /import\s+.*\s+from/gi, name: 'ES6 import statement' },
+    { pattern: /<link[^>]*href=["'](?!data:)/gi, name: 'external stylesheet' },
+    // Base64 operations are commonly used, consider allowing
+    // { pattern: /atob\s*\(/gi, name: 'base64 decode (potential obfuscation)' },
+    // { pattern: /btoa\s*\(/gi, name: 'base64 encode (potential obfuscation)' },
+    // Storage APIs are commonly used in modern apps
+    // { pattern: /localStorage/gi, name: 'localStorage access' },
+    // { pattern: /sessionStorage/gi, name: 'sessionStorage access' },
+    // { pattern: /indexedDB/gi, name: 'indexedDB access' },
+    // Navigator is commonly used for feature detection
+    // { pattern: /navigator\./gi, name: 'navigator object access' },
+    // Location is commonly used for navigation
+    // { pattern: /location\./gi, name: 'location object access' },
+    { pattern: /top\./gi, name: 'top frame access' },
+    { pattern: /parent\./gi, name: 'parent frame access' },
+    { pattern: /window\.open/gi, name: 'window.open()' },
+    // Dialogs can be annoying but sometimes useful for demos
+    // { pattern: /alert\s*\(/gi, name: 'alert() (annoying)' },
+    // { pattern: /confirm\s*\(/gi, name: 'confirm() (annoying)' },
+    // { pattern: /prompt\s*\(/gi, name: 'prompt() (annoying)' },
   ];
 
-  for (const pattern of dangerousPatterns) {
+  for (const { pattern, name } of dangerousPatterns) {
     if (pattern.test(code)) {
-      errors.push(`Code contains potentially dangerous pattern: ${pattern.source}`);
+      errors.push(`Code contains potentially dangerous pattern: ${name}`);
     }
   }
 

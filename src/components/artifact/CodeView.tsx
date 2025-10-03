@@ -10,7 +10,7 @@ import { FC, useState } from 'react';
 import { Box, Button, Flex, Icon, useToast } from '@chakra-ui/react';
 import { MdContentCopy, MdCheck } from 'react-icons/md';
 import { motion } from 'framer-motion';
-import { ArtifactData } from './types';
+import { ArtifactData } from '@/types/types';
 
 interface Props {
   artifact: ArtifactData;
@@ -47,8 +47,6 @@ export const CodeView: FC<Props> = ({ artifact }) => {
     switch (artifact.type) {
       case 'html':
         return [html()];
-      case 'css':
-        return [css()];
       case 'javascript':
       case 'react':
       case 'vue':

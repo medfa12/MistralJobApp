@@ -5,7 +5,8 @@ import { Box, Flex, Icon, useColorModeValue, Tooltip } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdCode, MdVisibility } from 'react-icons/md';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
-import { ArtifactTab } from './types';
+
+export type ArtifactTab = 'code' | 'preview';
 import { CodeView } from './CodeView';
 import { PreviewView } from './PreviewView';
 import { tabContentVariants } from './animations';
