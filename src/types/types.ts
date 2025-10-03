@@ -1,218 +1,80 @@
-export type OpenAIModel = 'gpt-3.5-turbo' | 'gpt-4';
+export type MistralModel =
+  | 'mistral-small-latest'
+  | 'mistral-medium-latest'
+  | 'mistral-large-latest'
+  | 'magistral-small-latest'
+  | 'magistral-medium-latest';
 
-export interface EssayBody {
-  topic: string;
-  paragraphs: 3 | 4 | 5;
-  essayType:
-    | ''
-    | 'Argumentative'
-    | 'Classic'
-    | 'Persuasive'
-    | 'Memoir'
-    | 'Critique'
-    | 'Compare/Contrast';
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface ChatBody {
-  inputCode: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface SimplifierBody {
-  content: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface ProductDescriptionBody {
-  name: string;
-  keyBenefitsFeatures: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface EmailEnhancerBody {
-  topic: string;
-  toneOfVoice:
-    | ''
-    | 'Formal'
-    | 'Informal'
-    | 'Humorous'
-    | 'Serious'
-    | 'Optimistic'
-    | 'Motivating'
-    | 'Respectful'
-    | 'Assertive'
-    | 'Conversational';
-  content: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface LinkedinBody {
-  topic: string;
-  audience: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface CaptionBody {
-  topic: string;
-  toneOfVoice:
-    | ''
-    | 'Formal'
-    | 'Informal'
-    | 'Humorous'
-    | 'Serious'
-    | 'Optimistic'
-    | 'Motivating'
-    | 'Respectful'
-    | 'Assertive'
-    | 'Conversational';
-  description: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface FaqBody {
-  topic: string;
-  productType: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface NameGeneratorBody {
-  topic: string;
-  productType: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface SeoKeywordsBody {
-  name: string;
-  topics: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface ReviewResponderBody {
-  review: string;
-  name: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface BusinessGeneratorBody {
-  topic:
-    | ''
-    | 'Art and Entertainment'
-    | 'Business Equipment and Supplies'
-    | 'Clothing and Accessories'
-    | 'Food and Drink'
-    | 'Hardware and Automotive'
-    | 'Health and Beauty'
-    | 'Home and Garden'
-    | 'Internet and Technology'
-    | 'Pet supplies'
-    | 'Sports and Recreation'
-    | 'Toys and Games'
-    | 'Travel & Hospitality';
-  productType: '' | 'Physical' | 'Digital' | 'Service';
-  budget:
-    | ''
-    | 'Under $500'
-    | '$500-$1000'
-    | '$1000-$5000'
-    | '$5000-$20,000'
-    | '$20,000+';
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-export interface ArticleBody {
-  topic: string;
-  title: string;
-  language:
-    | ''
-    | 'English'
-    | 'Chinese'
-    | 'Spanish'
-    | 'Arabic'
-    | 'Hindi'
-    | 'Italian'
-    | 'Portuguese'
-    | 'Russian'
-    | 'Japanese'
-    | 'Romanian'
-    | 'German';
-  words: 200 | 300 | 400 | 500 | 600;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
+export type MessageContent = 
+  | string 
+  | Array<{
+      type: 'text' | 'image_url' | 'document_url';
+      text?: string;
+      image_url?: string;
+      document_url?: string;
+    }>;
 
-export interface PlagiarismCheckerBody {
-  content: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-
-export interface HashtagsGeneratorBody {
-  content: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
-}
-
-export interface PetNameGeneratorBody {
+export interface Attachment {
+  id?: string;
   type: string;
-  traits:
-    | ''
-    | 'Friendly'
-    | 'Playful'
-    | 'Energetic'
-    | 'Intelligent'
-    | 'Loyal'
-    | 'Curious'
-    | 'Affectionate'
-    | 'Independent'
-    | 'Calm'
-    | 'Protective';
-  gender: '' | 'Male' | 'Female' | 'Neutral';
-  model: OpenAIModel;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  cloudinaryPublicId: string;
+  cloudinaryUrl: string;
+  createdAt?: string;
+}
+
+export interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: MessageContent;
+  attachments?: Attachment[];
+  artifact?: ArtifactData;
+  toolCall?: ToolCall;
+}
+
+export interface ChatBody {
+  inputCode?: string;
+  messages?: Message[];
+  model: MistralModel;
   apiKey?: string | undefined | null;
 }
 
-export interface TranslatorBody {
-  content: string;
-  language:
-    | ''
-    | 'English'
-    | 'Chinese'
-    | 'Spanish'
-    | 'Arabic'
-    | 'Hindi'
-    | 'Italian'
-    | 'Portuguese'
-    | 'Russian'
-    | 'Japanese'
-    | 'Romanian'
-    | 'German';
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
+// Artifact Types
+export type ArtifactType = 'react' | 'html' | 'javascript' | 'vue';
+export type ArtifactOperation = 'create' | 'edit' | 'delete' | 'revert';
+
+export interface ArtifactVersion {
+  code: string;
+  timestamp: string;
+  description: string;
 }
 
-export interface DomainNameGeneratorBody {
-  keywords: string;
-  industry:
-    | ''
-    | 'Art and Entertainment'
-    | 'Business Equipment and Supplies'
-    | 'Clothing and Accessories'
-    | 'Food and Drink'
-    | 'Hardware and Automotive'
-    | 'Health and Beauty'
-    | 'Home and Garden'
-    | 'Internet and Technology'
-    | 'Pet supplies'
-    | 'Sports and Recreation'
-    | 'Toys and Games'
-    | 'Travel & Hospitality';
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
+export interface ArtifactData {
+  identifier: string;      // Unique ID for the artifact
+  type: ArtifactType;      // Type of artifact
+  title: string;           // Display title
+  code: string;            // The actual code (current version)
+  language?: string;       // Code language for syntax highlighting
+  createdAt: string;       // ISO timestamp
+  updatedAt?: string;      // ISO timestamp for updates
+  versions?: ArtifactVersion[]; // Version history
+  currentVersion?: number; // Index of current version
 }
 
-export interface BootstrapToTailwindConverterBody {
-  content: string;
-  model: OpenAIModel;
-  apiKey?: string | undefined | null;
+export interface InspectedCodeAttachment {
+  type: 'inspected-code';
+  elementTag: string;      // HTML tag name (button, div, etc.)
+  elementId?: string;      // Element ID if available
+  elementClasses?: string; // Element classes
+  code: string;            // Extracted HTML/JSX
+  styles?: string;         // Computed styles
+  sourceArtifactId: string; // Which artifact this came from
+}
+
+export interface ToolCall {
+  operation: ArtifactOperation;
+  artifactType?: ArtifactType;
+  artifactTitle?: string;
+  revertToVersion?: number;
 }

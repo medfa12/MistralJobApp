@@ -24,6 +24,7 @@ import MiniStatistics from '@/components/card/MiniStatistics';
 import IconBox from '@/components/icons/IconBox';
 import LineChart from '@/components/charts/LineChart';
 import { lineChartDataUsage, lineChartOptionsUsage } from '@/variables/charts';
+import SidebarCard from '@/components/sidebar/components/SidebarCard';
 
 export default function NewTemplate() {
   const textColor = useColorModeValue('navy.700', 'white');
@@ -141,6 +142,10 @@ export default function NewTemplate() {
           />
         </Box>
       </Card>
+
+      <Box mt="20px" maxW="400px">
+        <SidebarCard />
+      </Box>
     </Box>
   );
 }

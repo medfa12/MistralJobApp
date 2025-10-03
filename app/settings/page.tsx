@@ -1,35 +1,41 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { db } from '@/lib/db';
+import SettingsClient from './SettingsClient';
 
-// Chakra imports
-import { Box, Flex, SimpleGrid } from '@chakra-ui/react';
+export default async function Settings() {
+  // Get the current session
+  const session = await getServerSession(authOptions);
 
-import Info from '@/components/settings/Info';
-import Password from '@/components/settings/Password';
-import Profile from '@/components/settings/Profile';
-import Socials from '@/components/settings/Socials';
-import Delete from '@/components/settings/Delete';
-import avatar1 from '../../public/img/avatars/avatar4.png';
+  // Redirect to login if not authenticated
+  if (!session?.user?.email) {
+    redirect('/auth/login');
+  }
 
-export default function Settings() {
-  return (
-    <Box mt={{ base: '70px', md: '0px', xl: '0px' }}>
-      <SimpleGrid columns={{ sm: 1, lg: 2 }} spacing="20px" mb="20px">
-        {/* Column Left */}
-        <Flex direction="column">
-          <Profile
-            name="Adela Parkson"
-            avatar={avatar1}
-            banner={'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)'}
-          />
-          <Info />
-        </Flex>
-        {/* Column Right */}
-        <Flex direction="column" gap="20px">
-          <Socials />
-          <Password />
-        </Flex>
-      </SimpleGrid>
-      <Delete />
-    </Box>
-  );
+  // Fetch user data from database
+  const user = await db.user.findUnique({
+    where: {
+      email: session.user.email,
+    },
+    select: {
+      id: true,
+      username: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      avatar: true,
+      bio: true,
+      job: true,
+      role: true,
+      createdAt: true,
+    },
+  });
+
+  if (!user) {
+    redirect('/auth/login');
+  }
+
+  // Pass user data to client component
+  return <SettingsClient user={user} />;
 }

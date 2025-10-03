@@ -60,7 +60,7 @@ export default function LandingPage() {
           </p>
         </div>
         <div className="flex gap-4">
-          <Link href="/all-templates" className={cn(buttonVariants({ size: "lg" }), "bg-mistral-orange-dark hover:bg-mistral-red text-white")}>
+          <Link href="/my-projects" className={cn(buttonVariants({ size: "lg" }), "bg-mistral-orange-dark hover:bg-mistral-red text-white")}>
             Explore AI Tools
           </Link>
           <Link
@@ -227,7 +227,7 @@ export default function LandingPage() {
           </p>
         </div>
         <div className="flex gap-4">
-          <Link href="/all-templates" className={cn(buttonVariants({ size: "lg" }), "bg-mistral-orange-dark hover:bg-mistral-red text-white")}>
+          <Link href="/my-projects" className={cn(buttonVariants({ size: "lg" }), "bg-mistral-orange-dark hover:bg-mistral-red text-white")}>
             Explore Demo
           </Link>
         </div>

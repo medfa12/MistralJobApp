@@ -22,7 +22,7 @@ export const getActiveRoute = (
   pathname: string | null,
 ): string => {
   const route = findCurrentRoute(routes, pathname);
-  return route?.name || 'All Templates';
+  return route?.name || 'unnamed page';
 };
 
 export const getActiveNavbar = (

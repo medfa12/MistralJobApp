@@ -25,21 +25,44 @@ import {
   useDisclosure,
   useToast,
 } from '@chakra-ui/react';
-import { useState } from 'react';
-import { MdLock } from 'react-icons/md';
+import { useState, useEffect } from 'react';
 
-function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
-  const { setApiKey, sidebar } = props;
-  const { isOpen, onOpen, onClose } = useDisclosure();
+function APIModal(props: { setApiKey: any; sidebar?: boolean; externalOpen?: boolean; onExternalClose?: () => void; onApiKeySet?: () => void }) {
+  const { setApiKey, sidebar, externalOpen, onExternalClose, onApiKeySet } = props;
+  const { isOpen: internalIsOpen, onOpen: internalOnOpen, onClose: internalOnClose } = useDisclosure();
   const [inputCode, setInputCode] = useState<string>('');
+  const [existingKey, setExistingKey] = useState<string | null>(null);
+  const [keyDate, setKeyDate] = useState<string | null>(null);
+
+  const isOpen = externalOpen !== undefined ? externalOpen : internalIsOpen;
+  const onOpen = internalOnOpen;
+  const onClose = () => {
+    if (onExternalClose) {
+      onExternalClose();
+    } else {
+      internalOnClose();
+    }
+  };
 
   const textColor = useColorModeValue('navy.700', 'white');
   const grayColor = useColorModeValue('gray.500', 'gray.500');
   const inputBorder = useColorModeValue('gray.200', 'whiteAlpha.200');
   const inputColor = useColorModeValue('navy.700', 'white');
   const link = useColorModeValue('brand.500', 'white');
-  const navbarIcon = useColorModeValue('gray.500', 'white');
   const toast = useToast();
+
+  useEffect(() => {
+    const storedKey = localStorage.getItem('apiKey');
+    const storedDate = localStorage.getItem('apiKeyDate');
+    
+    if (storedKey) {
+      setExistingKey(storedKey);
+      setKeyDate(storedDate);
+    } else {
+      setExistingKey(null);
+      setKeyDate(null);
+    }
+  }, [isOpen]);
 
   const handleChange = (Event: any) => {
     setInputCode(Event.target.value);
@@ -48,12 +71,37 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
   const handleApiKeyChange = (value: string) => {
     setApiKey(value);
 
+    const newDate = new Date().toISOString();
     localStorage.setItem('apiKey', value);
+    localStorage.setItem('apiKeyDate', newDate);
+    
+    setExistingKey(value);
+    setKeyDate(newDate);
+    
+    if (onApiKeySet) {
+      onApiKeySet();
+    }
+  };
+
+  const getLastFourDigits = () => {
+    if (existingKey && existingKey.length > 4) {
+      return existingKey.slice(-4);
+    }
+    return 'xxxx';
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
   };
   return (
     <>
-      {sidebar ? (
-        // @ts-ignore
+      {sidebar && (
         <Button
           onClick={onOpen}
           display="flex"
@@ -65,19 +113,6 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
           minH="40px"
         >
           Set API Key
-        </Button>
-      ) : (
-        <Button
-          onClick={onOpen}
-          minW="max-content !important"
-          p="0px"
-          me="10px"
-          _hover={{ bg: 'none' }}
-          _focus={{ bg: 'none' }}
-          _selected={{ bg: 'none' }}
-          bg="none !important"
-        >
-          <Icon w="18px" h="18px" as={MdLock} color={navbarIcon} />
         </Button>
       )}
 
@@ -92,7 +127,7 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
               textAlign={'center'}
               color={textColor}
             >
-              Enter your OpenAI API Key
+              {existingKey ? 'Change your Mistral API Key' : 'Enter your Mistral API Key'}
             </ModalHeader>
             <ModalCloseButton _focus={{ boxShadow: 'none' }} />
             <ModalBody p="0px">
@@ -103,10 +138,20 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
                 lineHeight="28px"
                 mb="22px"
               >
-                You need an OpenAI API Key to use Mistral AI Demo's
-                features. Your API Key is stored locally on your browser and
-                never sent anywhere else.
+                You need a Mistral API Key to use Mistral AI Demo's features.
+                Your API Key is stored locally in your browser and never sent
+                to our servers.
               </Text>
+              {existingKey && keyDate && (
+                <Text
+                  color={grayColor}
+                  fontWeight="600"
+                  fontSize="sm"
+                  mb="12px"
+                >
+                  Current Key: mst-...{getLastFourDigits()} • Added: {formatDate(keyDate)}
+                </Text>
+              )}
               <Flex mb="20px">
                 <Input
                   h="100%"
@@ -120,7 +165,7 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
                   _focus={{ borderColor: 'none' }}
                   _placeholder={{ color: 'gray.500' }}
                   color={inputColor}
-                  placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  placeholder={existingKey ? `mst-...${getLastFourDigits()}` : 'mst-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
                   onChange={handleChange}
                   value={inputCode}
                 />
@@ -135,26 +180,22 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
                   w={{ base: '300px', md: '180px' }}
                   h="54px"
                   onClick={() => {
-                    inputCode?.includes('sk-')
-                      ? handleApiKeyChange(inputCode)
-                      : null;
-                    if (inputCode)
+                    if (inputCode) {
+                      handleApiKeyChange(inputCode);
                       toast({
-                        title: inputCode?.includes('sk-')
-                          ? `Success! You have successfully added your API key!`
-                          : !inputCode?.includes('sk-')
-                          ? `Invalid API key. Please make sure your API key is still working properly.`
-                          : 'Please add your API key!',
+                        title: `Success! You have successfully added your API key!`,
                         position: 'top',
-                        status: inputCode?.includes('sk-')
-                          ? 'success'
-                          : !inputCode?.includes('sk-')
-                          ? `error`
-                          : !inputCode
-                          ? 'warning'
-                          : 'error',
+                        status: 'success',
                         isClosable: true,
                       });
+                    } else {
+                      toast({
+                        title: 'Please add your API key!',
+                        position: 'top',
+                        status: 'warning',
+                        isClosable: true,
+                      });
+                    }
                   }}
                 >
                   Save API Key
@@ -163,11 +204,11 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
               <Link
                 color={link}
                 fontSize="sm"
-                href="https://platform.openai.com/account/api-keys"
+                href="https://console.mistral.ai/api-keys"
                 textDecoration="underline !important"
                 fontWeight="600"
               >
-                Get your API key from Open AI Dashboard
+                Get your API key from the Mistral Console
               </Link>
               <Accordion allowToggle w="100%" my="16px">
                 <AccordionItem border="none">
@@ -194,21 +235,20 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
                       <ListItem
                         mb="26px"
                         color={grayColor}
-                        fontSize=",d"
+                        fontSize="md"
                         fontWeight="500"
                       >
-                        Make sure you have an{' '}
+                        Make sure you created an account on the{' '}
                         <Link
                           textDecoration="underline"
-                          fontSize=",d"
-                          href="https://platform.openai.com/account/"
+                          fontSize="md"
+                          href="https://console.mistral.ai/"
                           fontWeight="500"
                           color={grayColor}
                         >
-                          OpenAI account
+                          Mistral Console
                         </Link>{' '}
-                        and a valid API key to use ChatGPT. We don't sell API
-                        keys.
+                        and generated an API key. We don't sell API keys.
                       </ListItem>
                       <ListItem
                         color={grayColor}
@@ -216,18 +256,9 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
                         lineHeight="28px"
                         fontWeight="500"
                       >
-                        Make sure you have your billing info added in{' '}
-                        <Link
-                          textDecoration="underline"
-                          fontSize="md"
-                          lineHeight="28px"
-                          href="https://platform.openai.com/account/billing/overview"
-                          fontWeight="500"
-                          color={grayColor}
-                        >
-                          OpenAI Billing
-                        </Link>{' '}
-                        page. Without billing info, your API key will not work.
+                        Ensure you have an active billing method configured in the
+                        Mistral Console. Keys without billing or credits will be
+                        rejected.
                       </ListItem>
                     </UnorderedList>
                   </AccordionPanel>
@@ -240,8 +271,8 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean }) {
                 mb="42px"
                 mx="30px"
               >
-                *The app will connect to OpenAI API server to check if your API
-                Key is working properly.
+                *The app connects to the Mistral API directly from your browser
+                using your key. It never reaches our servers.
               </Text>
             </ModalBody>
           </Card>

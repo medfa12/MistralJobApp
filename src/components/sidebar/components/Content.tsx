@@ -1,5 +1,4 @@
 'use client';
-// chakra imports
 import {
   Box,
   Button,
@@ -11,24 +10,26 @@ import {
   Stack,
   Text,
   useColorModeValue,
+  Skeleton,
 } from '@chakra-ui/react';
 import NavLink from '@/components/link/NavLink';
-//   Custom components
 import avatar4 from '/public/img/avatars/avatar4.png';
 import { NextAvatar } from '@/components/image/Avatar';
 import APIModal from '@/components/apiModal';
 import Brand from '@/components/sidebar/components/Brand';
 import Links from '@/components/sidebar/components/Links';
-import SidebarCard from '@/components/sidebar/components/SidebarCard';
 import { RoundedChart } from '@/components/icons/Icons';
 import { PropsWithChildren } from 'react';
+import React from 'react';
 import { IRoute } from '@/types/navigation';
-import { IoMdPerson } from 'react-icons/io';
+import { IoMdPerson, IoMdMoon, IoMdSunny } from 'react-icons/io';
 import { FiLogOut } from 'react-icons/fi';
 import { LuHistory } from 'react-icons/lu';
-import { MdOutlineManageAccounts, MdOutlineSettings } from 'react-icons/md';
-
-// FUNCTIONS
+import { MdOutlineManageAccounts, MdOutlineSettings, MdLock } from 'react-icons/md';
+import { useUserData } from '@/hooks/useUserData';
+import { signOut } from 'next-auth/react';
+import Image from 'next/image';
+import { useColorMode } from '@chakra-ui/react';
 
 interface SidebarContent extends PropsWithChildren {
   routes: IRoute[];
@@ -37,6 +38,11 @@ interface SidebarContent extends PropsWithChildren {
 
 function SidebarContent(props: SidebarContent) {
   const { routes, setApiKey } = props;
+  const { fullName, avatar, loading, role } = useUserData();
+  const [hasApiKey, setHasApiKey] = React.useState(false);
+  const [isApiModalOpen, setIsApiModalOpen] = React.useState(false);
+  const { colorMode, toggleColorMode } = useColorMode();
+  
   const textColor = useColorModeValue('navy.700', 'white');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
   const bgColor = useColorModeValue('white', 'navy.700');
@@ -50,7 +56,29 @@ function SidebarContent(props: SidebarContent) {
     'none',
   );
   const gray = useColorModeValue('gray.500', 'white');
-  // SIDEBAR
+
+  React.useEffect(() => {
+    const apiKey = localStorage.getItem('apiKey');
+    setHasApiKey(!!apiKey);
+  }, []);
+
+  const filteredRoutes = routes.filter(route => {
+    if (route.adminOnly && role !== 'admin') {
+      return false;
+    }
+    return true;
+  });
+
+  const handleApiKeySet = () => {
+    setHasApiKey(true);
+  };
+
+  const handleLogout = async () => {
+    localStorage.removeItem('apiKey');
+    localStorage.removeItem('apiKeyDate');
+    await signOut({ callbackUrl: '/auth/login' });
+  };
+
   return (
     <Flex
       direction="column"
@@ -64,27 +92,50 @@ function SidebarContent(props: SidebarContent) {
       <Brand />
       <Stack direction="column" mb="auto" mt="8px">
         <Box ps="0px" pe={{ md: '0px', '2xl': '0px' }}>
-          <Links routes={routes} />
+          <Links routes={filteredRoutes} />
         </Box>
       </Stack>
 
-      <Box mt="60px" width={'100%'} display={'flex'} justifyContent={'center'}>
-        <SidebarCard />
-      </Box>
-      <APIModal setApiKey={setApiKey} sidebar={true} />
+      {!hasApiKey && <APIModal setApiKey={setApiKey} sidebar={true} onApiKeySet={handleApiKeySet} />}
+      <APIModal 
+        setApiKey={setApiKey} 
+        externalOpen={isApiModalOpen} 
+        onExternalClose={() => setIsApiModalOpen(false)}
+        onApiKeySet={handleApiKeySet}
+      />
       <Flex
-        mt="8px"
+        mt="20px"
         justifyContent="center"
         alignItems="center"
         boxShadow={shadowPillBar}
         borderRadius="30px"
         p="14px"
       >
-        <NextAvatar h="34px" w="34px" src={avatar4} me="10px" />
-        <Text color={textColor} fontSize="xs" fontWeight="600" me="10px">
-          Adela Parkson
-        </Text>
-        <Menu>
+        {loading ? (
+          <Skeleton h="34px" w="34px" borderRadius="full" me="10px" />
+        ) : avatar ? (
+          <Image
+            src={avatar}
+            alt={fullName}
+            width={34}
+            height={34}
+            style={{
+              borderRadius: '50%',
+              objectFit: 'cover',
+              marginRight: '10px',
+            }}
+          />
+        ) : (
+          <NextAvatar h="34px" w="34px" src={avatar4} me="10px" />
+        )}
+        {loading ? (
+          <Skeleton h="16px" w="100px" me="10px" />
+        ) : (
+          <Text color={textColor} fontSize="xs" fontWeight="600" me="10px">
+            {fullName}
+          </Text>
+        )}
+        <Menu id="sidebar-menu">
           <MenuButton
             as={Button}
             variant="transparent"
@@ -101,6 +152,7 @@ function SidebarContent(props: SidebarContent) {
             justifyContent={'center'}
             alignItems="center"
             color={iconColor}
+            suppressHydrationWarning
           >
             <Flex align="center" justifyContent="center">
               <Icon
@@ -171,7 +223,7 @@ function SidebarContent(props: SidebarContent) {
                 </Flex>
               </NavLink>
             </Box>
-            <Box>
+            <Box mb="30px">
               <NavLink href="/my-plan">
                 <Flex align="center">
                   <Icon
@@ -187,6 +239,44 @@ function SidebarContent(props: SidebarContent) {
                 </Flex>
               </NavLink>
             </Box>
+            <Box mb="30px">
+              <Flex 
+                align="center" 
+                cursor="pointer" 
+                onClick={() => setIsApiModalOpen(true)}
+                _hover={{ opacity: 0.8 }}
+              >
+                <Icon
+                  as={MdLock}
+                  width="24px"
+                  height="24px"
+                  color={gray}
+                  me="12px"
+                />
+                <Text color={gray} fontWeight="500" fontSize="sm">
+                  Setup API Key
+                </Text>
+              </Flex>
+            </Box>
+            <Box>
+              <Flex 
+                align="center" 
+                cursor="pointer" 
+                onClick={toggleColorMode}
+                _hover={{ opacity: 0.8 }}
+              >
+                <Icon
+                  as={colorMode === 'light' ? IoMdMoon : IoMdSunny}
+                  width="24px"
+                  height="24px"
+                  color={gray}
+                  me="12px"
+                />
+                <Text color={gray} fontWeight="500" fontSize="sm">
+                  {colorMode === 'light' ? 'Dark Mode' : 'Light Mode'}
+                </Text>
+              </Flex>
+            </Box>
           </MenuList>
         </Menu>
         <Button
@@ -200,6 +290,7 @@ function SidebarContent(props: SidebarContent) {
           minW="34px"
           justifyContent={'center'}
           alignItems="center"
+          onClick={handleLogout}
         >
           <Icon as={FiLogOut} width="16px" height="16px" color="inherit" />
         </Button>

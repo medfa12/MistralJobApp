@@ -5,39 +5,42 @@ import {
   ReconnectInterval,
    //@ts-ignore
 } from 'eventsource-parser';
+import { Message } from '@/types/types';
+import { artifactSystemPrompt } from './artifactSystemPrompt';
 
-const createPrompt = (inputCode: string) => {
-  const data = (inputCode: string) => {
-    return endent`
-      You are Mistral AI, a large language model trained by Mistral AI. You are very friendly and formal. The generated content must be in markdown format but not rendered, it must include all markdown characteristics.The title must be bold, and there should be a &nbsp between every paragraph.
-      Do not include informations about console logs or print messages.
-      ${inputCode}
-    `;
-  };
+const systemPrompt = artifactSystemPrompt;
 
-  if (inputCode) {
-    return data(inputCode);
-  }
-};
-
-export const OpenAIStream = async (
-  inputCode: string,
+export const MistralStream = async (
+  messages: Message[] | string,
   model: string,
   key: string | undefined,
 ) => {
-  const prompt = createPrompt(inputCode);
+  // Handle both new (messages array) and old (single string) format
+  let apiMessages: Message[];
+  
+  if (typeof messages === 'string') {
+    // Legacy format: single message
+    apiMessages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: messages },
+    ];
+  } else {
+    // New format: full conversation history
+    apiMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages,
+    ];
+  }
 
-  const system = { role: 'system', content: prompt };
-
-  const res = await fetch(`https://api.openai.com/v1/chat/completions`, {
+  const res = await fetch(`https://api.mistral.ai/v1/chat/completions`, {
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${key || process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
+      Authorization: `Bearer ${key || process.env.MISTRAL_API_KEY || ''}`,
     },
     method: 'POST',
     body: JSON.stringify({
       model,
-      messages: [system],
+      messages: apiMessages,
       temperature: 0,
       stream: true,
     }),
@@ -50,7 +53,7 @@ export const OpenAIStream = async (
     const statusText = res.statusText;
     const result = await res.body?.getReader().read();
     throw new Error(
-      `OpenAI API returned an error: ${
+      `Mistral API returned an error: ${
         decoder.decode(result?.value) || statusText
       }`,
     );
@@ -69,9 +72,35 @@ export const OpenAIStream = async (
 
           try {
             const json = JSON.parse(data);
-            const text = json.choices[0].delta.content;
-            const queue = encoder.encode(text);
-            controller.enqueue(queue);
+            const delta = json.choices?.[0]?.delta;
+            
+            // Handle reasoning models (magistral) with content arrays
+            if (delta?.content && Array.isArray(delta.content)) {
+              for (const contentBlock of delta.content) {
+                if (contentBlock.type === 'thinking' && contentBlock.thinking) {
+                  // Extract thinking content
+                  const thinkingText = contentBlock.thinking
+                    .map((t: any) => t.text)
+                    .join('');
+                  if (thinkingText) {
+                    const thinkingFormatted = `<think>\n${thinkingText}\n</think>\n`;
+                    const queue = encoder.encode(thinkingFormatted);
+                    controller.enqueue(queue);
+                  }
+                } else if (contentBlock.type === 'text' && contentBlock.text) {
+                  // Extract regular text content
+                  const queue = encoder.encode(contentBlock.text);
+                  controller.enqueue(queue);
+                }
+              }
+            } else {
+              // Handle regular models with simple string content
+              const text = delta?.content;
+              if (text) {
+                const queue = encoder.encode(text);
+                controller.enqueue(queue);
+              }
+            }
           } catch (e) {
             controller.error(e);
           }
