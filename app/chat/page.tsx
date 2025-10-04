@@ -1,757 +1,160 @@
 'use client';
 
 import Link from '@/components/link/Link';
-import MessageBoxChat from '@/components/MessageBoxChat';
-import { ChatBody, MistralModel, Message as MessageType, Attachment, ArtifactData, InspectedCodeAttachment, ToolCall } from '@/types/types';
-import { parseArtifacts, hasArtifacts, ParsedArtifact } from '@/utils/artifactParser';
+import { MistralModel, Message as MessageType, InspectedCodeAttachment } from '@/types/types';
 import { ArtifactSidePanel, ArtifactToggleButton, ArtifactErrorBoundary } from '@/components/artifact';
-import { ArtifactLoadingCard } from '@/components/ArtifactLoadingCard';
-import { artifactSystemPrompt } from '@/utils/enhancedArtifactSystemPrompt';
+import { estimateTokens, getMessageText } from '@/utils/messageHelpers';
 import {
-  Accordion,
-  AccordionButton,
-  AccordionIcon,
-  AccordionItem,
-  AccordionPanel,
   Box,
-  Button,
   Flex,
-  Icon,
-  Image,
   Img,
-  Input,
   Text,
   useColorModeValue,
   useToast,
-  Tooltip,
-  Collapse,
-  IconButton,
 } from '@chakra-ui/react';
-import { useEffect, useState, useRef, Suspense, useCallback } from 'react';
-import { MdAutoAwesome, MdBolt, MdEdit, MdPerson, MdPsychology, MdExpandMore, MdExpandLess, MdImage, MdDescription, MdClose, MdAttachFile, MdCode } from 'react-icons/md';
+import { useEffect, useState, useRef, Suspense, useCallback, useMemo } from 'react';
 import Bg from '../../public/img/chat/bg-image.png';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { MISTRAL_MODELS, getModelInfo, formatContextWindow, formatPricing } from '@/config/models';
-import { ModelOverviewCard } from '@/components/ModelOverviewCard';
+import { useSearchParams } from 'next/navigation';
+import { getModelInfo } from '@/config/models';
+import { useChatConversation } from '@/hooks/useChatConversation';
+import { useAttachments } from '@/hooks/useAttachments';
+import { useArtifactOperations } from '@/hooks/useArtifactOperations';
+import { useMessageSubmit } from '@/hooks/useMessageSubmit';
+import {
+  ModelSelector,
+  ChatMessages,
+  ChatInput,
+  TokenCounter,
+  AttachmentPreview,
+  InspectedCodePreview,
+} from '@/components/chat';
 
 function ChatContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const conversationId = searchParams?.get('conversationId') || null;
   const toast = useToast();
 
   const [inputCode, setInputCode] = useState<string>('');
   const [messages, setMessages] = useState<MessageType[]>([]);
-  const [streamingMessage, setStreamingMessage] = useState<string>('');
   const [model, setModel] = useState<MistralModel>('mistral-small-latest');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationId);
-  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState<boolean>(false);
-  const [hoveredModel, setHoveredModel] = useState<MistralModel | null>(null);
-  const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | undefined>();
-  const [attachments, setAttachments] = useState<Array<{ type: string; file: File; preview?: string }>>([]);
   const [inspectedCodeAttachment, setInspectedCodeAttachment] = useState<InspectedCodeAttachment | null>(null);
-  const [currentArtifact, setCurrentArtifact] = useState<ArtifactData | null>(null);
-  const [isArtifactPanelOpen, setIsArtifactPanelOpen] = useState(false);
-  const [isGeneratingArtifact, setIsGeneratingArtifact] = useState(false);
-  const [artifactLoadingInfo, setArtifactLoadingInfo] = useState<{ operation: string; title?: string } | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const modelButtonRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const estimateTokens = (text: string) => Math.ceil(text.length / 4);
-  
-  const getMessageText = (content: any): string => {
-    if (typeof content === 'string') return content;
-    if (Array.isArray(content)) {
-      return content.map(item => item.text || '').join(' ');
-    }
-    return '';
-  };
-  
-  const getCurrentTokenCount = () => {
+  const {
+    currentConversationId,
+    setCurrentConversationId,
+    isLoadingHistory,
+    loadConversation,
+    createNewConversation,
+    saveMessage,
+  } = useChatConversation();
+
+  const {
+    attachments,
+    addAttachment,
+    removeAttachment,
+    clearAttachments,
+    processAttachments,
+  } = useAttachments();
+
+  const {
+    currentArtifact,
+    isArtifactPanelOpen,
+    setIsArtifactPanelOpen,
+    processArtifactResponse,
+    resetArtifacts,
+  } = useArtifactOperations();
+
+  const {
+    submitMessage,
+    loading,
+    streamingMessage,
+    isGeneratingArtifact,
+    artifactLoadingInfo,
+    abortRequest,
+  } = useMessageSubmit({
+    messages,
+    setMessages,
+    model,
+    currentConversationId,
+    currentArtifact,
+    createNewConversation,
+    saveMessage,
+    processAttachments,
+    processArtifactResponse,
+    clearAttachments,
+  });
+
+  const currentTokens = useMemo(() => {
     let total = estimateTokens('You are Mistral AI...');
     messages.forEach(msg => {
       total += estimateTokens(getMessageText(msg.content));
     });
     total += estimateTokens(inputCode);
     return total;
-  };
+  }, [messages, inputCode]);
 
-  const currentTokens = getCurrentTokenCount();
   const modelInfo = getModelInfo(model);
-  const tokenPercentage = modelInfo ? (currentTokens / modelInfo.contextWindow) * 100 : 0;
-
-  const loadConversation = useCallback(async (convId: string) => {
-    // Clear artifact when loading a different conversation
-    setCurrentArtifact(null);
-    setIsArtifactPanelOpen(false);
-    
-    try {
-      const response = await fetch(`/api/chat/messages?conversationId=${convId}`);
-      if (response.ok) {
-        const messagesData = await response.json();
-        const formattedMessages = await Promise.all(
-          messagesData.map(async (msg: any) => {
-            if (msg.attachments && msg.attachments.length > 0) {
-              const content: any[] = [{ type: 'text', text: msg.content }];
-              
-              for (const att of msg.attachments) {
-                const fileResponse = await fetch(att.cloudinaryUrl);
-                const blob = await fileResponse.blob();
-                const base64 = await new Promise<string>((resolve) => {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    const result = reader.result as string;
-                    resolve(result.split(',')[1]);
-                  };
-                  reader.readAsDataURL(blob);
-                });
-
-                if (att.type === 'image') {
-                  content.push({
-                    type: 'image_url',
-                    image_url: `data:${att.mimeType};base64,${base64}`
-                  });
-                } else if (att.type === 'document') {
-                  content.push({
-                    type: 'document_url',
-                    document_url: `data:${att.mimeType};base64,${base64}`
-                  });
-                }
-              }
-
-              return { role: msg.role, content, attachments: msg.attachments };
-            }
-            return { role: msg.role, content: msg.content, attachments: [] };
-          })
-        );
-        setMessages(formattedMessages);
-      }
-    } catch (error) {
-      console.error('Error loading conversation:', error);
-    }
-  }, []);
 
   useEffect(() => {
-    if (chatContainerRef.current) {
+    if (chatContainerRef.current && !isLoadingHistory) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [messages.length, streamingMessage]);
+  }, [messages.length, streamingMessage, isLoadingHistory]);
 
   useEffect(() => {
     if (conversationId) {
-      loadConversation(conversationId);
+      loadConversation(conversationId).then((loadedMessages) => {
+        if (loadedMessages) {
+          setMessages(loadedMessages);
+          resetArtifacts();
+        }
+      });
       setCurrentConversationId(conversationId);
     } else {
       setMessages([]);
-      setStreamingMessage('');
       setCurrentConversationId(null);
-      setCurrentArtifact(null);
-      setIsArtifactPanelOpen(false);
+      resetArtifacts();
       setInputCode('');
-      setAttachments([]);
+      clearAttachments();
     }
-  }, [conversationId, loadConversation]);
+  }, [conversationId, loadConversation, clearAttachments, setCurrentConversationId, resetArtifacts]);
 
-  const createNewConversation = async (firstMessage: string) => {
-    try {
-      const title = firstMessage.slice(0, 50) + (firstMessage.length > 50 ? '...' : '');
-      const response = await fetch('/api/chat/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, model }),
-      });
+  useEffect(() => {
+    return () => {
+      abortRequest();
+    };
+  }, [abortRequest]);
 
-      if (response.ok) {
-        const conversation = await response.json();
-        setCurrentConversationId(conversation.id);
-        window.history.pushState({}, '', `/chat?conversationId=${conversation.id}`);
-        
-        window.dispatchEvent(new CustomEvent('conversationUpdated'));
-        
-        return conversation.id;
-      }
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-    }
-    return null;
-  };
-
-  const saveMessage = async (convId: string, role: string, content: string, attachments?: Attachment[]) => {
-    try {
-      await fetch('/api/chat/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId: convId, role, content, attachments }),
-      });
-    } catch (error) {
-      console.error('Error saving message:', error);
-    }
-  };
-
-  const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
-  const inputColor = useColorModeValue('navy.700', 'white');
-  const iconColor = useColorModeValue('brand.500', 'white');
-  const bgIcon = useColorModeValue(
-    'linear-gradient(180deg, #FFFAEB 0%, #FFF0C3 100%)',
-    'whiteAlpha.200',
-  );
-  const brandColor = useColorModeValue('brand.500', 'white');
-  const buttonBg = useColorModeValue('white', 'whiteAlpha.100');
-  const gray = useColorModeValue('gray.500', 'white');
-  const buttonShadow = useColorModeValue(
-    '14px 27px 45px rgba(112, 144, 176, 0.2)',
-    'none',
-  );
   const textColor = useColorModeValue('navy.700', 'white');
-  const placeholderColor = useColorModeValue(
-    { color: 'gray.500' },
-    { color: 'whiteAlpha.600' },
-  );
-  const attachmentBg = useColorModeValue('gray.50', 'whiteAlpha.100');
-  const inspectedCodeBg = useColorModeValue('purple.50', 'purple.900');
-  const inspectedCodeBorder = useColorModeValue('purple.300', 'purple.600');
-  
-  const uploadToCloudinary = async (file: File, type: string) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', type);
-
-    const response = await fetch('/api/chat/upload-attachment', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error('Upload failed');
-    }
-
-    return await response.json();
-  };
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = error => reject(error);
-    });
-  };
+  const gray = useColorModeValue('gray.500', 'white');
 
   const handleTranslate = async () => {
-    let apiKey = localStorage.getItem('apiKey');
-    const currentInput = inputCode.trim();
+    await submitMessage({
+      inputCode,
+      inspectedCodeAttachment,
+      hasAttachments: attachments.length > 0,
+      onInputClear: () => setInputCode(''),
+      onInspectedCodeClear: () => setInspectedCodeAttachment(null),
+    });
+  };
 
-    const modelInfo = getModelInfo(model);
-    if (!modelInfo) {
+  const handleCodeAttach = useCallback(
+    (attachment: InspectedCodeAttachment) => {
+      setInspectedCodeAttachment(attachment);
       toast({
-        title: 'Invalid Model',
-        description: 'Selected model is not configured properly.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-        position: 'top',
-      });
-      return;
-    }
-
-    if (!apiKey) {
-      toast({
-        title: 'API Key Required',
-        description: 'Please enter a Mistral API key from https://console.mistral.ai/.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-        position: 'top',
-      });
-      return;
-    }
-
-    if (!currentInput) {
-      toast({
-        title: 'Message Required',
-        description: 'Please enter your message.',
-        status: 'warning',
+        title: 'Element Code Attached',
+        description: `<${attachment.elementTag}> code ready to include in your next message`,
+        status: 'info',
         duration: 3000,
         isClosable: true,
         position: 'top',
       });
-      return;
-    }
-
-    let totalTokens = estimateTokens('You are Mistral AI...');
-    messages.forEach(msg => {
-      totalTokens += estimateTokens(getMessageText(msg.content));
-    });
-    totalTokens += estimateTokens(currentInput);
-
-    const maxInputTokens = Math.floor(modelInfo.contextWindow * 0.8);
-    
-    if (totalTokens > maxInputTokens) {
-      toast({
-        title: 'Context Window Exceeded',
-        description: `This conversation (≈${totalTokens.toLocaleString()} tokens) exceeds ${modelInfo.displayName}'s context limit of ${formatContextWindow(modelInfo.contextWindow)} tokens. Please start a new conversation or use a model with a larger context window.`,
-        status: 'error',
-        duration: 8000,
-        isClosable: true,
-        position: 'top',
-      });
-      return;
-    }
-
-    const warningThreshold = Math.floor(modelInfo.contextWindow * 0.7);
-    if (totalTokens > warningThreshold && totalTokens <= maxInputTokens) {
-      toast({
-        title: 'Approaching Context Limit',
-        description: `You're using ≈${totalTokens.toLocaleString()} of ${formatContextWindow(modelInfo.contextWindow)} tokens (${Math.round((totalTokens / modelInfo.contextWindow) * 100)}%). Consider starting a new conversation soon.`,
-        status: 'warning',
-        duration: 6000,
-        isClosable: true,
-        position: 'top',
-      });
-    }
-
-    let convId = currentConversationId;
-    if (!convId) {
-      convId = await createNewConversation(currentInput);
-      if (!convId) {
-        toast({
-          title: 'Error',
-          description: 'Failed to create conversation. Please try again.',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-          position: 'top',
-        });
-        return;
-      }
-    }
-
-    let userMessageContent: any = currentInput;
-    let uploadedAttachments: Attachment[] = [];
-    
-    // Include inspected code in the message (visible to user)
-    if (inspectedCodeAttachment) {
-      userMessageContent += `\n\n---\n**Inspected Element:** <${inspectedCodeAttachment.elementTag}>${inspectedCodeAttachment.elementId ? ` #${inspectedCodeAttachment.elementId}` : ''}${inspectedCodeAttachment.elementClasses ? ` .${inspectedCodeAttachment.elementClasses}` : ''}\n\n\`\`\`${inspectedCodeAttachment.sourceArtifactId.includes('react') ? 'jsx' : 'html'}\n${inspectedCodeAttachment.code}\n\`\`\`${inspectedCodeAttachment.styles ? `\n\n**Styles:** ${inspectedCodeAttachment.styles}` : ''}`;
-    }
-    
-    // Prepare artifact context for API ONLY (not saved to DB or shown to user)
-    let artifactContext = '';
-    let toolSuggestion = '';
-    
-    if (currentArtifact) {
-      artifactContext = `\n\n---
-**CURRENT ARTIFACT CONTEXT**
-Title: "${currentArtifact.title}"
-Type: ${currentArtifact.type}
-Version: ${currentArtifact.currentVersion || (currentArtifact.versions ? currentArtifact.versions.length + 1 : 1)}
-${currentArtifact.versions && currentArtifact.versions.length > 0 ? `Previous Versions: ${currentArtifact.versions.length}` : ''}
-
-Current Code:
-\`\`\`${currentArtifact.language || currentArtifact.type}
-${currentArtifact.code}
-\`\`\`
-
-Available Operations:
-- EDIT: Modify the artifact (provide complete updated code)
-${currentArtifact.versions && currentArtifact.versions.length > 0 ? `- REVERT: Go back to version 1-${currentArtifact.versions.length}` : ''}
-- DELETE: Remove the artifact
----`;
-
-      toolSuggestion = `\n\n[System Context: User has an active artifact. If they're asking to modify/improve/add features, use <artifact operation="edit">. If they want to undo changes, use <artifact operation="revert" version="N">. Only delete if explicitly requested.]`;
-    } else {
-      toolSuggestion = `\n\n[System Context: No artifact exists. If user requests a component/widget/interactive demo, use <artifact operation="create">.]`;
-    }
-    
-    if (attachments.length > 0) {
-      const contentArray: any[] = [{ type: 'text', text: currentInput }];
-      
-      for (const attachment of attachments) {
-        try {
-          const uploadResult = await uploadToCloudinary(attachment.file, attachment.type);
-          
-          uploadedAttachments.push({
-            type: uploadResult.type,
-            fileName: uploadResult.fileName,
-            fileSize: uploadResult.fileSize,
-            mimeType: uploadResult.mimeType,
-            cloudinaryPublicId: uploadResult.cloudinaryPublicId,
-            cloudinaryUrl: uploadResult.cloudinaryUrl,
-          });
-
-          const base64 = await fileToBase64(attachment.file);
-          if (attachment.type === 'image') {
-            const mimeType = attachment.file.type;
-            contentArray.push({
-              type: 'image_url',
-              image_url: `data:${mimeType};base64,${base64}`
-            });
-          } else if (attachment.type === 'document') {
-            contentArray.push({
-              type: 'document_url',
-              document_url: `data:application/pdf;base64,${base64}`
-            });
-          }
-        } catch (error) {
-          console.error('Error uploading attachment:', error);
-          toast({
-            title: 'Upload Error',
-            description: `Failed to upload ${attachment.file.name}`,
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
-            position: 'top',
-          });
-          setLoading(false);
-          return;
-        }
-      }
-      
-      userMessageContent = contentArray;
-    }
-
-    const userMessage: MessageType = { 
-      role: 'user', 
-      content: userMessageContent,
-      attachments: uploadedAttachments
-    };
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
-    setInputCode('');
-    setStreamingMessage('');
-    setInspectedCodeAttachment(null);
-    setLoading(true);
-
-    const currentAttachments = [...attachments];
-    setAttachments([]);
-    currentAttachments.forEach(att => {
-      if (att.preview) {
-        URL.revokeObjectURL(att.preview);
-      }
-    });
-
-    await saveMessage(convId, 'user', getMessageText(userMessageContent), uploadedAttachments);
-
-    const controller = new AbortController();
-    
-    const systemPromptWithToolContext = artifactSystemPrompt + toolSuggestion;
-    
-    // Build API messages: system + history + current user message with context
-    const apiMessages = [
-      { role: 'system' as const, content: systemPromptWithToolContext },
-      // Map all previous messages (NOT including current user message)
-      ...messages.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      })),
-      // Current user message with artifact context (ONLY to API)
-      { 
-        role: 'user' as const, 
-        content: userMessageContent + artifactContext
-      }
-    ];
-
-    const body: ChatBody = {
-      messages: apiMessages,
-      model,
-      apiKey,
-    };
-
-    try {
-      const response = await fetch('../api/chatAPI', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        setLoading(false);
-        const errorText = await response.text();
-        let errorMessage = 'Something went wrong when fetching from the API. Make sure to use a valid API key.';
-        
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.message || errorJson.error || errorMessage;
-        } catch (e) {
-        }
-        
-        toast({
-          title: 'API Error',
-          description: errorMessage,
-          status: 'error',
-          duration: 7000,
-          isClosable: true,
-          position: 'top',
-        });
-        return;
-      }
-
-      const data = response.body;
-
-      if (!data) {
-        setLoading(false);
-        toast({
-          title: 'Error',
-          description: 'No response data received from the API.',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-          position: 'top',
-        });
-        return;
-      }
-
-      const reader = data.getReader();
-      const decoder = new TextDecoder();
-      let done = false;
-      let accumulatedResponse = '';
-
-      while (!done) {
-        const { value, done: doneReading } = await reader.read();
-        done = doneReading;
-        const chunkValue = decoder.decode(value);
-        accumulatedResponse += chunkValue;
-        
-        // Check if we're generating an artifact
-        const hasArtifactTag = /<artifact[^>]*>/i.test(accumulatedResponse);
-        
-        if (hasArtifactTag) {
-          // Extract artifact info for loading state
-          const artifactMatch = accumulatedResponse.match(/<artifact\s+operation="([^"]+)"(?:\s+type="([^"]+)")?(?:\s+title="([^"]+)")?/i);
-          if (artifactMatch && !isGeneratingArtifact) {
-            setIsGeneratingArtifact(true);
-            setArtifactLoadingInfo({
-              operation: artifactMatch[1],
-              title: artifactMatch[3] || undefined
-            });
-          }
-          // Don't show streaming message during artifact generation
-          setStreamingMessage('');
-        } else {
-          // Normal message - show streaming text
-          setIsGeneratingArtifact(false);
-          setArtifactLoadingInfo(null);
-          setStreamingMessage(accumulatedResponse);
-        }
-      }
-
-      let artifactData: ArtifactData | undefined;
-      let toolCallData: ToolCall | undefined;
-      let cleanContent = accumulatedResponse;
-
-      if (hasArtifacts(accumulatedResponse)) {
-        const { cleanText, artifacts } = parseArtifacts(accumulatedResponse);
-        cleanContent = cleanText;
-        
-        if (artifacts.length > 0) {
-          const latestArtifact = artifacts[artifacts.length - 1];
-          
-          toolCallData = {
-            operation: latestArtifact.operation,
-            artifactType: latestArtifact.type,
-            artifactTitle: latestArtifact.title,
-            revertToVersion: latestArtifact.revertToVersion,
-          };
-          
-          if (latestArtifact.operation === 'delete') {
-            // Delete operation: close panel and clear artifact
-            setCurrentArtifact(null);
-            setIsArtifactPanelOpen(false);
-            
-            toast({
-              title: 'Artifact Deleted',
-              description: 'The artifact has been removed',
-              status: 'info',
-              duration: 3000,
-              isClosable: true,
-              position: 'top',
-            });
-          } else if (latestArtifact.operation === 'create') {
-            // Create operation: only allow if no artifact exists
-            if (currentArtifact) {
-              toast({
-                title: 'Artifact Already Exists',
-                description: 'Please edit the existing artifact or ask me to delete it first',
-                status: 'warning',
-                duration: 4000,
-                isClosable: true,
-                position: 'top',
-              });
-              // Don't create, keep existing
-            } else {
-              // No artifact exists, create new one
-              artifactData = {
-                identifier: latestArtifact.identifier,
-                type: latestArtifact.type,
-                title: latestArtifact.title,
-                code: latestArtifact.code,
-                language: latestArtifact.language,
-                createdAt: latestArtifact.createdAt,
-              };
-              
-              setCurrentArtifact(artifactData);
-              setIsArtifactPanelOpen(true);
-              
-              toast({
-                title: 'Artifact Created',
-                description: `"${artifactData.title}" is ready to preview`,
-                status: 'success',
-                duration: 3000,
-                isClosable: true,
-                position: 'top',
-              });
-            }
-          } else if (latestArtifact.operation === 'edit') {
-            // Edit operation: update existing artifact
-            if (!currentArtifact) {
-              toast({
-                title: 'No Artifact to Edit',
-                description: 'Please create an artifact first',
-                status: 'warning',
-                duration: 3000,
-                isClosable: true,
-                position: 'top',
-              });
-            } else {
-              // Save current version to history
-              const versions = currentArtifact.versions || [];
-              const newVersion = {
-                code: currentArtifact.code,
-                timestamp: currentArtifact.updatedAt || currentArtifact.createdAt,
-                description: `Version ${versions.length + 1}`,
-              };
-              
-              artifactData = {
-                ...currentArtifact,
-                type: latestArtifact.type,
-                title: latestArtifact.title,
-                code: latestArtifact.code,
-                language: latestArtifact.language,
-                updatedAt: new Date().toISOString(),
-                versions: [...versions, newVersion],
-                currentVersion: versions.length + 1,
-              };
-              
-              setCurrentArtifact(artifactData);
-              if (!isArtifactPanelOpen) {
-                setIsArtifactPanelOpen(true);
-              }
-              
-              toast({
-                title: 'Artifact Updated',
-                description: `"${artifactData.title}" - Version ${artifactData.currentVersion}`,
-                status: 'success',
-                duration: 3000,
-                isClosable: true,
-                position: 'top',
-              });
-            }
-          } else if (latestArtifact.operation === 'revert') {
-            // Revert operation: restore previous version
-            if (!currentArtifact || !currentArtifact.versions || currentArtifact.versions.length === 0) {
-              toast({
-                title: 'No Version History',
-                description: 'No previous versions available to revert to',
-                status: 'warning',
-                duration: 3000,
-                isClosable: true,
-                position: 'top',
-              });
-            } else {
-              const targetVersion = latestArtifact.revertToVersion;
-              if (targetVersion === undefined || targetVersion < 1 || targetVersion > currentArtifact.versions.length) {
-                toast({
-                  title: 'Invalid Version',
-                  description: `Version ${targetVersion} does not exist. Available: 1-${currentArtifact.versions.length}`,
-                  status: 'error',
-                  duration: 3000,
-                  isClosable: true,
-                  position: 'top',
-                });
-              } else {
-                const revertToVersion = currentArtifact.versions[targetVersion - 1];
-                
-                artifactData = {
-                  ...currentArtifact,
-                  code: revertToVersion.code,
-                  updatedAt: new Date().toISOString(),
-                  currentVersion: targetVersion,
-                };
-                
-                setCurrentArtifact(artifactData);
-                if (!isArtifactPanelOpen) {
-                  setIsArtifactPanelOpen(true);
-                }
-                
-                toast({
-                  title: 'Artifact Reverted',
-                  description: `Restored to Version ${targetVersion}`,
-                  status: 'info',
-                  duration: 3000,
-                  isClosable: true,
-                  position: 'top',
-                });
-              }
-            }
-          }
-        }
-      }
-
-      // Clear streaming message and loading states FIRST to prevent double display
-      setStreamingMessage('');
-      setIsGeneratingArtifact(false);
-      setArtifactLoadingInfo(null);
-      setLoading(false);
-      
-      const assistantMessage: MessageType = { 
-        role: 'assistant', 
-        content: cleanContent,
-        artifact: artifactData,
-        toolCall: toolCallData,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      if (convId) {
-        await saveMessage(convId, 'assistant', getMessageText(cleanContent));
-      }
-    } catch (error) {
-      setLoading(false);
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        status: 'error',
-        duration: 7000,
-        isClosable: true,
-        position: 'top',
-      });
-    }
-  };
-
-  const handleChange = (Event: any) => {
-    setInputCode(Event.target.value);
-  };
-
-  const handleCodeAttach = useCallback((attachment: InspectedCodeAttachment) => {
-    setInspectedCodeAttachment(attachment);
-    toast({
-      title: 'Element Code Attached',
-      description: `<${attachment.elementTag}> code ready to include in your next message`,
-      status: 'info',
-      duration: 3000,
-      isClosable: true,
-      position: 'top',
-    });
-  }, [toast]);
+    },
+    [toast]
+  );
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -760,45 +163,16 @@ ${currentArtifact.versions && currentArtifact.versions.length > 0 ? `- REVERT: G
     }
   };
 
-  const startNewConversation = () => {
-    setMessages([]);
-    setStreamingMessage('');
-    setCurrentConversationId(null);
-    setCurrentArtifact(null);
-    setIsArtifactPanelOpen(false);
-    router.push('/chat');
-  };
-
-  const handleModelHover = (modelId: MistralModel, event: React.MouseEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const position = {
-      x: rect.left + rect.width / 2,
-      y: rect.bottom,
-    };
-    setHoverPosition(position);
-    setHoveredModel(modelId);
-  };
-
-  const handleModelLeave = () => {
-    setHoveredModel(null);
-  };
-
   return (
     <>
-    <Flex
-      w="100%"
-      h="100vh"
-      pt={{ base: '70px', md: '0px' }}
-      direction="column"
-      position="relative"
-    >
+      <Flex w="100%" h="100vh" pt={{ base: '70px', md: '0px' }} direction="column" position="relative">
       <Img
         src={Bg.src}
-        position={'absolute'}
+        position="absolute"
         w="350px"
         left="50%"
         top="50%"
-        transform={'translate(-50%, -50%)'}
+        transform="translate(-50%, -50%)"
         opacity={messages.length === 0 ? 1 : 0.3}
       />
       <Flex
@@ -808,213 +182,17 @@ ${currentArtifact.versions && currentArtifact.versions.length > 0 ? `- REVERT: G
         h="100%"
         maxW="1000px"
       >
-        <Flex direction={'column'} w="100%" mb="10px" flexShrink={0}>
-          <Flex
-            mx="auto"
-            zIndex="2"
-            w="100%"
-            maxW="1000px"
-            mb="10px"
-            align="center"
-            justify="space-between"
-            flexWrap="wrap"
-            gap="10px"
-          >
-            <Flex direction="column" align="flex-start">
-              <Text
-                color={textColor}
-                fontSize="sm"
-                fontWeight="600"
-              >
-                Selected: {getModelInfo(model)?.displayName || model}
-              </Text>
-              {messages.length > 0 && modelInfo && (
-                <Text
-                  color={tokenPercentage > 70 ? 'orange.500' : tokenPercentage > 50 ? 'yellow.600' : gray}
-                  fontSize="xs"
-                  fontWeight="500"
-                >
-                  {currentTokens.toLocaleString()} / {formatContextWindow(modelInfo.contextWindow)} tokens ({Math.round(tokenPercentage)}%)
-                </Text>
-              )}
-            </Flex>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
-              rightIcon={<Icon as={isModelSelectorOpen ? MdExpandLess : MdExpandMore} />}
-              color={textColor}
-            >
-              {isModelSelectorOpen ? 'Hide Models' : 'Change Model'}
-            </Button>
-          </Flex>
-          <Collapse in={isModelSelectorOpen} animateOpacity>
-            <Box position="relative">
-              <Flex
-                mx="auto"
-                zIndex="2"
-                w="max-content"
-                mb="20px"
-                borderRadius="60px"
-                flexWrap="wrap"
-                gap="10px"
-              >
-                <Flex
-                  cursor={'pointer'}
-                  transition="0.3s"
-                  justify={'center'}
-                  align="center"
-                  bg={model === 'mistral-small-latest' ? buttonBg : 'transparent'}
-                  w="174px"
-                  h="70px"
-                  boxShadow={model === 'mistral-small-latest' ? buttonShadow : 'none'}
-                  borderRadius="14px"
-                  color={textColor}
-                  fontSize="18px"
-                  fontWeight={'700'}
-                  onClick={() => setModel('mistral-small-latest')}
-                  onMouseEnter={(e) => handleModelHover('mistral-small-latest', e)}
-                  onMouseLeave={handleModelLeave}
-                  ref={(el) => (modelButtonRefs.current['mistral-small-latest'] = el)}
-                >
-                  <Flex
-                    borderRadius="full"
-                    justify="center"
-                    align="center"
-                    bg={bgIcon}
-                    me="10px"
-                    h="39px"
-                    w="39px"
-                  >
-                    <Icon
-                      as={MdAutoAwesome}
-                      width="20px"
-                      height="20px"
-                      color={iconColor}
-                    />
-                  </Flex>
-                  Mistral Small
-                </Flex>
-                <Flex
-                  cursor={'pointer'}
-                  transition="0.3s"
-                  justify={'center'}
-                  align="center"
-                  bg={model === 'mistral-large-latest' ? buttonBg : 'transparent'}
-                  w="164px"
-                  h="70px"
-                  boxShadow={model === 'mistral-large-latest' ? buttonShadow : 'none'}
-                  borderRadius="14px"
-                  color={textColor}
-                  fontSize="18px"
-                  fontWeight={'700'}
-                  onClick={() => setModel('mistral-large-latest')}
-                  onMouseEnter={(e) => handleModelHover('mistral-large-latest', e)}
-                  onMouseLeave={handleModelLeave}
-                  ref={(el) => (modelButtonRefs.current['mistral-large-latest'] = el)}
-                >
-                  <Flex
-                    borderRadius="full"
-                    justify="center"
-                    align="center"
-                    bg={bgIcon}
-                    me="10px"
-                    h="39px"
-                    w="39px"
-                  >
-                    <Icon
-                      as={MdBolt}
-                      width="20px"
-                      height="20px"
-                      color={iconColor}
-                    />
-                  </Flex>
-                  Mistral Large
-                </Flex>
-                <Flex
-                  cursor={'pointer'}
-                  transition="0.3s"
-                  justify={'center'}
-                  align="center"
-                  bg={model === 'magistral-small-latest' ? buttonBg : 'transparent'}
-                  w="200px"
-                  h="70px"
-                  boxShadow={model === 'magistral-small-latest' ? buttonShadow : 'none'}
-                  borderRadius="14px"
-                  color={textColor}
-                  fontSize="18px"
-                  fontWeight={'700'}
-                  onClick={() => setModel('magistral-small-latest')}
-                  onMouseEnter={(e) => handleModelHover('magistral-small-latest', e)}
-                  onMouseLeave={handleModelLeave}
-                  ref={(el) => (modelButtonRefs.current['magistral-small-latest'] = el)}
-                >
-                  <Flex
-                    borderRadius="full"
-                    justify="center"
-                    align="center"
-                    bg={bgIcon}
-                    me="10px"
-                    h="39px"
-                    w="39px"
-                  >
-                    <Icon
-                      as={MdPsychology}
-                      width="20px"
-                      height="20px"
-                      color={iconColor}
-                    />
-                  </Flex>
-                  Magistral Small
-                </Flex>
-                <Flex
-                  cursor={'pointer'}
-                  transition="0.3s"
-                  justify={'center'}
-                  align="center"
-                  bg={model === 'magistral-medium-latest' ? buttonBg : 'transparent'}
-                  w="220px"
-                  h="70px"
-                  boxShadow={model === 'magistral-medium-latest' ? buttonShadow : 'none'}
-                  borderRadius="14px"
-                  color={textColor}
-                  fontSize="18px"
-                  fontWeight={'700'}
-                  onClick={() => setModel('magistral-medium-latest')}
-                  onMouseEnter={(e) => handleModelHover('magistral-medium-latest', e)}
-                  onMouseLeave={handleModelLeave}
-                  ref={(el) => (modelButtonRefs.current['magistral-medium-latest'] = el)}
-                >
-                  <Flex
-                    borderRadius="full"
-                    justify="center"
-                    align="center"
-                    bg={bgIcon}
-                    me="10px"
-                    h="39px"
-                    w="39px"
-                  >
-                    <Icon
-                      as={MdPsychology}
-                      width="20px"
-                      height="20px"
-                      color={iconColor}
-                    />
-                  </Flex>
-                  Magistral Medium
-                </Flex>
-              </Flex>
-              {hoveredModel && MISTRAL_MODELS[hoveredModel] && (
-                <ModelOverviewCard
-                  model={MISTRAL_MODELS[hoveredModel]}
-                  isVisible={!!hoveredModel}
-                  position={hoverPosition}
-                />
-              )}
-            </Box>
-          </Collapse>
+        <TokenCounter
+          currentTokens={currentTokens}
+          modelInfo={modelInfo}
+          messagesCount={messages.length}
+        />
 
-        </Flex>
+        <ModelSelector
+          selectedModel={model}
+          onModelChange={setModel}
+        />
+
         <Flex
           ref={chatContainerRef}
           direction="column"
@@ -1024,197 +202,15 @@ ${currentArtifact.versions && currentArtifact.versions.length > 0 ? `- REVERT: G
           overflowY="auto"
           minH="0"
         >
-          {messages.map((message, index) => (
-            <Flex
-              key={index}
-              w="100%"
-              mb="20px"
-              direction="column"
-            >
-              {message.role === 'user' ? (
-                <Flex w="100%" align={'flex-start'}>
-                  <Flex
-                    borderRadius="full"
-                    justify="center"
-                    align="center"
-                    bg={'transparent'}
-                    border="1px solid"
-                    borderColor={borderColor}
-                    me="20px"
-                    h="40px"
-                    minH="40px"
-                    minW="40px"
-                  >
-                    <Icon
-                      as={MdPerson}
-                      width="20px"
-                      height="20px"
-                      color={brandColor}
-                    />
-                  </Flex>
-                  <Flex
-                    direction="column"
-                    w="100%"
-                    gap="10px"
-                  >
-                    {message.attachments && message.attachments.length > 0 && (
-                      <Flex gap="8px" flexWrap="wrap">
-                        {message.attachments.map((attachment, idx) => (
-                          <Box key={idx}>
-                            {attachment.type === 'image' ? (
-                              <Box
-                                borderRadius="12px"
-                                overflow="hidden"
-                                border="1px solid"
-                                borderColor={borderColor}
-                                cursor="pointer"
-                                onClick={() => window.open(attachment.cloudinaryUrl, '_blank')}
-                                _hover={{ opacity: 0.8 }}
-                                transition="opacity 0.2s"
-                                maxW="200px"
-                              >
-                                <Image
-                                  src={attachment.cloudinaryUrl}
-                                  alt={attachment.fileName}
-                                  w="100%"
-                                  h="150px"
-                                  objectFit="cover"
-                                />
-                              </Box>
-                            ) : (
-                              <Flex
-                                p="10px"
-                                bg={attachmentBg}
-                                borderRadius="12px"
-                                border="1px solid"
-                                borderColor={borderColor}
-                                align="center"
-                                gap="8px"
-                                cursor="pointer"
-                                onClick={() => window.open(attachment.cloudinaryUrl, '_blank')}
-                                _hover={{ opacity: 0.8 }}
-                                transition="opacity 0.2s"
-                                maxW="250px"
-                              >
-                                <Icon as={MdDescription} boxSize="24px" color="orange.500" />
-                                <Box flex="1" minW="0">
-                                  <Text fontSize="xs" color={textColor} noOfLines={1} fontWeight="600">
-                                    {attachment.fileName}
-                                  </Text>
-                                  <Text fontSize="xs" color={gray}>
-                                    {(attachment.fileSize / 1024).toFixed(1)} KB
-                                  </Text>
-                                </Box>
-                              </Flex>
-                            )}
-                          </Box>
-                        ))}
-                      </Flex>
-                    )}
-                    <Flex
-                      p="22px"
-                      border="1px solid"
-                      borderColor={borderColor}
-                      borderRadius="14px"
-                      w="100%"
-                      zIndex={'2'}
-                    >
-                      <Text
-                        color={textColor}
-                        fontWeight="600"
-                        fontSize={{ base: 'sm', md: 'md' }}
-                        lineHeight={{ base: '24px', md: '26px' }}
-                      >
-                        {getMessageText(message.content)}
-                      </Text>
-                    </Flex>
-                  </Flex>
-                </Flex>
-              ) : (
-                <Flex w="100%" align="flex-start">
-                  <Flex
-                    borderRadius="full"
-                    justify="center"
-                    align="center"
-                    bg={'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)'}
-                    me="20px"
-                    h="40px"
-                    minH="40px"
-                    minW="40px"
-                  >
-                    <Icon
-                      as={MdAutoAwesome}
-                      width="20px"
-                      height="20px"
-                      color="white"
-                    />
-                  </Flex>
-                  <Box w="100%">
-                    <MessageBoxChat 
-                      output={getMessageText(message.content)} 
-                      attachments={message.attachments}
-                      toolCall={message.toolCall}
-                    />
-                  </Box>
-                </Flex>
-              )}
-            </Flex>
-          ))}
-          {isGeneratingArtifact && artifactLoadingInfo && (
-            <Flex w="100%" align="flex-start">
-              <Flex
-                borderRadius="full"
-                justify="center"
-                align="center"
-                bg={'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)'}
-                me="20px"
-                h="40px"
-                minH="40px"
-                minW="40px"
-              >
-                <Icon
-                  as={MdAutoAwesome}
-                  width="20px"
-                  height="20px"
-                  color="white"
-                />
-              </Flex>
-              <Box w="100%">
-                <ArtifactLoadingCard 
-                  operation={artifactLoadingInfo.operation}
-                  title={artifactLoadingInfo.title}
-                />
-              </Box>
-            </Flex>
-          )}
-          {streamingMessage && !isGeneratingArtifact && (
-            <Flex w="100%" align="flex-start">
-              <Flex
-                borderRadius="full"
-                justify="center"
-                align="center"
-                bg={'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)'}
-                me="20px"
-                h="40px"
-                minH="40px"
-                minW="40px"
-              >
-                <Icon
-                  as={MdAutoAwesome}
-                  width="20px"
-                  height="20px"
-                  color="white"
-                />
-              </Flex>
-              <Box w="100%">
-                <MessageBoxChat 
-                  output={streamingMessage}
-                />
-              </Box>
-            </Flex>
-          )}
-          <div ref={messagesEndRef} />
+          <ChatMessages
+            messages={messages}
+            streamingMessage={streamingMessage}
+            isGeneratingArtifact={isGeneratingArtifact}
+            artifactLoadingInfo={artifactLoadingInfo}
+            messagesEndRef={messagesEndRef}
+          />
         </Flex>
+
         <Flex
           ms={{ base: '0px', xl: '60px' }}
           mt="20px"
@@ -1223,112 +219,11 @@ ${currentArtifact.versions && currentArtifact.versions.length > 0 ? `- REVERT: G
           direction="column"
           gap="10px"
         >
-          {modelInfo && modelInfo.supportedAttachments.length > 0 && (
-            <Flex gap="8px" align="center" flexWrap="wrap">
-              <Icon as={MdAttachFile} color={textColor} boxSize="18px" />
-              {modelInfo.supportedAttachments.includes('image') && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  leftIcon={<Icon as={MdImage} />}
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/png,image/jpeg,image/webp,image/gif';
-                    input.onchange = async (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (file) {
-                        const preview = URL.createObjectURL(file);
-                        setAttachments([...attachments, { type: 'image', file, preview }]);
-                      }
-                    };
-                    input.click();
-                  }}
-                >
-                  Image
-                </Button>
-              )}
-              {modelInfo.supportedAttachments.includes('document') && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  leftIcon={<Icon as={MdDescription} />}
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'application/pdf';
-                    input.onchange = async (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (file) {
-                        setAttachments([...attachments, { type: 'document', file }]);
-                      }
-                    };
-                    input.click();
-                  }}
-                >
-                  PDF
-                </Button>
-              )}
-              {attachments.length > 0 && (
-                <Text fontSize="xs" color={textColor} ml="auto">
-                  {attachments.length} file(s) attached
-                </Text>
-              )}
-            </Flex>
-          )}
+          <AttachmentPreview
+            attachments={attachments}
+            onRemove={removeAttachment}
+          />
 
-          {attachments.length > 0 && (
-            <Flex gap="8px" flexWrap="wrap">
-              {attachments.map((attachment, index) => (
-                <Flex
-                  key={index}
-                  bg={attachmentBg}
-                  border="1px solid"
-                  borderColor={borderColor}
-                  borderRadius="8px"
-                  p="8px"
-                  align="center"
-                  gap="8px"
-                >
-                  {attachment.preview ? (
-                    <Box
-                      as="img"
-                      src={attachment.preview}
-                      alt={attachment.file.name}
-                      w="40px"
-                      h="40px"
-                      objectFit="cover"
-                      borderRadius="4px"
-                    />
-                  ) : (
-                    <Icon as={MdDescription} boxSize="20px" color={textColor} />
-                  )}
-                  <Box flex="1" minW="0">
-                    <Text fontSize="xs" color={textColor} noOfLines={1}>
-                      {attachment.file.name}
-                    </Text>
-                    <Text fontSize="xs" color={gray}>
-                      {(attachment.file.size / 1024).toFixed(1)} KB
-                    </Text>
-                  </Box>
-                  <IconButton
-                    aria-label="Remove"
-                    icon={<Icon as={MdClose} />}
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => {
-                      if (attachment.preview) {
-                        URL.revokeObjectURL(attachment.preview);
-                      }
-                      setAttachments(attachments.filter((_, i) => i !== index));
-                    }}
-                  />
-                </Flex>
-              ))}
-            </Flex>
-          )}
-
-          {/* Artifact Toggle Button */}
           {currentArtifact && (
             <Box mb={3}>
               <ArtifactToggleButton
@@ -1339,92 +234,25 @@ ${currentArtifact.versions && currentArtifact.versions.length > 0 ? `- REVERT: G
             </Box>
           )}
 
-          {/* Inspected Code Attachment */}
           {inspectedCodeAttachment && (
-            <Flex
-              bg={inspectedCodeBg}
-              border="2px solid"
-              borderColor={inspectedCodeBorder}
-              borderRadius="12px"
-              p={3}
-              align="center"
-              gap={3}
-            >
-              <Flex
-                bg="purple.500"
-                borderRadius="full"
-                p={2}
-                color="white"
-              >
-                <Icon as={MdCode} boxSize={5} />
-              </Flex>
-              <Box flex={1} minW="0">
-                <Text fontSize="sm" fontWeight="bold" color={textColor} mb={1}>
-                  Inspected: &lt;{inspectedCodeAttachment.elementTag}&gt;
-                  {inspectedCodeAttachment.elementId && ` #${inspectedCodeAttachment.elementId}`}
-                  {inspectedCodeAttachment.elementClasses && ` .${inspectedCodeAttachment.elementClasses.split(' ')[0]}`}
-                </Text>
-                <Text fontSize="xs" color={gray} noOfLines={2} fontFamily="mono">
-                  {inspectedCodeAttachment.code.slice(0, 100)}
-                  {inspectedCodeAttachment.code.length > 100 ? '...' : ''}
-                </Text>
-              </Box>
-              <Tooltip label="Remove attachment">
-                <IconButton
-                  aria-label="Remove inspected code"
-                  icon={<Icon as={MdClose} />}
-                  size="sm"
-                  variant="ghost"
-                  colorScheme="purple"
-                  onClick={() => setInspectedCodeAttachment(null)}
-                />
-              </Tooltip>
-            </Flex>
+            <InspectedCodePreview
+              attachment={inspectedCodeAttachment}
+              onRemove={() => setInspectedCodeAttachment(null)}
+            />
           )}
 
-          <Flex gap="10px">
-              <Input
-                minH="54px"
-                h="100%"
-                border="1px solid"
-                borderColor={borderColor}
-                borderRadius="45px"
-                p="15px 20px"
-                me="10px"
-                fontSize="sm"
-                fontWeight="500"
-                _focus={{ borderColor: 'none' }}
-                color={inputColor}
-                _placeholder={placeholderColor}
-                placeholder="Type your message here..."
-                value={inputCode}
-                onChange={handleChange}
-                onKeyPress={handleKeyPress}
-              />
-              <Button
-                variant="primary"
-                py="20px"
-                px="16px"
-                fontSize="sm"
-                borderRadius="45px"
-                ms="auto"
-                w={{ base: '160px', md: '210px' }}
-                h="54px"
-                _hover={{
-                  boxShadow:
-                    '0px 21px 27px -10px rgba(250, 80, 15, 0.48) !important',
-                  bg: 'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%) !important',
-                  _disabled: {
-                    bg: 'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)',
-                  },
-                }}
-                onClick={handleTranslate}
-                isLoading={loading ? true : false}
-              >
-                Submit
-              </Button>
-            </Flex>
-          </Flex>
+          <ChatInput
+            value={inputCode}
+            onChange={setInputCode}
+            onSubmit={handleTranslate}
+            onKeyPress={handleKeyPress}
+            loading={loading}
+            modelInfo={modelInfo}
+            attachmentCount={attachments.length}
+            onImageAttach={(file, preview) => addAttachment('image', file, preview)}
+            onDocumentAttach={(file) => addAttachment('document', file)}
+          />
+        </Flex>
 
         <Flex
           justify="center"
@@ -1449,17 +277,16 @@ ${currentArtifact.versions && currentArtifact.versions.length > 0 ? `- REVERT: G
           </Link>
         </Flex>
       </Flex>
-    </Flex>
+      </Flex>
 
-    {/* Artifact Side Panel */}
-    <ArtifactErrorBoundary onReset={() => setCurrentArtifact(null)}>
-      <ArtifactSidePanel
-        artifact={currentArtifact}
-        isOpen={isArtifactPanelOpen}
-        onClose={() => setIsArtifactPanelOpen(false)}
-        onCodeAttach={handleCodeAttach}
-      />
-    </ArtifactErrorBoundary>
+      <ArtifactErrorBoundary onReset={resetArtifacts}>
+        <ArtifactSidePanel
+          artifact={currentArtifact}
+          isOpen={isArtifactPanelOpen}
+          onClose={() => setIsArtifactPanelOpen(false)}
+          onCodeAttach={handleCodeAttach}
+        />
+      </ArtifactErrorBoundary>
     </>
   );
 }

@@ -1,10 +1,7 @@
-//@ts-ignore
-import ReactMarkdown from 'react-markdown'
-//@ts-ignore
-import remarkMath from 'remark-math'
-//@ts-ignore
-import rehypeKatex from 'rehype-katex'
-import 'katex/dist/katex.min.css'
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { 
   useColorModeValue, 
   Accordion,
@@ -18,13 +15,14 @@ import {
   Icon,
   Image,
   SimpleGrid
-} from '@chakra-ui/react'
-import Card from '@/components/card/Card'
-import { useState, useEffect, Fragment } from 'react'
-import { MdImage, MdDescription } from 'react-icons/md'
-import { Attachment, ToolCall } from '@/types/types'
-import ToolCallBox from '@/components/ToolCallBox'
-import CodeSnippet from '@/components/CodeSnippet'
+} from '@chakra-ui/react';
+import Card from '@/components/card/Card';
+import { useState, useEffect, Fragment } from 'react';
+import { MdDescription } from 'react-icons/md';
+import { Attachment, ToolCall } from '@/types/types';
+import ToolCallBox from '@/components/ToolCallBox';
+import CodeSnippet from '@/components/CodeSnippet';
+import { processLatex } from '@/utils/latexProcessor';
 
 export default function MessageBox(props: { 
   output: string; 
@@ -59,58 +57,28 @@ export default function MessageBox(props: {
     return { text: processedText, snippets };
   };
 
-  const processLatex = (text: string) => {
-    let processed = text;
-    
-    processed = processed.replace(/\\begin\{(pmatrix|bmatrix|matrix|align|equation)\}[\s\S]*?\\end\{\1\}/g, (match) => {
-      if (match.startsWith('$$') || match.startsWith('\\[')) return match;
-      return `$$\n${match}\n$$`;
-    });
-    
-    processed = processed.replace(/^([^$\n]*\\(?:frac|sqrt|sum|prod|int|lim|binom|begin)\{[^}]*\}.*?)$/gm, (match) => {
-      if (match.trim().startsWith('$') || match.trim().startsWith('\\(')) return match;
-      const trimmed = match.trim();
-      if (trimmed.includes('\n') || trimmed.length > 60) {
-        return `$$${trimmed}$$`;
-      }
-      return `$${trimmed}$`;
-    });
-    
-    processed = processed.replace(/^([^$\n]*[a-zA-Z0-9]\^\{?[^}]*\}?.*?)$/gm, (match) => {
-      if (match.trim().startsWith('$') || match.includes('```') || match.includes('http')) return match;
-      const trimmed = match.trim();
-      if (/\\[a-zA-Z]+|[\^_]\{/.test(trimmed) && trimmed.length < 100) {
-        return `$${trimmed}$`;
-      }
-      return match;
-    });
-    
-    return processed;
-  };
-
   useEffect(() => {
-    const thinkRegex = /<think>([\s\S]*?)<\/think>/g
-    const artifactRegex = /<artifact[^>]*>[\s\S]*?<\/artifact>/g
+    const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+    const artifactRegex = /<artifact[^>]*>[\s\S]*?<\/artifact>/g;
     let processedOutput = output;
     
-    // Hide artifact code blocks from chat display (they show in side panel instead)
     processedOutput = processedOutput.replace(artifactRegex, '');
     
-    const matches = processedOutput.match(thinkRegex)
+    const matches = processedOutput.match(thinkRegex);
     
     if (matches && matches.length > 0) {
       const thinkingContent = matches
         .map(match => match.replace(/<\/?think>/g, ''))
-        .join('\n\n')
-      setThinking(processLatex(thinkingContent))
+        .join('\n\n');
+      setThinking(processLatex(thinkingContent));
       
-      const cleanAnswer = processedOutput.replace(thinkRegex, '').trim()
-      setAnswer(processLatex(cleanAnswer))
+      const cleanAnswer = processedOutput.replace(thinkRegex, '').trim();
+      setAnswer(processLatex(cleanAnswer));
     } else {
-      setThinking('')
-      setAnswer(processLatex(processedOutput))
+      setThinking('');
+      setAnswer(processLatex(processedOutput));
     }
-  }, [output])
+  }, [output]);
 
   const attachmentBg = useColorModeValue('gray.50', 'whiteAlpha.100');
   const attachmentBorder = useColorModeValue('gray.200', 'whiteAlpha.200');
@@ -215,8 +183,8 @@ export default function MessageBox(props: {
                   <Fragment key={idx}>
                     <ReactMarkdown 
                       className="font-medium"
-                      remarkPlugins={[remarkMath] as any}
-                      rehypePlugins={[rehypeKatex] as any}
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
                     >
                       {parts[0]}
                     </ReactMarkdown>
@@ -232,8 +200,8 @@ export default function MessageBox(props: {
             })}
             <ReactMarkdown 
               className="font-medium"
-              remarkPlugins={[remarkMath] as any}
-              rehypePlugins={[rehypeKatex] as any}
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex]}
             >
               {renderedText}
             </ReactMarkdown>
@@ -268,8 +236,8 @@ export default function MessageBox(props: {
             <AccordionPanel pb={4}>
               <ReactMarkdown 
                 className="font-medium"
-                remarkPlugins={[remarkMath] as any}
-                rehypePlugins={[rehypeKatex] as any}
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
               >
                 {thinking}
               </ReactMarkdown>
@@ -277,14 +245,6 @@ export default function MessageBox(props: {
           </AccordionItem>
         </Accordion>
       )}
-      
-      <ReactMarkdown 
-        className="font-medium"
-        remarkPlugins={[remarkMath] as any}
-        rehypePlugins={[rehypeKatex] as any}
-      >
-        {answer ? answer : ''}
-      </ReactMarkdown>
     </Card>
   )
 }
