@@ -1,0 +1,237 @@
+import { useState, useCallback } from 'react';
+import { useToast } from '@chakra-ui/react';
+import { 
+  Message as MessageType, 
+  MistralModel, 
+  InspectedCodeAttachment,
+  ArtifactData 
+} from '@/types/types';
+import { useValidation } from './useValidation';
+import { useMessageBuilder } from './useMessageBuilder';
+import { useChatAPI } from './useChatAPI';
+import { getMessageText } from '@/utils/messageHelpers';
+
+interface UseMessageSubmitOptions {
+  messages: MessageType[];
+  setMessages: React.Dispatch<React.SetStateAction<MessageType[]>>;
+  model: MistralModel;
+  currentConversationId: string | null;
+  currentArtifact: ArtifactData | null;
+  createNewConversation: (firstMessage: string, model: MistralModel) => Promise<string | null>;
+  saveMessage: (convId: string, role: string, content: string, attachments?: any[]) => Promise<void>;
+  processAttachments: () => Promise<{ contentArray: any[]; uploadedAttachments: any[] }>;
+  processArtifactResponse: (response: string) => { artifactData?: ArtifactData; toolCallData?: any; cleanContent: string };
+  clearAttachments: () => void;
+}
+
+interface SubmitMessageOptions {
+  inputCode: string;
+  inspectedCodeAttachment: InspectedCodeAttachment | null;
+  hasAttachments: boolean;
+  onSuccess?: () => void;
+  onInputClear: () => void;
+  onInspectedCodeClear: () => void;
+}
+
+export function useMessageSubmit(options: UseMessageSubmitOptions) {
+  const {
+    messages,
+    setMessages,
+    model,
+    currentConversationId,
+    currentArtifact,
+    createNewConversation,
+    saveMessage,
+    processAttachments,
+    processArtifactResponse,
+    clearAttachments,
+  } = options;
+
+  const toast = useToast();
+  const [loading, setLoading] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState('');
+  const [isGeneratingArtifact, setIsGeneratingArtifact] = useState(false);
+  const [artifactLoadingInfo, setArtifactLoadingInfo] = useState<{ operation: string; title?: string } | null>(null);
+
+  const { validateApiKey, validateModel, validateInput, validateTokens } = useValidation();
+  const { buildUserMessageContent, buildApiMessages } = useMessageBuilder();
+  const { sendMessage, abortRequest } = useChatAPI();
+
+  const submitMessage = useCallback(async (submitOptions: SubmitMessageOptions) => {
+    const {
+      inputCode,
+      inspectedCodeAttachment,
+      hasAttachments,
+      onInputClear,
+      onInspectedCodeClear,
+    } = submitOptions;
+
+    const currentInput = inputCode.trim();
+
+    // Validation steps
+    const apiKeyValidation = validateApiKey();
+    if (!apiKeyValidation.isValid) return;
+
+    const modelValidation = validateModel(model);
+    if (!modelValidation.isValid) return;
+
+    const inputValidation = validateInput(currentInput);
+    if (!inputValidation.isValid) return;
+
+    const tokenValidation = validateTokens(messages, currentInput, model);
+    if (!tokenValidation.isValid) return;
+
+    // Get or create conversation ID
+    let convId = currentConversationId;
+    if (!convId) {
+      convId = await createNewConversation(currentInput, model);
+      if (!convId) {
+        toast({
+          title: 'Error',
+          description: 'Failed to create conversation. Please try again.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+          position: 'top',
+        });
+        return;
+      }
+    }
+
+    try {
+      let uploadedAttachments: any[] = [];
+      let attachmentContent: any[] = [];
+
+      // Process attachments if any
+      if (hasAttachments) {
+        setLoading(true);
+        const result = await processAttachments();
+        uploadedAttachments = result.uploadedAttachments;
+        attachmentContent = result.contentArray;
+      }
+
+      // Build user message content
+      const userMessageContent = buildUserMessageContent({
+        currentInput,
+        inspectedCodeAttachment,
+        currentArtifact,
+        attachmentContent,
+      });
+
+      // Create user message
+      const userMessage: MessageType = { 
+        role: 'user', 
+        content: userMessageContent,
+        attachments: uploadedAttachments
+      };
+
+      // Update messages
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
+      
+      // Clear input states
+      onInputClear();
+      onInspectedCodeClear();
+      setStreamingMessage('');
+      setLoading(true);
+      clearAttachments();
+
+      // Save user message
+      await saveMessage(convId, 'user', getMessageText(userMessageContent), uploadedAttachments);
+
+      // Build API messages
+      const apiMessages = buildApiMessages({
+        messages,
+        userMessageContent,
+        currentArtifact,
+      });
+
+      // Send message and handle streaming
+      await sendMessage({
+        apiMessages,
+        model,
+        onStreamUpdate: (response, isGenerating, loadingInfo) => {
+          setIsGeneratingArtifact(isGenerating);
+          setArtifactLoadingInfo(loadingInfo);
+          
+          if (isGenerating) {
+            setStreamingMessage('');
+          } else {
+            setStreamingMessage(response);
+          }
+        },
+        onComplete: async (response) => {
+          const { artifactData, toolCallData, cleanContent } = processArtifactResponse(response);
+
+          const assistantMessage: MessageType = { 
+            role: 'assistant', 
+            content: cleanContent,
+            artifact: artifactData,
+            toolCall: toolCallData,
+          };
+
+          setMessages((prev) => [...prev, assistantMessage]);
+          setStreamingMessage('');
+          setIsGeneratingArtifact(false);
+          setArtifactLoadingInfo(null);
+          setLoading(false);
+
+          if (convId) {
+            await saveMessage(convId, 'assistant', getMessageText(cleanContent));
+          }
+        },
+        onError: () => {
+          setLoading(false);
+          setStreamingMessage('');
+          setIsGeneratingArtifact(false);
+          setArtifactLoadingInfo(null);
+        },
+      });
+      
+    } catch (error) {
+      setLoading(false);
+      setStreamingMessage('');
+      setIsGeneratingArtifact(false);
+      setArtifactLoadingInfo(null);
+      
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        status: 'error',
+        duration: 7000,
+        isClosable: true,
+        position: 'top',
+      });
+    }
+  }, [
+    messages,
+    setMessages,
+    model,
+    currentConversationId,
+    currentArtifact,
+    validateApiKey,
+    validateModel,
+    validateInput,
+    validateTokens,
+    createNewConversation,
+    saveMessage,
+    processAttachments,
+    clearAttachments,
+    buildUserMessageContent,
+    buildApiMessages,
+    sendMessage,
+    processArtifactResponse,
+    toast,
+  ]);
+
+  return {
+    submitMessage,
+    loading,
+    streamingMessage,
+    isGeneratingArtifact,
+    artifactLoadingInfo,
+    abortRequest,
+  };
+}
+

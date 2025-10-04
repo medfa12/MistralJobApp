@@ -124,7 +124,6 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
     const x = e.clientX - iframeRect.left;
     const y = e.clientY - iframeRect.top;
 
-    // Get element at point in iframe
     const element = iframeDoc.elementFromPoint(x, y);
     
     if (!element || element.tagName === 'HTML' || element.tagName === 'BODY') {
@@ -168,12 +167,10 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
     setSelectedElement(extractElementInfo(element, iframeRect));
     setAttachedElement(element);
 
-    // Create code attachment if callback provided
     if (onCodeAttach) {
       const code = extractElementCode(element, artifact.type);
       const computed = iframeRef.current?.contentWindow?.getComputedStyle(element);
       
-      // Extract important styles
       const importantStyles = ['backgroundColor', 'color', 'padding', 'margin', 'fontSize', 'fontWeight'];
       const styles = importantStyles
         .map(prop => {
@@ -200,7 +197,6 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
   const toggleInspectMode = () => {
     setInspectMode(!inspectMode);
     if (inspectMode) {
-      // Cleanup when turning off
       setHoveredElement(null);
       setSelectedElement(null);
       setHighlightBox(null);
@@ -210,8 +206,10 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
   useEffect(() => {
     if (!iframeRef.current) return;
 
+    const iframe = iframeRef.current;
+    let errorHandler: ((event: ErrorEvent) => void) | null = null;
+
     try {
-      const iframe = iframeRef.current;
       const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
 
       if (!iframeDoc) {
@@ -270,7 +268,6 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
                 <script type="text/babel">
                   ${artifact.code}
                   
-                  // Try to render if there's a default export or App component
                   try {
                     const App = typeof module !== 'undefined' && module.exports ? module.exports.default : window.App;
                     if (App) {
@@ -331,9 +328,24 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
       iframeDoc.write(htmlContent);
       iframeDoc.close();
       setError(null);
+      
+      errorHandler = (event: ErrorEvent) => {
+        console.error('Iframe runtime error:', event.error);
+        setError(`Runtime error: ${event.error?.message || 'Unknown error in artifact code'}`);
+      };
+      
+      iframe.contentWindow?.addEventListener('error', errorHandler);
+      
     } catch (err) {
+      console.error('Preview render error:', err);
       setError(err instanceof Error ? err.message : 'Failed to render preview');
     }
+
+    return () => {
+      if (errorHandler && iframe.contentWindow) {
+        iframe.contentWindow.removeEventListener('error', errorHandler);
+      }
+    };
   }, [artifact]);
 
   return (
@@ -346,7 +358,6 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
         </Alert>
       )}
 
-      {/* Inspect Mode Toggle */}
       <Flex position="absolute" top={2} right={2} zIndex={10} gap={2}>
         {inspectMode && (
           <Badge colorScheme="orange" px={3} py={2} borderRadius="md" fontSize="sm">
@@ -367,8 +378,7 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
       </Flex>
 
       <Box position="relative" w="100%" h="100%">
-        {/* Preview Iframe */}
-              <Box
+        <Box
                 as="iframe"
                 ref={iframeRef}
                 w="100%"
@@ -383,7 +393,6 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
                 pointerEvents={inspectMode ? 'none' : 'auto'}
               />
 
-        {/* Inspect Mode Overlay */}
         {inspectMode && (
           <Box
             ref={overlayRef}
@@ -404,7 +413,6 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
           />
         )}
 
-        {/* Hover Highlight */}
         {inspectMode && highlightBox && !selectedElement && (
           <motion.div
             style={{
@@ -438,7 +446,6 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
           />
         )}
 
-        {/* Selected Element Highlight */}
         <AnimatePresence>
           {inspectMode && highlightBox && selectedElement && (
             <motion.div
@@ -475,7 +482,6 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
           )}
         </AnimatePresence>
 
-        {/* Hover Tooltip */}
         {inspectMode && hoveredElement && !selectedElement && highlightBox && (
           <motion.div
             style={{
@@ -514,10 +520,8 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
         )}
       </Box>
 
-      {/* Inspector Panel */}
       <InspectorPanel element={selectedElement} isVisible={inspectMode && !!selectedElement} />
 
-      {/* Clear Selection Button */}
       <AnimatePresence>
         {inspectMode && selectedElement && (
           <motion.button
