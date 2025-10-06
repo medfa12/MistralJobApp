@@ -7,10 +7,11 @@ import {
   Icon,
   Text,
   Image,
+  Badge,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { MdPerson, MdAutoAwesome, MdDescription } from 'react-icons/md';
-import { Message as MessageType } from '@/types/types';
+import { MdPerson, MdAutoAwesome, MdDescription, MdCode } from 'react-icons/md';
+import { Message as MessageType, ArtifactData } from '@/types/types';
 import MessageBoxChat from '@/components/MessageBoxChat';
 import { ArtifactLoadingCard } from '@/components/ArtifactLoadingCard';
 import { getMessageText } from '@/utils/messageHelpers';
@@ -21,6 +22,9 @@ interface ChatMessagesProps {
   isGeneratingArtifact: boolean;
   artifactLoadingInfo: { operation: string; title?: string } | null;
   messagesEndRef: Ref<HTMLDivElement>;
+  currentArtifact: ArtifactData | null;
+  isArtifactPanelOpen: boolean;
+  onArtifactClick: (artifact: ArtifactData) => void;
 }
 
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
@@ -29,12 +33,20 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
   isGeneratingArtifact,
   artifactLoadingInfo,
   messagesEndRef,
+  currentArtifact,
+  isArtifactPanelOpen,
+  onArtifactClick,
 }) => {
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const brandColor = useColorModeValue('brand.500', 'white');
   const textColor = useColorModeValue('navy.700', 'white');
   const attachmentBg = useColorModeValue('gray.50', 'whiteAlpha.100');
   const gray = useColorModeValue('gray.500', 'white');
+  
+  const inspectedCodeBg = useColorModeValue('purple.50', 'purple.900');
+  const inspectedCodeBorder = useColorModeValue('purple.300', 'purple.600');
+  const inspectedCodeBoxBg = useColorModeValue('gray.900', 'gray.800');
+  const inspectedCodeTextColor = useColorModeValue('gray.100', 'gray.300');
 
   return (
     <>
@@ -62,6 +74,51 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
                 />
               </Flex>
               <Flex direction="column" w="100%" gap="10px">
+                {message.inspectedCodeAttachment && (
+                  <Box>
+                    <Flex
+                      bg={inspectedCodeBg}
+                      border="2px solid"
+                      borderColor={inspectedCodeBorder}
+                      borderRadius="12px"
+                      p={4}
+                      direction="column"
+                      gap={3}
+                    >
+                      <Flex align="center" gap={2} flexWrap="wrap">
+                        <Icon as={MdCode} boxSize={5} color="purple.500" />
+                        <Text fontWeight="bold" fontSize="sm" color={textColor}>
+                          Inspected Element: &lt;{message.inspectedCodeAttachment.elementTag}&gt;
+                          {message.inspectedCodeAttachment.elementId && ` #${message.inspectedCodeAttachment.elementId}`}
+                          {message.inspectedCodeAttachment.elementClasses && ` .${message.inspectedCodeAttachment.elementClasses.split(' ')[0]}`}
+                        </Text>
+                        <Badge colorScheme="purple" ml="auto">
+                          {message.inspectedCodeAttachment.sourceArtifactId}
+                        </Badge>
+                      </Flex>
+                      <Box
+                        bg={inspectedCodeBoxBg}
+                        borderRadius="md"
+                        p={3}
+                        overflow="auto"
+                      >
+                        <Text
+                          fontFamily="mono"
+                          fontSize="sm"
+                          color={inspectedCodeTextColor}
+                          whiteSpace="pre"
+                        >
+                          {message.inspectedCodeAttachment.code}
+                        </Text>
+                      </Box>
+                      {message.inspectedCodeAttachment.styles && (
+                        <Text fontSize="xs" color={gray}>
+                          <strong>Computed Styles:</strong> {message.inspectedCodeAttachment.styles}
+                        </Text>
+                      )}
+                    </Flex>
+                  </Box>
+                )}
                 {message.attachments && message.attachments.length > 0 && (
                   <Flex gap="8px" flexWrap="wrap">
                     {message.attachments.map((attachment, idx) => (
@@ -159,6 +216,10 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
                   output={getMessageText(message.content)} 
                   attachments={message.attachments}
                   toolCall={message.toolCall}
+                  artifact={message.artifact}
+                  inspectedCodeAttachment={message.inspectedCodeAttachment}
+                  onArtifactClick={message.artifact ? () => onArtifactClick(message.artifact!) : undefined}
+                  isArtifactOpen={!!(currentArtifact && message.artifact && currentArtifact.identifier === message.artifact.identifier && isArtifactPanelOpen)}
                 />
               </Box>
             </Flex>

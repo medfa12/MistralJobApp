@@ -9,6 +9,8 @@ type UserData = {
   email: string;
   avatar: string | null;
   role: string;
+  isStripeActivated?: boolean;
+  stripePriceId?: string | null;
 };
 
 export function useUserData() {
@@ -35,14 +37,12 @@ export function useUserData() {
     fetchUserData();
   }, [session, status]);
 
-  // Construct full name
   const fullName = userData
     ? [userData.firstName, userData.lastName].filter(Boolean).join(' ') ||
       userData.username ||
       'User'
     : session?.user?.name || 'User';
 
-  // Get initials
   const initials = fullName
     .split(' ')
     .map((n) => n[0])
@@ -57,8 +57,9 @@ export function useUserData() {
     email: userData?.email || session?.user?.email || '',
     avatar: userData?.avatar || session?.user?.image || null,
     role: userData?.role || 'member',
+    stripePriceId: userData?.stripePriceId || null,
+    isSubscriptionActive: userData?.isStripeActivated || false,
     loading,
     isAuthenticated: status === 'authenticated',
   };
 }
-

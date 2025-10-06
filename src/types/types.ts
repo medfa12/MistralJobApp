@@ -31,6 +31,7 @@ export interface Message {
   attachments?: Attachment[];
   artifact?: ArtifactData;
   toolCall?: ToolCall;
+  inspectedCodeAttachment?: InspectedCodeAttachment;
 }
 
 export interface ChatBody {

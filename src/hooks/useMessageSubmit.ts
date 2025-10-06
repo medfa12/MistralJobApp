@@ -18,7 +18,7 @@ interface UseMessageSubmitOptions {
   currentConversationId: string | null;
   currentArtifact: ArtifactData | null;
   createNewConversation: (firstMessage: string, model: MistralModel) => Promise<string | null>;
-  saveMessage: (convId: string, role: string, content: string, attachments?: any[]) => Promise<void>;
+  saveMessage: (convId: string, role: string, content: string, attachments?: any[], artifact?: ArtifactData, toolCall?: any) => Promise<void>;
   processAttachments: () => Promise<{ contentArray: any[]; uploadedAttachments: any[] }>;
   processArtifactResponse: (response: string) => { artifactData?: ArtifactData; toolCallData?: any; cleanContent: string };
   clearAttachments: () => void;
@@ -110,7 +110,6 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
         attachmentContent = result.contentArray;
       }
 
-      // Build user message content
       const userMessageContent = buildUserMessageContent({
         currentInput,
         inspectedCodeAttachment,
@@ -118,35 +117,37 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
         attachmentContent,
       });
 
-      // Create user message
       const userMessage: MessageType = { 
         role: 'user', 
         content: userMessageContent,
-        attachments: uploadedAttachments
+        attachments: uploadedAttachments,
+        inspectedCodeAttachment: inspectedCodeAttachment || undefined,
       };
 
-      // Update messages
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
       
-      // Clear input states
       onInputClear();
       onInspectedCodeClear();
       setStreamingMessage('');
       setLoading(true);
       clearAttachments();
 
-      // Save user message
-      await saveMessage(convId, 'user', getMessageText(userMessageContent), uploadedAttachments);
+      await saveMessage(
+        convId, 
+        'user', 
+        getMessageText(userMessageContent), 
+        uploadedAttachments, 
+        undefined, 
+        undefined
+      );
 
-      // Build API messages
       const apiMessages = buildApiMessages({
         messages,
         userMessageContent,
         currentArtifact,
+        inspectedCodeAttachment,
       });
-
-      // Send message and handle streaming
       await sendMessage({
         apiMessages,
         model,
@@ -177,7 +178,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
           setLoading(false);
 
           if (convId) {
-            await saveMessage(convId, 'assistant', getMessageText(cleanContent));
+            await saveMessage(convId, 'assistant', getMessageText(cleanContent), undefined, artifactData, toolCallData);
           }
         },
         onError: () => {

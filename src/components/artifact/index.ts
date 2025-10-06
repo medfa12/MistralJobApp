@@ -5,4 +5,8 @@ export { InspectorPanel } from './InspectorPanel';
 export { ArtifactSidePanel } from './ArtifactSidePanel';
 export { ArtifactToggleButton } from './ArtifactToggleButton';
 export { default as ArtifactErrorBoundary } from './ArtifactErrorBoundary';
+export { ArtifactWorkspace } from './ArtifactWorkspace';
+export { VersionHistoryPanel } from './VersionHistoryPanel';
+export { VersionComparison } from './VersionComparison';
+export { ArtifactTabs } from './ArtifactTabs';
 

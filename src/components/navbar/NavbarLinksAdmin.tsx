@@ -26,6 +26,7 @@ import routes from '@/routes';
 import { useUserData } from '@/hooks/useUserData';
 import { signOut } from 'next-auth/react';
 import Image from 'next/image';
+import { getPlanColor } from '@/lib/plan-colors';
 
 export default function HeaderLinks(props: {
   secondary: boolean;
@@ -33,7 +34,7 @@ export default function HeaderLinks(props: {
 }) {
   const { secondary, setApiKey } = props;
   const { colorMode, toggleColorMode } = useColorMode();
-  const { fullName, initials, avatar, loading } = useUserData();
+  const { fullName, initials, avatar, loading, stripePriceId, isSubscriptionActive } = useUserData();
   
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.500', 'white');
@@ -176,17 +177,27 @@ export default function HeaderLinks(props: {
           {loading ? (
             <Skeleton w="40px" h="40px" borderRadius="50%" />
           ) : avatar ? (
-            <Image
-              src={avatar}
-              alt={fullName}
-              width={40}
-              height={40}
-              style={{
-                borderRadius: '50%',
-                objectFit: 'cover',
-                cursor: 'pointer',
-              }}
-            />
+            <Box
+              w="40px"
+              h="40px"
+              borderRadius="50%"
+              border="3px solid"
+              borderColor={getPlanColor(stripePriceId, isSubscriptionActive).border}
+              boxShadow={`0 0 12px ${getPlanColor(stripePriceId, isSubscriptionActive).border}40`}
+              overflow="hidden"
+              cursor="pointer"
+            >
+              <Image
+                src={avatar}
+                alt={fullName}
+                width={40}
+                height={40}
+                style={{
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                }}
+              />
+            </Box>
           ) : (
             <>
               <Box
@@ -195,10 +206,13 @@ export default function HeaderLinks(props: {
                 bg="#FA500F"
                 w="40px"
                 h="40px"
-                borderRadius={'50%'}
+                borderRadius="50%"
+                border="3px solid"
+                borderColor={getPlanColor(stripePriceId, isSubscriptionActive).border}
+                boxShadow={`0 0 12px ${getPlanColor(stripePriceId, isSubscriptionActive).border}40`}
               />
-              <Center top={0} left={0} position={'absolute'} w={'100%'} h={'100%'}>
-                <Text fontSize={'xs'} fontWeight="bold" color={'white'}>
+              <Center top={0} left={0} position="absolute" w="100%" h="100%">
+                <Text fontSize="xs" fontWeight="bold" color="white">
                   {initials}
                 </Text>
               </Center>

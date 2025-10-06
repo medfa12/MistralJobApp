@@ -35,6 +35,7 @@ model User {
 
   // Relations
   conversations          ChatConversation[]
+  usageLogs              UsageLog[]
 
   @@map(name: "users")
 }
@@ -55,14 +56,17 @@ model ChatConversation {
 }
 
 model ChatMessage {
-  id             String              @id @default(auto()) @map("_id") @db.ObjectId
-  conversationId String              @db.ObjectId
-  role           String
-  content        String
-  createdAt      DateTime            @default(now()) @map(name: "created_at")
+  id                      String              @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId          String              @db.ObjectId
+  role                    String
+  content                 String
+  artifact                Json?
+  toolCall                Json?
+  inspectedCodeAttachment Json?
+  createdAt               DateTime            @default(now()) @map(name: "created_at")
   
-  conversation   ChatConversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  attachments    MessageAttachment[]
+  conversation            ChatConversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  attachments             MessageAttachment[]
 
   @@map(name: "chat_messages")
 }
@@ -81,5 +85,22 @@ model MessageAttachment {
   message            ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@map(name: "message_attachments")
+}
+
+model UsageLog {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  model           String
+  inputTokens     Int      @map(name: "input_tokens")
+  outputTokens    Int      @map(name: "output_tokens")
+  totalTokens     Int      @map(name: "total_tokens")
+  requestType     String   @map(name: "request_type")
+  conversationId  String?  @db.ObjectId
+  createdAt       DateTime @default(now()) @map(name: "created_at")
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map(name: "usage_logs")
+  @@index([userId, createdAt])
 }
 

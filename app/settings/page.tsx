@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import SettingsClient from './SettingsClient';
 
+export const dynamic = 'force-dynamic';
+
 export default async function Settings() {
   // Get the current session
   const session = await getServerSession(authOptions);

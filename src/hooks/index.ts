@@ -7,4 +7,6 @@ export { useMessageBuilder } from './useMessageBuilder';
 export { useChatAPI } from './useChatAPI';
 export { useMessageSubmit } from './useMessageSubmit';
 export { useUserData } from './useUserData';
+export { useResizable } from './useResizable';
+export { useMultipleArtifacts } from './useMultipleArtifacts';
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useEffect, useRef, useState, useCallback } from 'react';
+import { FC, useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import {
   Box,
   Alert,
@@ -18,6 +18,7 @@ import { MdSearch, MdSearchOff } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
 import { InspectorPanel } from './InspectorPanel';
+import { glassEffects } from '@/theme/effects';
 
 export interface InspectedElement {
   tagName: string;
@@ -41,12 +42,17 @@ import { extractElementCode } from '@/utils/artifactParser';
 interface Props {
   artifact: ArtifactData;
   onCodeAttach?: (attachment: InspectedCodeAttachment) => void;
+  onClearInspection?: () => void;
+}
+
+export interface PreviewViewRef {
+  clearInspection: () => void;
 }
 
 const MotionBox = motion(Box);
 const MotionIconButton = motion(IconButton);
 
-export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
+export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCodeAttach, onClearInspection }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +71,24 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
   const hoverBorderColor = useColorModeValue('blue.400', 'blue.300');
   const overlayBg = useColorModeValue('rgba(0, 0, 0, 0.02)', 'rgba(255, 255, 255, 0.02)');
   const previewBg = useColorModeValue('white', 'gray.900');
+  const glassBg = useColorModeValue(glassEffects.light, glassEffects.dark);
+  
+  const inspectBoxBg = useColorModeValue('rgba(255, 255, 255, 0.75)', 'rgba(26, 32, 44, 0.75)');
+  const inspectBoxBorder = useColorModeValue('rgba(255, 255, 255, 0.5)', 'rgba(255, 255, 255, 0.1)');
+  const inspectBoxShadow = useColorModeValue('0 4px 16px rgba(0, 0, 0, 0.08)', '0 4px 16px rgba(0, 0, 0, 0.3)');
+  const inspectBadgeBg = useColorModeValue('rgba(251, 146, 60, 0.15)', 'rgba(251, 146, 60, 0.25)');
+  const inspectBadgeColor = useColorModeValue('orange.600', 'orange.300');
+  const inspectBadgeBorder = useColorModeValue('rgba(251, 146, 60, 0.3)', 'rgba(251, 146, 60, 0.4)');
+  const inspectButtonBgActive = useColorModeValue('rgba(251, 146, 60, 0.2)', 'rgba(251, 146, 60, 0.3)');
+  const inspectButtonBgInactive = useColorModeValue('rgba(255, 255, 255, 0.6)', 'rgba(45, 55, 72, 0.6)');
+  const inspectButtonColorActive = useColorModeValue('orange.600', 'orange.300');
+  const inspectButtonColorInactive = useColorModeValue('gray.700', 'gray.100');
+  const inspectButtonBorderActive = useColorModeValue('rgba(251, 146, 60, 0.4)', 'rgba(251, 146, 60, 0.5)');
+  const inspectButtonBorderInactive = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.1)');
+  const inspectButtonHoverActive = useColorModeValue('rgba(251, 146, 60, 0.3)', 'rgba(251, 146, 60, 0.4)');
+  const inspectButtonHoverInactive = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(45, 55, 72, 0.8)');
+  const inspectButtonActiveActive = useColorModeValue('rgba(251, 146, 60, 0.4)', 'rgba(251, 146, 60, 0.5)');
+  const inspectButtonActiveInactive = useColorModeValue('rgba(255, 255, 255, 0.9)', 'rgba(45, 55, 72, 0.9)');
 
   const getElementPath = (element: Element): string[] => {
     const path: string[] = [];
@@ -194,12 +218,26 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
     }
   }, [inspectMode, extractElementInfo, onCodeAttach, artifact]);
 
+  const clearInspection = useCallback(() => {
+    setInspectMode(false);
+    setHoveredElement(null);
+    setSelectedElement(null);
+    setAttachedElement(null);
+    setHighlightBox(null);
+    if (onClearInspection) {
+      onClearInspection();
+    }
+  }, [onClearInspection]);
+
+  useImperativeHandle(ref, () => ({
+    clearInspection
+  }), [clearInspection]);
+
   const toggleInspectMode = () => {
-    setInspectMode(!inspectMode);
     if (inspectMode) {
-      setHoveredElement(null);
-      setSelectedElement(null);
-      setHighlightBox(null);
+      clearInspection();
+    } else {
+      setInspectMode(true);
     }
   };
 
@@ -358,24 +396,62 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
         </Alert>
       )}
 
-      <Flex position="absolute" top={2} right={2} zIndex={10} gap={2}>
-        {inspectMode && (
-          <Badge colorScheme="orange" px={3} py={2} borderRadius="md" fontSize="sm">
-            🔍 Inspect Mode
-          </Badge>
-        )}
-        <Tooltip label={inspectMode ? 'Exit Inspect Mode' : 'Enable Inspect Mode'}>
-          <MotionIconButton
-            aria-label="Toggle Inspect Mode"
-            icon={inspectMode ? <MdSearchOff /> : <MdSearch />}
-            onClick={toggleInspectMode}
-            colorScheme={inspectMode ? 'orange' : 'gray'}
-            size="md"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          />
-        </Tooltip>
-      </Flex>
+      <Box
+        position="absolute"
+        top={2}
+        right={2}
+        zIndex={10}
+        borderRadius="xl"
+        p={2}
+        bg={inspectBoxBg}
+        backdropFilter="blur(12px) saturate(180%)"
+        border="1px solid"
+        borderColor={inspectBoxBorder}
+        boxShadow={inspectBoxShadow}
+      >
+        <Flex gap={2} align="center">
+          {inspectMode && (
+            <Badge
+              px={3}
+              py={2}
+              borderRadius="lg"
+              fontSize="sm"
+              bg={inspectBadgeBg}
+              color={inspectBadgeColor}
+              backdropFilter="blur(8px)"
+              border="1px solid"
+              borderColor={inspectBadgeBorder}
+              fontWeight="600"
+            >
+              INSPECT MODE
+            </Badge>
+          )}
+          <Tooltip label={inspectMode ? 'Exit Inspect Mode' : 'Enable Inspect Mode'}>
+            <MotionIconButton
+              aria-label="Toggle Inspect Mode"
+              icon={inspectMode ? <MdSearchOff /> : <MdSearch />}
+              onClick={toggleInspectMode}
+              size="md"
+              variant="solid"
+              bg={inspectMode ? inspectButtonBgActive : inspectButtonBgInactive}
+              color={inspectMode ? inspectButtonColorActive : inspectButtonColorInactive}
+              backdropFilter="blur(8px)"
+              border="1px solid"
+              borderColor={inspectMode ? inspectButtonBorderActive : inspectButtonBorderInactive}
+              _hover={{
+                bg: inspectMode ? inspectButtonHoverActive : inspectButtonHoverInactive,
+                transform: 'scale(1.05)',
+              }}
+              _active={{
+                bg: inspectMode ? inspectButtonActiveActive : inspectButtonActiveInactive,
+              }}
+              boxShadow="sm"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            />
+          </Tooltip>
+        </Flex>
+      </Box>
 
       <Box position="relative" w="100%" h="100%">
         <Box
@@ -384,7 +460,7 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
                 w="100%"
                 h="600px"
                 border="1px solid"
-                borderColor={useColorModeValue('gray.200', 'gray.700')}
+                borderColor={borderColor}
                 borderRadius="lg"
                 bg={previewBg}
                 sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
@@ -557,4 +633,6 @@ export const PreviewView: FC<Props> = ({ artifact, onCodeAttach }) => {
       </AnimatePresence>
     </Box>
   );
-};
+});
+
+PreviewView.displayName = 'PreviewView';

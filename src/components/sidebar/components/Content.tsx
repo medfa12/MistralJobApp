@@ -13,7 +13,7 @@ import {
   Skeleton,
 } from '@chakra-ui/react';
 import NavLink from '@/components/link/NavLink';
-import avatar4 from '/public/img/avatars/avatar4.png';
+import avatar from '/public/img/avatars/avatar.png';
 import { NextAvatar } from '@/components/image/Avatar';
 import APIModal from '@/components/apiModal';
 import Brand from '@/components/sidebar/components/Brand';
@@ -125,9 +125,7 @@ function SidebarContent(props: SidebarContent) {
               marginRight: '10px',
             }}
           />
-        ) : (
-          <NextAvatar h="34px" w="34px" src={avatar4} me="10px" />
-        )}
+        ) : null}
         {loading ? (
           <Skeleton h="16px" w="100px" me="10px" />
         ) : (
