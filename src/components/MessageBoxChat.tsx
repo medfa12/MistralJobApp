@@ -1,10 +1,9 @@
-//@ts-ignore
-import ReactMarkdown from 'react-markdown'
-//@ts-ignore
-import remarkMath from 'remark-math'
-//@ts-ignore
-import rehypeKatex from 'rehype-katex'
-import 'katex/dist/katex.min.css'
+'use client';
+
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { 
   useColorModeValue, 
   Accordion,
@@ -17,24 +16,33 @@ import {
   Flex,
   Icon,
   Image,
-  SimpleGrid
-} from '@chakra-ui/react'
-import Card from '@/components/card/Card'
-import { useState, useEffect, Fragment } from 'react'
-import { MdImage, MdDescription } from 'react-icons/md'
-import { Attachment, ToolCall } from '@/types/types'
-import ToolCallBox from '@/components/ToolCallBox'
-import CodeSnippet from '@/components/CodeSnippet'
+  SimpleGrid,
+  Badge
+} from '@chakra-ui/react';
+import Card from '@/components/card/Card';
+import { useState, useEffect, Fragment } from 'react';
+import { MdDescription, MdCode } from 'react-icons/md';
+import { Attachment, ToolCall, ArtifactData, InspectedCodeAttachment } from '@/types/types';
+import ToolCallBox from '@/components/ToolCallBox';
+import CodeSnippet from '@/components/CodeSnippet';
+import { processLatex } from '@/utils/latexProcessor';
+import { ArtifactToggleButton } from '@/components/artifact';
 
 export default function MessageBox(props: { 
   output: string; 
   attachments?: Attachment[]; 
   toolCall?: ToolCall;
+  artifact?: ArtifactData;
+  inspectedCodeAttachment?: InspectedCodeAttachment;
+  onArtifactClick?: () => void;
+  isArtifactOpen?: boolean;
 }) {
-  const { output, attachments, toolCall } = props
+  const { output, attachments, toolCall, artifact, inspectedCodeAttachment, onArtifactClick, isArtifactOpen } = props
   const textColor = useColorModeValue('navy.700', 'white')
   const thinkingBg = useColorModeValue('gray.50', 'whiteAlpha.100')
   const thinkingBorder = useColorModeValue('purple.200', 'purple.600')
+  const inspectedCodeBg = useColorModeValue('purple.50', 'purple.900')
+  const inspectedCodeBorder = useColorModeValue('purple.300', 'purple.600')
   const [thinking, setThinking] = useState<string>('')
   const [answer, setAnswer] = useState<string>('')
 
@@ -59,69 +67,39 @@ export default function MessageBox(props: {
     return { text: processedText, snippets };
   };
 
-  const processLatex = (text: string) => {
-    let processed = text;
-    
-    processed = processed.replace(/\\begin\{(pmatrix|bmatrix|matrix|align|equation)\}[\s\S]*?\\end\{\1\}/g, (match) => {
-      if (match.startsWith('$$') || match.startsWith('\\[')) return match;
-      return `$$\n${match}\n$$`;
-    });
-    
-    processed = processed.replace(/^([^$\n]*\\(?:frac|sqrt|sum|prod|int|lim|binom|begin)\{[^}]*\}.*?)$/gm, (match) => {
-      if (match.trim().startsWith('$') || match.trim().startsWith('\\(')) return match;
-      const trimmed = match.trim();
-      if (trimmed.includes('\n') || trimmed.length > 60) {
-        return `$$${trimmed}$$`;
-      }
-      return `$${trimmed}$`;
-    });
-    
-    processed = processed.replace(/^([^$\n]*[a-zA-Z0-9]\^\{?[^}]*\}?.*?)$/gm, (match) => {
-      if (match.trim().startsWith('$') || match.includes('```') || match.includes('http')) return match;
-      const trimmed = match.trim();
-      if (/\\[a-zA-Z]+|[\^_]\{/.test(trimmed) && trimmed.length < 100) {
-        return `$${trimmed}$`;
-      }
-      return match;
-    });
-    
-    return processed;
-  };
-
   useEffect(() => {
-    const thinkRegex = /<think>([\s\S]*?)<\/think>/g
-    const artifactRegex = /<artifact[^>]*>[\s\S]*?<\/artifact>/g
+    const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+    const artifactRegex = /<artifact[^>]*>[\s\S]*?<\/artifact>/g;
     let processedOutput = output;
     
-    // Hide artifact code blocks from chat display (they show in side panel instead)
     processedOutput = processedOutput.replace(artifactRegex, '');
     
-    const matches = processedOutput.match(thinkRegex)
+    const matches = processedOutput.match(thinkRegex);
     
     if (matches && matches.length > 0) {
       const thinkingContent = matches
         .map(match => match.replace(/<\/?think>/g, ''))
-        .join('\n\n')
-      setThinking(processLatex(thinkingContent))
+        .join('\n\n');
+      setThinking(processLatex(thinkingContent));
       
-      const cleanAnswer = processedOutput.replace(thinkRegex, '').trim()
-      setAnswer(processLatex(cleanAnswer))
+      const cleanAnswer = processedOutput.replace(thinkRegex, '').trim();
+      setAnswer(processLatex(cleanAnswer));
     } else {
-      setThinking('')
-      setAnswer(processLatex(processedOutput))
+      setThinking('');
+      setAnswer(processLatex(processedOutput));
     }
-  }, [output])
+  }, [output]);
 
   const attachmentBg = useColorModeValue('gray.50', 'whiteAlpha.100');
   const attachmentBorder = useColorModeValue('gray.200', 'whiteAlpha.200');
 
   return (
     <Card
-      display={output ? 'flex' : 'none'}
+      display={(output || inspectedCodeAttachment) ? 'flex' : 'none'}
       px="22px !important"
       pl="22px !important"
       color={textColor}
-      minH="450px"
+      minH={output ? "450px" : "auto"}
       fontSize={{ base: 'sm', md: 'md' }}
       lineHeight={{ base: '24px', md: '26px' }}
       fontWeight="500"
@@ -191,6 +169,42 @@ export default function MessageBox(props: {
         </Box>
       )}
       
+      {inspectedCodeAttachment && (
+        <Box mb="20px">
+          <Flex
+            bg={inspectedCodeBg}
+            border="2px solid"
+            borderColor={inspectedCodeBorder}
+            borderRadius="12px"
+            p={4}
+            direction="column"
+            gap={3}
+          >
+            <Flex align="center" gap={2} flexWrap="wrap">
+              <Icon as={MdCode} boxSize={5} color="purple.500" />
+              <Text fontWeight="bold" fontSize="sm" color={textColor}>
+                Inspected Element: &lt;{inspectedCodeAttachment.elementTag}&gt;
+                {inspectedCodeAttachment.elementId && ` #${inspectedCodeAttachment.elementId}`}
+                {inspectedCodeAttachment.elementClasses && ` .${inspectedCodeAttachment.elementClasses.split(' ')[0]}`}
+              </Text>
+              <Badge colorScheme="purple" ml="auto">
+                {inspectedCodeAttachment.sourceArtifactId}
+              </Badge>
+            </Flex>
+            <CodeSnippet 
+              code={inspectedCodeAttachment.code}
+              language={inspectedCodeAttachment.sourceArtifactId.includes('react') ? 'jsx' : 'html'}
+              title="Inspected Code"
+            />
+            {inspectedCodeAttachment.styles && (
+              <Text fontSize="xs" color="gray.500">
+                <strong>Computed Styles:</strong> {inspectedCodeAttachment.styles}
+              </Text>
+            )}
+          </Flex>
+        </Box>
+      )}
+      
       {toolCall && (
         <ToolCallBox 
           operation={toolCall.operation}
@@ -198,6 +212,16 @@ export default function MessageBox(props: {
           artifactTitle={toolCall.artifactTitle}
           revertToVersion={toolCall.revertToVersion}
         />
+      )}
+      
+      {artifact && onArtifactClick && (
+        <Box mb="10px">
+          <ArtifactToggleButton
+            artifact={artifact}
+            isOpen={isArtifactOpen || false}
+            onClick={onArtifactClick}
+          />
+        </Box>
       )}
       
       {(() => {
@@ -215,8 +239,8 @@ export default function MessageBox(props: {
                   <Fragment key={idx}>
                     <ReactMarkdown 
                       className="font-medium"
-                      remarkPlugins={[remarkMath] as any}
-                      rehypePlugins={[rehypeKatex] as any}
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
                     >
                       {parts[0]}
                     </ReactMarkdown>
@@ -232,8 +256,8 @@ export default function MessageBox(props: {
             })}
             <ReactMarkdown 
               className="font-medium"
-              remarkPlugins={[remarkMath] as any}
-              rehypePlugins={[rehypeKatex] as any}
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex]}
             >
               {renderedText}
             </ReactMarkdown>
@@ -268,8 +292,8 @@ export default function MessageBox(props: {
             <AccordionPanel pb={4}>
               <ReactMarkdown 
                 className="font-medium"
-                remarkPlugins={[remarkMath] as any}
-                rehypePlugins={[rehypeKatex] as any}
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
               >
                 {thinking}
               </ReactMarkdown>
@@ -277,14 +301,6 @@ export default function MessageBox(props: {
           </AccordionItem>
         </Accordion>
       )}
-      
-      <ReactMarkdown 
-        className="font-medium"
-        remarkPlugins={[remarkMath] as any}
-        rehypePlugins={[rehypeKatex] as any}
-      >
-        {answer ? answer : ''}
-      </ReactMarkdown>
     </Card>
   )
 }

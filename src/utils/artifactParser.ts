@@ -71,10 +71,12 @@ export function parseArtifacts(text: string): {
       continue;
     }
     
-    // Extract code from markdown code blocks
-    const code = extractCode(content.trim());
+    let code = extractCode(content.trim());
     
-    // Validate code
+    if (type === 'react' && !code.includes('window.App')) {
+      code = autoFixReactExport(code);
+    }
+    
     const validation = validateArtifactCode(code, type as ArtifactType);
     if (!validation.valid) {
       console.warn(`Invalid artifact code for ${type}:`, validation.errors);
@@ -113,7 +115,12 @@ export function parseArtifacts(text: string): {
       continue;
     }
 
-    const code = extractCode(content.trim());
+    let code = extractCode(content.trim());
+    
+    if (type === 'react' && !code.includes('window.App')) {
+      code = autoFixReactExport(code);
+    }
+    
     const validation = validateArtifactCode(code, type as ArtifactType);
     if (!validation.valid) {
       console.warn(`Invalid legacy artifact code for ${type}:`, validation.errors);
@@ -141,12 +148,22 @@ export function parseArtifacts(text: string): {
   };
 }
 
-/**
- * Extracts code from markdown code blocks
- * Handles ```language ... ``` format
- */
+function autoFixReactExport(code: string): string {
+  const functionMatch = code.match(/function\s+([A-Z][a-zA-Z0-9]*)\s*\(/);
+  const constMatch = code.match(/const\s+([A-Z][a-zA-Z0-9]*)\s*=/);
+  
+  const componentName = functionMatch?.[1] || constMatch?.[1];
+  
+  if (componentName) {
+    console.warn(`Auto-fixing React artifact: Adding window.App = ${componentName}`);
+    return `${code}\n\nwindow.App = ${componentName};`;
+  }
+  
+  console.warn('Could not auto-fix React artifact: No component found');
+  return code;
+}
+
 export function extractCode(text: string): string {
-  // Match markdown code blocks: ```language\ncode\n```
   const codeBlockRegex = /```(?:\w+)?\s*\n?([\s\S]*?)```/;
   const match = text.match(codeBlockRegex);
   
@@ -154,32 +171,23 @@ export function extractCode(text: string): string {
     return match[1].trim();
   }
   
-  // If no code block, return trimmed text
   return text.trim();
 }
 
-/**
- * Validates artifact code for security and correctness
- */
 export function validateArtifactCode(code: string, type: ArtifactType): {
   valid: boolean;
   errors?: string[];
 } {
   const errors: string[] = [];
 
-  // Check if code is empty
   if (!code || code.trim().length === 0) {
     errors.push('Code cannot be empty');
     return { valid: false, errors };
   }
 
-  // Check code length (max 50KB)
   if (code.length > 50000) {
     errors.push('Code exceeds maximum length of 50KB');
   }
-
-  // Security checks - dangerous patterns
-  // Note: Some patterns are commented out as they may be too restrictive for legitimate use
   const dangerousPatterns = [
     { pattern: /eval\s*\(/gi, name: 'eval()' },
     { pattern: /Function\s*\(/gi, name: 'Function constructor' },
@@ -188,17 +196,11 @@ export function validateArtifactCode(code: string, type: ArtifactType): {
     { pattern: /setInterval\s*\(\s*["'`]/gi, name: 'setInterval with string' },
     { pattern: /<script[^>]*src=/gi, name: 'external script' },
     { pattern: /document\.write/gi, name: 'document.write' },
-    // innerHTML and outerHTML are commonly used, only block if needed
-    // { pattern: /innerHTML\s*=/gi, name: 'innerHTML assignment' },
-    // { pattern: /outerHTML\s*=/gi, name: 'outerHTML assignment' },
     { pattern: /import\s*\(/gi, name: 'dynamic import()' },
     { pattern: /XMLHttpRequest/gi, name: 'XMLHttpRequest' },
-    // fetch is commonly used for APIs, consider allowing it
-    // { pattern: /fetch\s*\(/gi, name: 'fetch() API' },
     { pattern: /WebSocket/gi, name: 'WebSocket' },
     { pattern: /<iframe/gi, name: 'nested iframe' },
     { pattern: /javascript:/gi, name: 'javascript: protocol' },
-    // Only block HTML inline handlers like onclick="...", not React's onClick={...}
     { pattern: /<[^>]+\s+on\w+\s*=\s*["']/gi, name: 'inline event handler (in HTML)' },
     { pattern: /\.call\s*\(\s*null/gi, name: 'suspicious .call()' },
     { pattern: /\.apply\s*\(\s*null/gi, name: 'suspicious .apply()' },
@@ -210,24 +212,9 @@ export function validateArtifactCode(code: string, type: ArtifactType): {
     { pattern: /require\s*\(/gi, name: 'require()' },
     { pattern: /import\s+.*\s+from/gi, name: 'ES6 import statement' },
     { pattern: /<link[^>]*href=["'](?!data:)/gi, name: 'external stylesheet' },
-    // Base64 operations are commonly used, consider allowing
-    // { pattern: /atob\s*\(/gi, name: 'base64 decode (potential obfuscation)' },
-    // { pattern: /btoa\s*\(/gi, name: 'base64 encode (potential obfuscation)' },
-    // Storage APIs are commonly used in modern apps
-    // { pattern: /localStorage/gi, name: 'localStorage access' },
-    // { pattern: /sessionStorage/gi, name: 'sessionStorage access' },
-    // { pattern: /indexedDB/gi, name: 'indexedDB access' },
-    // Navigator is commonly used for feature detection
-    // { pattern: /navigator\./gi, name: 'navigator object access' },
-    // Location is commonly used for navigation
-    // { pattern: /location\./gi, name: 'location object access' },
     { pattern: /top\./gi, name: 'top frame access' },
     { pattern: /parent\./gi, name: 'parent frame access' },
     { pattern: /window\.open/gi, name: 'window.open()' },
-    // Dialogs can be annoying but sometimes useful for demos
-    // { pattern: /alert\s*\(/gi, name: 'alert() (annoying)' },
-    // { pattern: /confirm\s*\(/gi, name: 'confirm() (annoying)' },
-    // { pattern: /prompt\s*\(/gi, name: 'prompt() (annoying)' },
   ];
 
   for (const { pattern, name } of dangerousPatterns) {
@@ -236,16 +223,13 @@ export function validateArtifactCode(code: string, type: ArtifactType): {
     }
   }
 
-  // Type-specific validation
   if (type === 'react') {
-    // Check for window.App export
     if (!code.includes('window.App')) {
       errors.push('React artifacts must export component as window.App');
     }
   }
 
   if (type === 'html') {
-    // Check for basic HTML structure or content
     if (!code.includes('<') || !code.includes('>')) {
       errors.push('HTML artifacts must contain valid HTML tags');
     }
@@ -257,16 +241,10 @@ export function validateArtifactCode(code: string, type: ArtifactType): {
   };
 }
 
-/**
- * Checks if a string is a valid artifact type
- */
 function isValidArtifactType(type: string): boolean {
   return ['react', 'html', 'javascript', 'vue'].includes(type);
 }
 
-/**
- * Gets the language identifier for syntax highlighting
- */
 function getLanguageFromType(type: ArtifactType): string {
   const languageMap: Record<ArtifactType, string> = {
     react: 'jsx',

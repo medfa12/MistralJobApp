@@ -30,6 +30,8 @@ export default async function handler(
         email: true,
         avatar: true,
         role: true,
+        isStripeActivated: true,
+        stripePriceId: true,
       },
     });
 

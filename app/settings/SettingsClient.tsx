@@ -8,7 +8,7 @@ import Profile from '@/components/settings/Profile';
 import Delete from '@/components/settings/Delete';
 
 // Default avatar fallback
-import defaultAvatar from '../../public/img/avatars/avatar4.png';
+import defaultAvatar from '../../public/img/avatars/avatar.png';
 
 type UserData = {
   id: string;

@@ -1,8 +1,7 @@
 import Stripe from "stripe";
-import { NextApiRequest, NextApiResponse } from "next"
+import { NextApiRequest, NextApiResponse } from "next";
+import { stripe } from "@/lib/stripe";
 
-//@ts-ignore
-const stripe = new Stripe(process.env.NEXT_STRIPE_API_KEY);
 const host = process.env.NEXTAUTH_URL;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

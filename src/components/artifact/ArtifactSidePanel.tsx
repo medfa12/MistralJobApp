@@ -25,7 +25,6 @@ interface Props {
 const MotionBox = motion(Box);
 
 export const ArtifactSidePanel: FC<Props> = ({ artifact, isOpen, onClose, onCodeAttach }) => {
-  // Color mode values
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const headerBg = useColorModeValue('gray.50', 'gray.900');
@@ -40,7 +39,6 @@ export const ArtifactSidePanel: FC<Props> = ({ artifact, isOpen, onClose, onCode
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Mobile Overlay */}
           <MotionBox
             position="fixed"
             top={0}
@@ -57,7 +55,6 @@ export const ArtifactSidePanel: FC<Props> = ({ artifact, isOpen, onClose, onCode
             onClick={onClose}
           />
 
-          {/* Side Panel */}
           <MotionBox
             position="fixed"
             top={{ base: 0, lg: '80px' }}
@@ -80,7 +77,6 @@ export const ArtifactSidePanel: FC<Props> = ({ artifact, isOpen, onClose, onCode
               damping: 30,
             } as any}
           >
-            {/* Header */}
             <Flex
               p={4}
               borderBottom="1px solid"
@@ -113,7 +109,7 @@ export const ArtifactSidePanel: FC<Props> = ({ artifact, isOpen, onClose, onCode
                     {artifact.versions && artifact.versions.length > 0 && (
                       <Badge colorScheme="purple" fontSize="xs">
                         V{artifact.currentVersion || artifact.versions.length + 1} 
-                        ({artifact.versions.length + 1} {artifact.versions.length === 0 ? 'version' : 'versions'})
+                        ({artifact.versions.length + 1} version{artifact.versions.length + 1 === 1 ? '' : 's'})
                       </Badge>
                     )}
                   </Flex>
@@ -130,7 +126,6 @@ export const ArtifactSidePanel: FC<Props> = ({ artifact, isOpen, onClose, onCode
               />
             </Flex>
 
-            {/* Content */}
             <Box flex={1} overflow="hidden">
               <ArtifactRenderer artifact={artifact} onCodeAttach={onCodeAttach} />
             </Box>

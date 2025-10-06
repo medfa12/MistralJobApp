@@ -56,7 +56,7 @@ export default async function handler(
     }
   } else if (req.method === 'POST') {
     try {
-      const { conversationId, role, content, attachments } = req.body;
+      const { conversationId, role, content, attachments, artifact, toolCall, inspectedCodeAttachment } = req.body;
 
       if (!conversationId || !role || !content) {
         return res.status(400).json({
@@ -80,6 +80,9 @@ export default async function handler(
           conversationId,
           role,
           content,
+          ...(artifact && { artifact }),
+          ...(toolCall && { toolCall }),
+          ...(inspectedCodeAttachment && { inspectedCodeAttachment }),
           ...(attachments && attachments.length > 0 && {
             attachments: {
               create: attachments.map((att: any) => ({

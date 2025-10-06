@@ -8,7 +8,8 @@ type ChakraNextImageProps = Partial<ImageProps> &
         nextProps?: Partial<ComponentProps<typeof NextImage>>;
     };
 
-function parseAssetPrefix(image: string) {
+function parseAssetPrefix(image: string | undefined) {
+    if (!image) return '';
     const alreadyHasHttp = image.match('http');
     if (alreadyHasHttp) return image;
 
@@ -24,13 +25,20 @@ export function Image(props: ChakraNextImageProps) {
 
     const imageUrl =
         typeof src === 'string' ? src : ((src as any)?.src as string);
+    
+    const parsedUrl = parseAssetPrefix(imageUrl);
+    
+    if (!parsedUrl || parsedUrl === '') {
+        return null;
+    }
+
     return (
         <Box overflow={'hidden'} position="relative" {...rest}>
             <NextImage
                 layout="fill"
                 objectFit="fill"
-                src={parseAssetPrefix(imageUrl)}
-                alt={alt}
+                src={parsedUrl}
+                alt={alt || ''}
                 {...nextProps}
             />
         </Box>

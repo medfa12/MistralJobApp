@@ -20,7 +20,7 @@ export default function Profile(props: {
   const textColorSecondary = 'gray.500';
 
   // Determine if avatar is a URL string or StaticImageData
-  const isAvatarUrl = typeof avatar === 'string';
+  const isAvatarUrl = typeof avatar === 'string' && avatar !== '';
 
   return (
     <Card mb="20px" alignItems="center">
@@ -41,7 +41,7 @@ export default function Profile(props: {
             objectFit: 'cover',
           }}
         />
-      ) : (
+      ) : avatar && typeof avatar !== 'string' ? (
         <NextAvatar
           mx="auto"
           src={avatar}
@@ -50,7 +50,7 @@ export default function Profile(props: {
           mt="-43px"
           mb="15px"
         />
-      )}
+      ) : null}
       
       <Text
         fontSize="2xl"
