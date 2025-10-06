@@ -24,16 +24,50 @@ export default async function handler(
 
   if (req.method === 'GET') {
     try {
-      const { limit } = req.query;
-      const take = limit ? parseInt(limit as string) : undefined;
+      const { limit, offset, search } = req.query;
+      const take = limit ? parseInt(limit as string) : 20;
+      const skip = offset ? parseInt(offset as string) : 0;
 
-      const conversations = await db.chatConversation.findMany({
-        where: { userId: user.id },
-        orderBy: { updatedAt: 'desc' },
-        ...(take && { take }),
+      // Build where clause
+      const where: any = { userId: user.id };
+      
+      // Add search functionality
+      if (search && typeof search === 'string') {
+        where.title = {
+          contains: search,
+          mode: 'insensitive'
+        };
+      }
+
+      const [conversations, total] = await Promise.all([
+        db.chatConversation.findMany({
+          where,
+          orderBy: { updatedAt: 'desc' },
+          take,
+          skip,
+          include: {
+            _count: {
+              select: {
+                messages: true,
+                artifacts: true,
+              }
+            }
+          }
+        }),
+        db.chatConversation.count({ where })
+      ]);
+
+      return res.status(200).json({
+        conversations,
+        pagination: {
+          total,
+          limit: take,
+          offset: skip,
+          hasMore: skip + take < total,
+          page: Math.floor(skip / take) + 1,
+          totalPages: Math.ceil(total / take),
+        }
       });
-
-      return res.status(200).json(conversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
       return res.status(500).json({ error: 'Failed to fetch conversations' });

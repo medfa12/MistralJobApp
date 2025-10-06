@@ -5,6 +5,7 @@ import { db } from '../../../lib/db';
 import { v2 as cloudinary } from 'cloudinary';
 import formidable from 'formidable';
 import fs from 'fs';
+import { uploadRateLimit } from '../../../lib/rate-limit';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -18,7 +19,7 @@ export const config = {
   },
 };
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
@@ -125,3 +126,6 @@ export default async function handler(
     });
   }
 }
+
+// Apply upload rate limiting: 5 uploads per hour
+export default uploadRateLimit(handler);

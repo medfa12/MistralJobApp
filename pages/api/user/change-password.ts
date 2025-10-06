@@ -3,8 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth';
 import { db } from '../../../lib/db';
 import bcrypt from 'bcryptjs';
+import { strictAuthRateLimit } from '../../../lib/rate-limit';
+import { validatePasswordWithContext } from '../../../lib/password-validation';
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
@@ -27,8 +29,11 @@ export default async function handler(
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    // ✅ Check if new password is same as old password
+    if (oldPassword === newPassword) {
+      return res.status(400).json({ 
+        error: 'New password must be different from current password' 
+      });
     }
 
     // Find the current user
@@ -45,6 +50,22 @@ export default async function handler(
 
     if (!isPasswordValid) {
       return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    // ✅ Validate new password strength
+    const passwordValidation = validatePasswordWithContext(newPassword, {
+      email: user.email,
+      username: user.username || undefined,
+      firstName: user.firstName || undefined,
+      lastName: user.lastName || undefined,
+    });
+
+    if (!passwordValidation.valid) {
+      return res.status(400).json({
+        error: 'Password does not meet security requirements',
+        errors: passwordValidation.errors,
+        strength: passwordValidation.strength,
+      });
     }
 
     // Hash new password
@@ -64,4 +85,7 @@ export default async function handler(
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+// Apply strict rate limiting: 3 password changes per hour
+export default strictAuthRateLimit(handler);
 

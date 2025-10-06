@@ -71,6 +71,7 @@ function ChatContent() {
     currentArtifact,
     isArtifactPanelOpen,
     setIsArtifactPanelOpen,
+    setCurrentConversationId: setArtifactConversationId,
     processArtifactResponse,
     resetArtifacts,
     restoreArtifact,
@@ -134,14 +135,16 @@ function ChatContent() {
         }
       });
       setCurrentConversationId(conversationId);
+      setArtifactConversationId(conversationId); // Set conversation ID for artifact persistence
     } else {
       setMessages([]);
       setCurrentConversationId(null);
+      setArtifactConversationId(null);
       resetArtifacts();
       setInputCode('');
       clearAttachments();
     }
-  }, [conversationId, loadConversation, clearAttachments, setCurrentConversationId, resetArtifacts, restoreArtifact]);
+  }, [conversationId, loadConversation, clearAttachments, setCurrentConversationId, setArtifactConversationId, resetArtifacts, restoreArtifact]);
 
   useEffect(() => {
     return () => {

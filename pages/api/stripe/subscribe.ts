@@ -1,57 +1,145 @@
 import Stripe from "stripe";
 import { NextApiRequest, NextApiResponse } from "next";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
+import { db } from "@/lib/db";
+import { withRateLimit } from "@/lib/rate-limit";
 
 const host = process.env.NEXTAUTH_URL;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { method, body } = req;
-  if (method === "POST") {
-    try {
-      const date = new Date().toISOString();
-      const quantity = 1
-      const { name, email, id, productId, priceId, recurring } = req.body
-      const success_url = process.env.NEXTAUTH_URL + "/all-template"
-      const failed_url = process.env.NEXTAUTH_URL + "/subscription"
-      const metadata = {}
-      const customer = await stripe.customers.create({
-        email,
-       name,
-        metadata: {
-          user_id: email, // Or anything else
-        },
-      })
-      console.log('customer',customer)
+async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ 
+      success: false,
+      error: "Method Not Allowed" 
+    });
+  }
 
+  try {
+    // ✅ AUTHENTICATE USER
+    const session = await getServerSession(req, res, authOptions);
 
-      const session = await stripe.checkout.sessions.create({
-   
-  success_url: success_url,
-  payment_method_types: ["card"],
-  billing_address_collection: "required",
-  customer: customer?.id,
-  customer_update: {
-    address: "auto",
-  },
-  line_items: [
-    {
-      price: priceId,
-      
-      quantity: 1,
-    },
-  ],
-  mode: 'subscription',
-
+    if (!session?.user?.email) {
+      return res.status(401).json({ 
+        success: false,
+        error: "Unauthorized - Please sign in" 
       });
-      console.log('session',session)
-
-      // res.status(200).json({ sessionId: session.id });
-      res.status(200).json({ sessionId: session.id });
-    } catch (err) {
-      // console.log('here',error)
-      res.status(500).json({ error: "Error checkout session" });
     }
-  } else {
-    res.status(405).json({ error: "Method Not Allowed" });
+
+    // ✅ VERIFY USER EXISTS IN DATABASE
+    const user = await db.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        stripeCustomerId: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        error: "User not found" 
+      });
+    }
+
+    // ✅ VALIDATE INPUT
+    const { priceId } = req.body;
+
+    if (!priceId || typeof priceId !== "string") {
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid price ID" 
+      });
+    }
+
+    // Validate price ID format
+    if (!priceId.startsWith('price_')) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid price ID format" 
+      });
+    }
+
+    // ✅ USE EXISTING CUSTOMER OR CREATE NEW ONE
+    let customerId = user.stripeCustomerId;
+
+    if (!customerId) {
+      const customerName = [user.firstName, user.lastName]
+        .filter(Boolean)
+        .join(" ") || "User";
+
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: customerName,
+        metadata: {
+          userId: user.id,
+        },
+      });
+
+      customerId = customer.id;
+
+      // Save customer ID to database
+      await db.user.update({
+        where: { id: user.id },
+        data: { stripeCustomerId: customerId },
+      });
+
+      console.log(`Created Stripe customer: ${customerId} for user: ${user.id}`);
+    }
+
+    // ✅ CREATE CHECKOUT SESSION
+    const success_url = `${host}/my-plan?success=true&session_id={CHECKOUT_SESSION_ID}`;
+    const cancel_url = `${host}/my-plan?canceled=true`;
+
+    const checkoutSession = await stripe.checkout.sessions.create({
+      success_url,
+      cancel_url,
+      payment_method_types: ["card"],
+      billing_address_collection: "required",
+      customer: customerId,
+      customer_update: {
+        address: "auto",
+      },
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      mode: "subscription",
+      metadata: {
+        userId: user.id,
+      },
+      allow_promotion_codes: true,
+    });
+
+    console.log(`Created checkout session: ${checkoutSession.id} for user: ${user.id}`);
+
+    return res.status(200).json({
+      success: true,
+      sessionId: checkoutSession.id,
+      url: checkoutSession.url,
+    });
+  } catch (err: any) {
+    console.error("Error creating checkout session:", err);
+    
+    return res.status(500).json({
+      success: false,
+      error: "Failed to create checkout session",
+      message: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
   }
 }
+
+// Apply rate limiting: 10 subscription attempts per hour
+export default withRateLimit(handler, {
+  limit: 10,
+  windowMs: 3600000 // 1 hour
+});

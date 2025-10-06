@@ -237,10 +237,11 @@ npm start
 ### 🎯 Planned Features
 - [ ] Artifact collaboration & sharing between users
 - [ ] Export artifacts to CodePen/StackBlitz/JSFiddle
-- [ ] API rate limiting per user/plan
-- [ ] Artifact persistence in database
+- [x] API rate limiting per user/plan ✅ (Implemented Oct 2025)
+- [x] Artifact persistence in database ✅ (Implemented Oct 2025)
+- [x] Conversation pagination ✅ (Implemented Oct 2025)
 - [ ] Real-time collaboration
-- [ ] My Projects functionality
+- [ ] My Projects functionality (page exists, needs artifact gallery)
 - [ ] Email notifications
 - [ ] Advanced admin analytics
 
@@ -691,28 +692,29 @@ Make sure to set these in your deployment platform:
 ### Current Limitations
 1. **Artifacts**:
    - Only 1 artifact active per conversation
-   - No artifact persistence in database (session-based only)
+   - ~~No artifact persistence in database~~ ✅ **FIXED - Oct 2025**
    - Svelte/Angular not yet supported
    - No artifact sharing or export to external platforms
 
 2. **Performance**:
    - Large conversations may hit token limits
-   - No pagination on conversation history
+   - ~~No pagination on conversation history~~ ✅ **FIXED - Oct 2025**
    - File uploads limited to Cloudinary
 
 3. **Features**:
-   - My Projects page exists but functionality TBD
+   - My Projects page exists but functionality TBD (artifact gallery pending)
    - No real-time collaboration between users
-   - API rate limiting not implemented
+   - ~~API rate limiting not implemented~~ ✅ **FIXED - Oct 2025**
 
 ### Recommended Improvements
-- [ ] Add artifact database persistence
-- [ ] Add conversation pagination
-- [ ] Implement API rate limiting
+- [x] Add artifact database persistence ✅ **COMPLETED - Oct 2025**
+- [x] Add conversation pagination ✅ **COMPLETED - Oct 2025**
+- [x] Implement API rate limiting ✅ **COMPLETED - Oct 2025**
 - [ ] Add comprehensive testing suite
 - [ ] Add real-time collaboration features
 - [ ] Implement artifact export to external platforms
 - [ ] Add comprehensive error logging
+- [ ] Create artifact gallery page (/my-projects)
 
 ---
 
