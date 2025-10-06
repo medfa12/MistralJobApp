@@ -41,10 +41,20 @@ interface Conversation {
   updatedAt: string;
   _count?: {
     messages: number;
+    artifacts?: number;
   };
   messages?: Array<{
     attachments: any[];
   }>;
+}
+
+interface PaginationInfo {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+  page: number;
+  totalPages: number;
 }
 
 export default function History() {
@@ -60,18 +70,49 @@ export default function History() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [newTitle, setNewTitle] = useState('');
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    total: 0,
+    limit: 20,
+    offset: 0,
+    hasMore: false,
+    page: 1,
+    totalPages: 1,
+  });
 
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (reset: boolean = true) => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/chat/conversations');
+      if (reset) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const offset = reset ? 0 : pagination.offset + pagination.limit;
+      const url = new URL('/api/chat/conversations', window.location.origin);
+      url.searchParams.set('limit', '20');
+      url.searchParams.set('offset', offset.toString());
+      if (searchQuery) {
+        url.searchParams.set('search', searchQuery);
+      }
+
+      const response = await fetch(url.toString());
       if (response.ok) {
         const data = await response.json();
-        setConversations(data);
-        setFilteredConversations(data);
+        
+        if (reset) {
+          setConversations(data.conversations);
+          setFilteredConversations(data.conversations);
+        } else {
+          const updatedConversations = [...conversations, ...data.conversations];
+          setConversations(updatedConversations);
+          setFilteredConversations(updatedConversations);
+        }
+        
+        setPagination(data.pagination);
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -84,24 +125,30 @@ export default function History() {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [toast]);
+  }, [toast, pagination, conversations, searchQuery]);
+
+  const loadMoreConversations = useCallback(() => {
+    if (!loadingMore && pagination.hasMore) {
+      fetchConversations(false);
+    }
+  }, [fetchConversations, loadingMore, pagination.hasMore]);
 
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    fetchConversations(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // Trigger search when search query changes
   useEffect(() => {
-    if (searchQuery) {
-      const filtered = conversations.filter((conv) =>
-        conv.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        conv.model.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredConversations(filtered);
-    } else {
-      setFilteredConversations(conversations);
-    }
-  }, [searchQuery, conversations]);
+    const timeoutId = setTimeout(() => {
+      fetchConversations(true);
+    }, 500); // Debounce search
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   const handleView = (conversationId: string) => {
     router.push(`/chat?conversationId=${conversationId}`);
@@ -312,6 +359,11 @@ export default function History() {
                 <Text fontSize="sm" color={secondaryText}>
                   Created {formatDate(conversation.createdAt)}
                 </Text>
+                {conversation._count?.artifacts && conversation._count.artifacts > 0 && (
+                  <Badge colorScheme="purple" fontSize="xs">
+                    {conversation._count.artifacts} {conversation._count.artifacts === 1 ? 'Artifact' : 'Artifacts'}
+                  </Badge>
+                )}
                 {conversation.messages && conversation.messages.some(m => m.attachments?.length > 0) && (
                   <Flex align="center" gap="4px">
                     <Icon as={MdAttachFile} boxSize="14px" color="gray.500" />
@@ -324,6 +376,32 @@ export default function History() {
             </Card>
           ))}
         </SimpleGrid>
+      )}
+
+      {/* Load More Button */}
+      {!loading && pagination.hasMore && (
+        <Flex justify="center" mt="20px">
+          <Button
+            onClick={loadMoreConversations}
+            isLoading={loadingMore}
+            loadingText="Loading..."
+            bg="linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)"
+            color="white"
+            _hover={{ opacity: 0.9 }}
+            size="md"
+          >
+            Load More ({pagination.total - filteredConversations.length} remaining)
+          </Button>
+        </Flex>
+      )}
+
+      {/* Pagination Info */}
+      {!loading && filteredConversations.length > 0 && (
+        <Flex justify="center" mt="10px">
+          <Text fontSize="sm" color={secondaryText}>
+            Showing {filteredConversations.length} of {pagination.total} conversations
+          </Text>
+        </Flex>
       )}
 
       <Modal isOpen={isOpen} onClose={onClose}>

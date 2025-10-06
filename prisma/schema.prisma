@@ -36,6 +36,7 @@ model User {
   // Relations
   conversations          ChatConversation[]
   usageLogs              UsageLog[]
+  artifacts              Artifact[]
 
   @@map(name: "users")
 }
@@ -51,6 +52,7 @@ model ChatConversation {
   // Relations
   user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  ChatMessage[]
+  artifacts Artifact[]
 
   @@map(name: "chat_conversations")
 }
@@ -102,5 +104,28 @@ model UsageLog {
 
   @@map(name: "usage_logs")
   @@index([userId, createdAt])
+}
+
+model Artifact {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @db.ObjectId
+  conversationId  String?   @db.ObjectId
+  identifier      String    // Unique identifier for the artifact
+  type            String    // Type: react, html, javascript, vue
+  title           String    // Display title
+  code            String    // The actual code (current version)
+  language        String?   // Code language for syntax highlighting
+  versions        Json?     // Version history array
+  currentVersion  Int?      @map(name: "current_version") // Current version number
+  createdAt       DateTime  @default(now()) @map(name: "created_at")
+  updatedAt       DateTime  @updatedAt @map(name: "updated_at")
+  
+  // Relations
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation    ChatConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map(name: "artifacts")
+  @@index([userId, createdAt])
+  @@index([conversationId])
 }
 

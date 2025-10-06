@@ -1,8 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import bcrypt from "bcryptjs";
 import { db } from "../../../lib/db";
+import { strictAuthRateLimit } from "../../../lib/rate-limit";
+import { validatePasswordWithContext } from "../../../lib/password-validation";
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
@@ -15,6 +17,28 @@ export default async function handler(
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    // ✅ Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
+    // ✅ Validate password strength
+    const passwordValidation = validatePasswordWithContext(password, {
+      email,
+      username,
+      firstName,
+      lastName,
+    });
+
+    if (!passwordValidation.valid) {
+      return res.status(400).json({
+        message: "Password does not meet security requirements",
+        errors: passwordValidation.errors,
+        strength: passwordValidation.strength,
+      });
     }
 
     // Check if user already exists
@@ -60,9 +84,11 @@ export default async function handler(
       .filter(Boolean)
       .join(' ') || user.username || 'User';
 
+    // ✅ Don't expose internal user ID
     return res.status(201).json({
+      success: true,
+      message: "Registration successful",
       user: {
-        id: user.id,
         name: fullName,
         email: user.email,
       },
@@ -72,3 +98,6 @@ export default async function handler(
     return res.status(500).json({ message: "Internal server error" });
   }
 }
+
+// Apply strict rate limiting: 3 registrations per hour
+export default strictAuthRateLimit(handler);

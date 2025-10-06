@@ -75,12 +75,13 @@ export default async function handler(
         created: subscription.created,
       },
       plan: {
-        id: price.id,
-        name: product.name,
-        description: product.description,
-        amount: price.unit_amount,
+        priceId: price.id,
+        productId: product.id,
+        productName: product.name,
+        description: product.description || '',
+        amount: price.unit_amount || 0,
         currency: price.currency,
-        interval: price.recurring?.interval,
+        interval: price.recurring?.interval || 'month',
       },
     });
   } catch (error: any) {
