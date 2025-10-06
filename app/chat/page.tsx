@@ -1,8 +1,9 @@
 'use client';
 
 import Link from '@/components/link/Link';
-import { MistralModel, Message as MessageType, InspectedCodeAttachment } from '@/types/types';
-import { ArtifactSidePanel, ArtifactToggleButton, ArtifactErrorBoundary } from '@/components/artifact';
+import { MistralModel, Message as MessageType, InspectedCodeAttachment, ArtifactData } from '@/types/types';
+import { ArtifactErrorBoundary } from '@/components/artifact';
+import { ArtifactWorkspace, ArtifactWorkspaceRef } from '@/components/artifact/ArtifactWorkspace';
 import { estimateTokens, getMessageText } from '@/utils/messageHelpers';
 import {
   Box,
@@ -20,6 +21,7 @@ import { useChatConversation } from '@/hooks/useChatConversation';
 import { useAttachments } from '@/hooks/useAttachments';
 import { useArtifactOperations } from '@/hooks/useArtifactOperations';
 import { useMessageSubmit } from '@/hooks/useMessageSubmit';
+import { useResizable } from '@/hooks/useResizable';
 import {
   ModelSelector,
   ChatMessages,
@@ -41,6 +43,12 @@ function ChatContent() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  const { size: splitSize, isDragging, containerRef, handleMouseDown } = useResizable({
+    defaultSize: 60,
+    minSize: 30,
+    maxSize: 80,
+  });
 
   const {
     currentConversationId,
@@ -65,6 +73,7 @@ function ChatContent() {
     setIsArtifactPanelOpen,
     processArtifactResponse,
     resetArtifacts,
+    restoreArtifact,
   } = useArtifactOperations();
 
   const {
@@ -109,7 +118,19 @@ function ChatContent() {
       loadConversation(conversationId).then((loadedMessages) => {
         if (loadedMessages) {
           setMessages(loadedMessages);
-          resetArtifacts();
+          
+          const messagesWithArtifacts = loadedMessages
+            .filter(msg => msg.artifact)
+            .reverse();
+          
+          if (messagesWithArtifacts.length > 0) {
+            const latestArtifact = messagesWithArtifacts[0].artifact;
+            if (latestArtifact) {
+              restoreArtifact(latestArtifact);
+            }
+          } else {
+            resetArtifacts();
+          }
         }
       });
       setCurrentConversationId(conversationId);
@@ -120,7 +141,7 @@ function ChatContent() {
       setInputCode('');
       clearAttachments();
     }
-  }, [conversationId, loadConversation, clearAttachments, setCurrentConversationId, resetArtifacts]);
+  }, [conversationId, loadConversation, clearAttachments, setCurrentConversationId, resetArtifacts, restoreArtifact]);
 
   useEffect(() => {
     return () => {
@@ -156,6 +177,18 @@ function ChatContent() {
     [toast]
   );
 
+  const artifactWorkspaceRef = useRef<ArtifactWorkspaceRef>(null);
+
+  const handleRemoveInspectedCode = useCallback(() => {
+    setInspectedCodeAttachment(null);
+    artifactWorkspaceRef.current?.clearInspection();
+  }, []);
+
+  const handleArtifactClick = useCallback((artifact: ArtifactData) => {
+    restoreArtifact(artifact);
+    setIsArtifactPanelOpen(true);
+  }, [restoreArtifact, setIsArtifactPanelOpen]);
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -163,25 +196,45 @@ function ChatContent() {
     }
   };
 
+  const showArtifactPane = currentArtifact && isArtifactPanelOpen;
+
   return (
     <>
-      <Flex w="100%" h="100vh" pt={{ base: '70px', md: '0px' }} direction="column" position="relative">
-      <Img
-        src={Bg.src}
-        position="absolute"
-        w="350px"
-        left="50%"
-        top="50%"
-        transform="translate(-50%, -50%)"
-        opacity={messages.length === 0 ? 1 : 0.3}
-      />
-      <Flex
-        direction="column"
-        mx="auto"
-        w={{ base: '100%', md: '100%', xl: '100%' }}
-        h="100%"
-        maxW="1000px"
+      <Flex 
+        ref={containerRef}
+        w="100%" 
+        h="100vh" 
+        pt={{ base: '70px', md: '0px' }} 
+        position="relative"
+        overflow="hidden"
       >
+        {/* Chat Pane */}
+        <Flex
+          direction="column"
+          w={showArtifactPane ? { base: '100%', lg: `${splitSize}%` } : '100%'}
+          h="100%"
+          maxW={showArtifactPane ? 'none' : '1000px'}
+          mx={showArtifactPane ? '0' : 'auto'}
+          position="relative"
+          transition="width 0.3s ease"
+        >
+          <Img
+            src={Bg.src}
+            position="absolute"
+            w="350px"
+            left="50%"
+            top="50%"
+            transform="translate(-50%, -50%)"
+            opacity={messages.length === 0 ? 1 : 0.3}
+            pointerEvents="none"
+          />
+          <Flex
+            direction="column"
+            w="100%"
+            h="100%"
+            position="relative"
+            zIndex={1}
+          >
         <TokenCounter
           currentTokens={currentTokens}
           modelInfo={modelInfo}
@@ -208,6 +261,9 @@ function ChatContent() {
             isGeneratingArtifact={isGeneratingArtifact}
             artifactLoadingInfo={artifactLoadingInfo}
             messagesEndRef={messagesEndRef}
+            currentArtifact={currentArtifact}
+            isArtifactPanelOpen={isArtifactPanelOpen}
+            onArtifactClick={handleArtifactClick}
           />
         </Flex>
 
@@ -224,20 +280,10 @@ function ChatContent() {
             onRemove={removeAttachment}
           />
 
-          {currentArtifact && (
-            <Box mb={3}>
-              <ArtifactToggleButton
-                artifact={currentArtifact}
-                isOpen={isArtifactPanelOpen}
-                onClick={() => setIsArtifactPanelOpen(!isArtifactPanelOpen)}
-              />
-            </Box>
-          )}
-
           {inspectedCodeAttachment && (
             <InspectedCodePreview
               attachment={inspectedCodeAttachment}
-              onRemove={() => setInspectedCodeAttachment(null)}
+              onRemove={handleRemoveInspectedCode}
             />
           )}
 
@@ -276,17 +322,57 @@ function ChatContent() {
             </Text>
           </Link>
         </Flex>
-      </Flex>
-      </Flex>
+          </Flex>
+        </Flex>
 
-      <ArtifactErrorBoundary onReset={resetArtifacts}>
-        <ArtifactSidePanel
-          artifact={currentArtifact}
-          isOpen={isArtifactPanelOpen}
-          onClose={() => setIsArtifactPanelOpen(false)}
-          onCodeAttach={handleCodeAttach}
-        />
-      </ArtifactErrorBoundary>
+        {/* Resizable Divider */}
+        {showArtifactPane && (
+          <Box
+            display={{ base: 'none', lg: 'block' }}
+            w="4px"
+            h="100%"
+            bg={isDragging ? 'orange.400' : 'gray.300'}
+            cursor="col-resize"
+            onMouseDown={handleMouseDown}
+            _hover={{ bg: 'orange.300' }}
+            transition="background 0.2s"
+            position="relative"
+            zIndex={10}
+          >
+            <Box
+              position="absolute"
+              left="-4px"
+              right="-4px"
+              top="0"
+              bottom="0"
+            />
+          </Box>
+        )}
+
+        {/* Artifact Workspace Pane */}
+        {showArtifactPane && (
+          <Box
+            w={{ base: '100%', lg: `${100 - splitSize}%` }}
+            h="100%"
+            position={{ base: 'fixed', lg: 'relative' }}
+            top={{ base: '70px', lg: '0' }}
+            right={{ base: 0, lg: 'auto' }}
+            bottom={{ base: 0, lg: 'auto' }}
+            zIndex={{ base: 1000, lg: 1 }}
+            display={isArtifactPanelOpen ? 'block' : 'none'}
+          >
+            <ArtifactErrorBoundary onReset={resetArtifacts}>
+              <ArtifactWorkspace
+                ref={artifactWorkspaceRef}
+                artifact={currentArtifact}
+                onClose={() => setIsArtifactPanelOpen(false)}
+                onCodeAttach={handleCodeAttach}
+                onClearInspection={handleRemoveInspectedCode}
+              />
+            </ArtifactErrorBoundary>
+          </Box>
+        )}
+      </Flex>
     </>
   );
 }

@@ -211,12 +211,18 @@ export function useArtifactOperations() {
     setIsArtifactPanelOpen(false);
   }, []);
 
+  const restoreArtifact = useCallback((artifactData: ArtifactData) => {
+    setCurrentArtifact(artifactData);
+    setIsArtifactPanelOpen(false);
+  }, []);
+
   return {
     currentArtifact,
     isArtifactPanelOpen,
     setIsArtifactPanelOpen,
     processArtifactResponse,
     resetArtifacts,
+    restoreArtifact,
   };
 }
 

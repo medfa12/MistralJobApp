@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
-import { Message, Attachment, MistralModel } from '@/types/types';
+import { Message, Attachment, MistralModel, ArtifactData, ToolCall, InspectedCodeAttachment } from '@/types/types';
 
 export function useChatConversation() {
   const toast = useToast();
@@ -16,6 +16,12 @@ export function useChatConversation() {
         const messagesData = await response.json();
         const formattedMessages = await Promise.all(
           messagesData.map(async (msg: any) => {
+            const baseMessage: Message = {
+              role: msg.role,
+              content: msg.content,
+              attachments: []
+            };
+
             if (msg.attachments && msg.attachments.length > 0) {
               const content: any[] = [{ type: 'text', text: msg.content }];
               
@@ -49,9 +55,23 @@ export function useChatConversation() {
                 }
               });
 
-              return { role: msg.role, content, attachments: msg.attachments };
+              baseMessage.content = content;
+              baseMessage.attachments = msg.attachments;
             }
-            return { role: msg.role, content: msg.content, attachments: [] };
+
+            if (msg.artifact) {
+              baseMessage.artifact = msg.artifact as ArtifactData;
+            }
+
+            if (msg.toolCall) {
+              baseMessage.toolCall = msg.toolCall as ToolCall;
+            }
+
+            if (msg.inspectedCodeAttachment) {
+              baseMessage.inspectedCodeAttachment = msg.inspectedCodeAttachment as InspectedCodeAttachment;
+            }
+
+            return baseMessage;
           })
         );
         return formattedMessages;
@@ -123,12 +143,28 @@ export function useChatConversation() {
     return null;
   };
 
-  const saveMessage = async (convId: string, role: string, content: string, attachments?: Attachment[]) => {
+  const saveMessage = async (
+    convId: string, 
+    role: string, 
+    content: string, 
+    attachments?: Attachment[],
+    artifact?: ArtifactData,
+    toolCall?: ToolCall,
+    inspectedCodeAttachment?: InspectedCodeAttachment
+  ) => {
     try {
       const response = await fetch('/api/chat/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId: convId, role, content, attachments }),
+        body: JSON.stringify({ 
+          conversationId: convId, 
+          role, 
+          content, 
+          attachments,
+          artifact,
+          toolCall,
+          inspectedCodeAttachment
+        }),
       });
       
       if (!response.ok) {

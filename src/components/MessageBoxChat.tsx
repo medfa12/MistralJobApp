@@ -1,3 +1,5 @@
+'use client';
+
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -14,25 +16,33 @@ import {
   Flex,
   Icon,
   Image,
-  SimpleGrid
+  SimpleGrid,
+  Badge
 } from '@chakra-ui/react';
 import Card from '@/components/card/Card';
 import { useState, useEffect, Fragment } from 'react';
-import { MdDescription } from 'react-icons/md';
-import { Attachment, ToolCall } from '@/types/types';
+import { MdDescription, MdCode } from 'react-icons/md';
+import { Attachment, ToolCall, ArtifactData, InspectedCodeAttachment } from '@/types/types';
 import ToolCallBox from '@/components/ToolCallBox';
 import CodeSnippet from '@/components/CodeSnippet';
 import { processLatex } from '@/utils/latexProcessor';
+import { ArtifactToggleButton } from '@/components/artifact';
 
 export default function MessageBox(props: { 
   output: string; 
   attachments?: Attachment[]; 
   toolCall?: ToolCall;
+  artifact?: ArtifactData;
+  inspectedCodeAttachment?: InspectedCodeAttachment;
+  onArtifactClick?: () => void;
+  isArtifactOpen?: boolean;
 }) {
-  const { output, attachments, toolCall } = props
+  const { output, attachments, toolCall, artifact, inspectedCodeAttachment, onArtifactClick, isArtifactOpen } = props
   const textColor = useColorModeValue('navy.700', 'white')
   const thinkingBg = useColorModeValue('gray.50', 'whiteAlpha.100')
   const thinkingBorder = useColorModeValue('purple.200', 'purple.600')
+  const inspectedCodeBg = useColorModeValue('purple.50', 'purple.900')
+  const inspectedCodeBorder = useColorModeValue('purple.300', 'purple.600')
   const [thinking, setThinking] = useState<string>('')
   const [answer, setAnswer] = useState<string>('')
 
@@ -85,11 +95,11 @@ export default function MessageBox(props: {
 
   return (
     <Card
-      display={output ? 'flex' : 'none'}
+      display={(output || inspectedCodeAttachment) ? 'flex' : 'none'}
       px="22px !important"
       pl="22px !important"
       color={textColor}
-      minH="450px"
+      minH={output ? "450px" : "auto"}
       fontSize={{ base: 'sm', md: 'md' }}
       lineHeight={{ base: '24px', md: '26px' }}
       fontWeight="500"
@@ -159,6 +169,42 @@ export default function MessageBox(props: {
         </Box>
       )}
       
+      {inspectedCodeAttachment && (
+        <Box mb="20px">
+          <Flex
+            bg={inspectedCodeBg}
+            border="2px solid"
+            borderColor={inspectedCodeBorder}
+            borderRadius="12px"
+            p={4}
+            direction="column"
+            gap={3}
+          >
+            <Flex align="center" gap={2} flexWrap="wrap">
+              <Icon as={MdCode} boxSize={5} color="purple.500" />
+              <Text fontWeight="bold" fontSize="sm" color={textColor}>
+                Inspected Element: &lt;{inspectedCodeAttachment.elementTag}&gt;
+                {inspectedCodeAttachment.elementId && ` #${inspectedCodeAttachment.elementId}`}
+                {inspectedCodeAttachment.elementClasses && ` .${inspectedCodeAttachment.elementClasses.split(' ')[0]}`}
+              </Text>
+              <Badge colorScheme="purple" ml="auto">
+                {inspectedCodeAttachment.sourceArtifactId}
+              </Badge>
+            </Flex>
+            <CodeSnippet 
+              code={inspectedCodeAttachment.code}
+              language={inspectedCodeAttachment.sourceArtifactId.includes('react') ? 'jsx' : 'html'}
+              title="Inspected Code"
+            />
+            {inspectedCodeAttachment.styles && (
+              <Text fontSize="xs" color="gray.500">
+                <strong>Computed Styles:</strong> {inspectedCodeAttachment.styles}
+              </Text>
+            )}
+          </Flex>
+        </Box>
+      )}
+      
       {toolCall && (
         <ToolCallBox 
           operation={toolCall.operation}
@@ -166,6 +212,16 @@ export default function MessageBox(props: {
           artifactTitle={toolCall.artifactTitle}
           revertToVersion={toolCall.revertToVersion}
         />
+      )}
+      
+      {artifact && onArtifactClick && (
+        <Box mb="10px">
+          <ArtifactToggleButton
+            artifact={artifact}
+            isOpen={isArtifactOpen || false}
+            onClick={onArtifactClick}
+          />
+        </Box>
       )}
       
       {(() => {

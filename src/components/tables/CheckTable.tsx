@@ -212,7 +212,7 @@ export default function SearchTableOrders(props: { tableData: RowObj[] }) {
     debugColumns: false,
   });
   const createPages = (count: number) => {
-    let arrPageCount = [];
+    let arrPageCount: number[] = [];
 
     for (let i = 1; i <= count; i++) {
       arrPageCount.push(i);

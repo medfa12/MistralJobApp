@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useState } from 'react';
+import { forwardRef, useState, useRef, useImperativeHandle } from 'react';
 import { Box, Flex, Icon, useColorModeValue, Tooltip } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdCode, MdVisibility } from 'react-icons/md';
@@ -8,19 +8,31 @@ import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
 
 export type ArtifactTab = 'code' | 'preview';
 import { CodeView } from './CodeView';
-import { PreviewView } from './PreviewView';
+import { PreviewView, PreviewViewRef } from './PreviewView';
 import { tabContentVariants } from './animations';
 
 interface Props {
   artifact: ArtifactData;
   onCodeAttach?: (attachment: InspectedCodeAttachment) => void;
+  onClearInspection?: () => void;
+}
+
+export interface ArtifactRendererRef {
+  clearInspection: () => void;
 }
 
 const MotionBox = motion(Box);
 const MotionFlex = motion(Flex);
 
-export const ArtifactRenderer: FC<Props> = ({ artifact, onCodeAttach }) => {
+export const ArtifactRenderer = forwardRef<ArtifactRendererRef, Props>(({ artifact, onCodeAttach, onClearInspection }, ref) => {
+  const previewRef = useRef<PreviewViewRef>(null);
   const [activeTab, setActiveTab] = useState<ArtifactTab>('code');
+
+  useImperativeHandle(ref, () => ({
+    clearInspection: () => {
+      previewRef.current?.clearInspection();
+    }
+  }), []);
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -105,12 +117,19 @@ export const ArtifactRenderer: FC<Props> = ({ artifact, onCodeAttach }) => {
               animate="visible"
               exit="exit"
             >
-              <PreviewView artifact={artifact} onCodeAttach={onCodeAttach} />
+              <PreviewView 
+                ref={previewRef}
+                artifact={artifact} 
+                onCodeAttach={onCodeAttach}
+                onClearInspection={onClearInspection}
+              />
             </MotionBox>
           )}
         </AnimatePresence>
       </Box>
     </Box>
   );
-};
+});
+
+ArtifactRenderer.displayName = 'ArtifactRenderer';
 
