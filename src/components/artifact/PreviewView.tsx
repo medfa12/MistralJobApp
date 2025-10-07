@@ -224,10 +224,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
     setSelectedElement(null);
     setAttachedElement(null);
     setHighlightBox(null);
-    if (onClearInspection) {
-      onClearInspection();
-    }
-  }, [onClearInspection]);
+  }, []);
 
   useImperativeHandle(ref, () => ({
     clearInspection
@@ -267,14 +264,32 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data: https:;">
                 <style>
-                  body { 
-                    margin: 0; 
-                    padding: 20px; 
+                  body {
+                    margin: 0;
+                    padding: 20px;
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
                   }
+                  .error-box {
+                    padding: 20px;
+                    background: #fee;
+                    border: 2px solid #f00;
+                    border-radius: 8px;
+                    margin: 20px;
+                    font-family: monospace;
+                  }
+                  .error-box h3 { color: #c00; margin-top: 0; }
                 </style>
               </head>
               <body>
+                <script>
+                  window.onerror = function(message, source, lineno, colno, error) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-box';
+                    errorDiv.innerHTML = '<h3>⚠️ Error</h3><p><strong>Message:</strong> ' + message + '</p><p><strong>Line:</strong> ' + lineno + ':' + colno + '</p>';
+                    document.body.appendChild(errorDiv);
+                    return true;
+                  };
+                </script>
                 ${artifact.code}
               </body>
             </html>
@@ -303,16 +318,29 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
               </head>
               <body>
                 <div id="root"></div>
+                <script>
+                  window.onerror = function(message, source, lineno, colno, error) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.cssText = 'padding: 20px; background: #fee; border: 2px solid #f00; border-radius: 8px; margin: 20px; font-family: monospace;';
+                    errorDiv.innerHTML = '<h3 style="color: #c00; margin-top: 0;">⚠️ Code Error</h3><p><strong>Message:</strong> ' + message + '</p><p><strong>Line:</strong> ' + lineno + ':' + colno + '</p>';
+                    document.body.appendChild(errorDiv);
+                    return true;
+                  };
+                </script>
                 <script type="text/babel">
-                  ${artifact.code}
-                  
                   try {
+                    ${artifact.code}
+
                     const App = typeof module !== 'undefined' && module.exports ? module.exports.default : window.App;
                     if (App) {
                       ReactDOM.render(React.createElement(App), document.getElementById('root'));
                     }
                   } catch (e) {
                     console.error('Render error:', e);
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.cssText = 'padding: 20px; background: #fee; border: 2px solid #f00; border-radius: 8px; margin: 20px; font-family: monospace;';
+                    errorDiv.innerHTML = '<h3 style="color: #c00; margin-top: 0;">⚠️ Runtime Error</h3><p>' + e.message + '</p><pre style="background: #fff; padding: 10px; border-radius: 4px; overflow: auto;">' + e.stack + '</pre>';
+                    document.getElementById('root').appendChild(errorDiv);
                   }
                 </script>
               </body>
@@ -371,14 +399,21 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
         if (!event.error && !event.message) {
           return;
         }
+
+        if (event.message === 'Script error.' || event.message === 'Script error') {
+          return;
+        }
+
+        if (event.message && event.message.includes('ResizeObserver')) {
+          return;
+        }
+
         if (event.error) {
-          console.error('Iframe runtime error:', event.error);
+          console.warn('Iframe runtime error:', event.error);
           setError(`Runtime error: ${event.error.message || 'Unknown error in artifact code'}`);
         } else if (event.message) {
-          console.error('Iframe error message:', event.message);
-          if (!event.message.includes('ResizeObserver')) {
-            setError(`Error: ${event.message}`);
-          }
+          console.warn('Iframe error:', event.message);
+          setError(`Error: ${event.message}`);
         }
       };
       

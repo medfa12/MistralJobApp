@@ -2,8 +2,9 @@ import { ToolCallData } from '@/types/types';
 
 export interface StreamingState {
   isGeneratingArtifact: boolean;
-  artifactLoadingInfo: { operation: string; title?: string } | null;
+  artifactLoadingInfo: { operation: string; title?: string; type?: string } | null;
   toolCalls?: ToolCallData[];
+  streamingArtifactCode?: string;
 }
 
 export function detectArtifactInStream(
@@ -70,25 +71,36 @@ export function detectArtifactInStream(
       /<artifact\s+operation="([^"]+)"(?:\s+type="([^"]+)")?(?:\s+title="([^"]+)")?/i
     );
 
+    // Extract streaming code from artifact tags
+    let streamingCode = '';
+    const codeMatch = accumulatedResponse.match(/<artifact[^>]*>\s*```[a-z]*\s*([\s\S]*?)(?:```\s*<\/artifact>|$)/i);
+    if (codeMatch) {
+      streamingCode = codeMatch[1];
+    }
+
     if (artifactMatch && !currentState.isGeneratingArtifact) {
       return {
         isGeneratingArtifact: true,
         artifactLoadingInfo: {
           operation: artifactMatch[1],
+          type: artifactMatch[2] || undefined,
           title: artifactMatch[3] || undefined,
         },
+        streamingArtifactCode: streamingCode,
       };
     }
 
     return {
       isGeneratingArtifact: true,
       artifactLoadingInfo: currentState.artifactLoadingInfo,
+      streamingArtifactCode: streamingCode,
     };
   }
 
   return {
     isGeneratingArtifact: false,
     artifactLoadingInfo: null,
+    streamingArtifactCode: undefined,
   };
 }
 

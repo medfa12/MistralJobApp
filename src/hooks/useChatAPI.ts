@@ -7,7 +7,7 @@ interface StreamOptions {
   apiMessages: any[];
   model: MistralModel;
   libraryId?: string;
-  onStreamUpdate: (response: string, isGeneratingArtifact: boolean, artifactLoadingInfo: any) => void;
+  onStreamUpdate: (response: string, isGeneratingArtifact: boolean, artifactLoadingInfo: any, streamingCode?: string) => void;
   onComplete: (response: string, toolCalls?: ToolCallData[]) => void;
   onError: (error: Error) => void;
 }
@@ -124,11 +124,16 @@ export function useChatAPI() {
           artifactLoadingInfo,
           toolCalls: accumulatedToolCalls,
         });
-        
+
         isGeneratingArtifact = streamingState.isGeneratingArtifact;
         artifactLoadingInfo = streamingState.artifactLoadingInfo;
-        
-        onStreamUpdate(accumulatedResponse, isGeneratingArtifact, artifactLoadingInfo);
+
+        onStreamUpdate(
+          accumulatedResponse,
+          isGeneratingArtifact,
+          artifactLoadingInfo,
+          streamingState.streamingArtifactCode
+        );
       }
 
       onComplete(accumulatedResponse, accumulatedToolCalls);

@@ -112,7 +112,6 @@ export function useArtifactOperations() {
       createdAt: artifact.createdAt || new Date().toISOString(),
     };
 
-    // Add to artifacts list
     setArtifacts(prev => [...prev, artifactData]);
     setCurrentArtifactId(artifactData.identifier);
     setIsArtifactPanelOpen(true);
@@ -133,21 +132,14 @@ export function useArtifactOperations() {
     return artifactData;
   };
 
-  const handleEdit = async (artifact: ArtifactInput): Promise<ArtifactData | null> => {
-    // Find the artifact to edit by identifier or use current
-    const targetIdentifier = artifact.identifier || currentArtifactId;
+  const handleEdit = useCallback(async (artifact: ArtifactInput): Promise<ArtifactData | null> => {
+    const targetIdentifier = (artifact.identifier && artifact.identifier !== 'current-artifact')
+      ? artifact.identifier
+      : currentArtifactId;
     const targetArtifact = artifacts.find(a => a.identifier === targetIdentifier);
 
     if (!targetArtifact) {
-      toast({
-        title: 'No Artifact to Edit',
-        description: 'Please create an artifact first',
-        status: 'warning',
-        duration: 3000,
-        isClosable: true,
-        position: 'top',
-      });
-      return null;
+      return handleCreate(artifact);
     }
 
     const versions = targetArtifact.versions || [];
@@ -207,7 +199,7 @@ export function useArtifactOperations() {
     });
 
     return artifactData;
-  };
+  }, [artifacts, currentArtifactId, isArtifactPanelOpen, updateArtifactInDatabase, toast, saveArtifactToDatabase, currentConversationId]);
 
   const handleRevert = async (targetVersion: number | undefined): Promise<ArtifactData | null> => {
     if (!currentArtifact) {
@@ -259,7 +251,8 @@ export function useArtifactOperations() {
       currentVersion: targetVersion,
     };
 
-    setCurrentArtifact(artifactData);
+    // Update the reverted artifact in the list (setter removed)
+    setArtifacts(prev => prev.map(a => a.identifier === artifactData.identifier ? artifactData : a));
     if (!isArtifactPanelOpen) {
       setIsArtifactPanelOpen(true);
     }
@@ -280,7 +273,7 @@ export function useArtifactOperations() {
     return artifactData;
   };
 
-  const handleDelete = (identifier?: string) => {
+  const handleDelete = useCallback((identifier?: string) => {
     const targetId = identifier || currentArtifactId;
     if (!targetId) return;
 
@@ -305,7 +298,7 @@ export function useArtifactOperations() {
       isClosable: true,
       position: 'top',
     });
-  };
+  }, [artifacts, currentArtifactId, toast]);
 
   const processArtifactResponse = async (response: string, toolCalls?: ToolCallData[]): Promise<ArtifactOperationResult> => {
     let artifactData: ArtifactData | undefined;
@@ -407,10 +400,77 @@ export function useArtifactOperations() {
     setCurrentArtifactId(identifier);
   }, []);
 
+  const updateCurrentDocument = useCallback(async (markdown: string) => {
+    if (!currentArtifact) return;
+
+    // Update code without creating a new version on every keystroke
+    const updated: ArtifactData = {
+      ...currentArtifact,
+      code: markdown,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setArtifacts(prev => prev.map(a => a.identifier === updated.identifier ? updated : a));
+    if (!isArtifactPanelOpen) setIsArtifactPanelOpen(true);
+
+    const ok = await updateArtifactInDatabase(updated);
+    if (!ok) {
+      toast({
+        title: 'Autosave Failed',
+        description: 'Changes saved locally. Will retry next update.',
+        status: 'warning',
+        duration: 2000,
+        isClosable: true,
+        position: 'top',
+      });
+    }
+  }, [currentArtifact, isArtifactPanelOpen, updateArtifactInDatabase, toast]);
+
   const deleteArtifact = useCallback((identifier: string) => {
     handleDelete(identifier);
-  }, [artifacts, currentArtifactId]);
+  }, [handleDelete]);
 
+  const saveCurrentArtifactVersion = useCallback(async () => {
+    if (!currentArtifact) return null;
+
+    const versions = currentArtifact.versions || [];
+    const newVersion = {
+      code: currentArtifact.code,
+      timestamp: new Date().toISOString(),
+      description: `Manual snapshot ${versions.length + 1}`,
+      language: currentArtifact.language,
+    };
+
+    let limitedVersions = [...versions, newVersion];
+    if (limitedVersions.length > MAX_VERSION_HISTORY) {
+      limitedVersions = [
+        limitedVersions[0],
+        ...limitedVersions.slice(-(MAX_VERSION_HISTORY - 1)),
+      ];
+    }
+
+    const updated: ArtifactData = {
+      ...currentArtifact,
+      versions: limitedVersions,
+      currentVersion: limitedVersions.length,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setArtifacts(prev => prev.map(a => a.identifier === updated.identifier ? updated : a));
+    if (!isArtifactPanelOpen) setIsArtifactPanelOpen(true);
+
+    const ok = await updateArtifactInDatabase(updated);
+    toast({
+      title: ok ? 'Version Saved' : 'Version Saved (DB Failed)',
+      description: ok ? `Snapshot v${updated.currentVersion}` : 'Saved locally but failed to persist',
+      status: ok ? 'success' : 'warning',
+      duration: 2500,
+      isClosable: true,
+      position: 'top',
+    });
+
+    return updated;
+  }, [currentArtifact, isArtifactPanelOpen, updateArtifactInDatabase, toast]);
   return {
     currentArtifact,
     artifacts,
@@ -423,6 +483,7 @@ export function useArtifactOperations() {
     switchArtifact,
     deleteArtifact,
     revertToVersion: handleRevert,
+    updateCurrentDocument,
+    saveCurrentArtifactVersion,
   };
 }
-

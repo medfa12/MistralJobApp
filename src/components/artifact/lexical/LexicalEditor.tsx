@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -14,6 +14,12 @@ import { $convertFromMarkdownString, $convertToMarkdownString, TRANSFORMERS } fr
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { Box, useColorModeValue } from '@chakra-ui/react';
 import { EditorState } from 'lexical';
+// Lexical nodes required for Markdown transformers
+import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { ListNode, ListItemNode } from '@lexical/list';
+import { CodeNode } from '@lexical/code';
+import { LinkNode, AutoLinkNode } from '@lexical/link';
+import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
 import { MISTRAL_LEXICAL_THEME } from './MistralLexicalTheme';
 import { ToolbarPlugin } from './ToolbarPlugin';
 
@@ -28,9 +34,14 @@ function MarkdownImportPlugin({ initialMarkdown }: { initialMarkdown: string }) 
 
   useEffect(() => {
     if (initialMarkdown) {
-      editor.update(() => {
-        $convertFromMarkdownString(initialMarkdown, TRANSFORMERS);
-      });
+      try {
+        editor.update(() => {
+          $convertFromMarkdownString(initialMarkdown, TRANSFORMERS);
+        });
+      } catch (e) {
+        console.error('Failed to import markdown into editor:', e);
+        // Leave editor empty rather than crashing
+      }
     }
   }, [initialMarkdown, editor]);
 
@@ -46,16 +57,41 @@ export function LexicalEditor({ initialMarkdown, onContentChange, readOnly = fal
     theme: MISTRAL_LEXICAL_THEME,
     onError: (error: Error) => console.error(error),
     editable: !readOnly,
-    nodes: [],
+    nodes: [
+      HeadingNode,
+      QuoteNode,
+      ListNode,
+      ListItemNode,
+      CodeNode,
+      LinkNode,
+      AutoLinkNode,
+      HorizontalRuleNode,
+    ],
   };
+
+  const debounceRef = useRef<number | undefined>(undefined);
 
   const handleEditorChange = (editorState: EditorState) => {
     if (readOnly || !onContentChange) return;
 
-    editorState.read(() => {
-      const markdown = $convertToMarkdownString(TRANSFORMERS);
-      onContentChange(markdown);
-    });
+    try {
+      // Debounce conversions to avoid save storms
+      if (debounceRef.current) {
+        window.clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = window.setTimeout(() => {
+        try {
+          editorState.read(() => {
+            const markdown = $convertToMarkdownString(TRANSFORMERS);
+            onContentChange(markdown);
+          });
+        } catch (e) {
+          console.error('Failed to convert editor state to markdown:', e);
+        }
+      }, 500);
+    } catch (e) {
+      console.error('Editor onChange error:', e);
+    }
   };
 
   return (
@@ -124,4 +160,3 @@ export function LexicalEditor({ initialMarkdown, onContentChange, readOnly = fal
     </Box>
   );
 }
-

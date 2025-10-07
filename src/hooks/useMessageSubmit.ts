@@ -54,7 +54,8 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
   const [loading, setLoading] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState('');
   const [isGeneratingArtifact, setIsGeneratingArtifact] = useState(false);
-  const [artifactLoadingInfo, setArtifactLoadingInfo] = useState<{ operation: string; title?: string } | null>(null);
+  const [artifactLoadingInfo, setArtifactLoadingInfo] = useState<{ operation: string; title?: string; type?: string } | null>(null);
+  const [streamingArtifactCode, setStreamingArtifactCode] = useState<string>('');
 
   const { validateApiKey, validateModel, validateInput, validateTokens } = useValidation();
   const { buildUserMessageContent, buildApiMessages } = useMessageBuilder();
@@ -155,10 +156,11 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
         apiMessages,
         model,
         libraryId,
-        onStreamUpdate: (response, isGenerating, loadingInfo) => {
+        onStreamUpdate: (response, isGenerating, loadingInfo, streamingCode) => {
           setIsGeneratingArtifact(isGenerating);
           setArtifactLoadingInfo(loadingInfo);
-          
+          setStreamingArtifactCode(streamingCode || '');
+
           if (isGenerating) {
             setStreamingMessage('');
           } else {
@@ -217,6 +219,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     model,
     currentConversationId,
     currentArtifact,
+    libraryId,
     validateApiKey,
     validateModel,
     validateInput,
@@ -238,7 +241,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     streamingMessage,
     isGeneratingArtifact,
     artifactLoadingInfo,
+    streamingArtifactCode,
     abortRequest,
   };
 }
-

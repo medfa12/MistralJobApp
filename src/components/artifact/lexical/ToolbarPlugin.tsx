@@ -64,6 +64,8 @@ export function ToolbarPlugin() {
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const activeColor = 'orange.500';
   const hoverBg = useColorModeValue('gray.100', 'gray.700');
+  // Hoisted color mode values used conditionally in JSX
+  const activeBg = useColorModeValue('orange.50', 'orange.900');
 
   const updateToolbar = useCallback(() => {
     const selection = $getSelection();
@@ -223,7 +225,7 @@ export function ToolbarPlugin() {
           size="sm"
           variant="ghost"
           color={isBold ? activeColor : undefined}
-          bg={isBold ? useColorModeValue('orange.50', 'orange.900') : undefined}
+          bg={isBold ? activeBg : undefined}
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
           _hover={{ bg: hoverBg }}
         />
@@ -235,7 +237,7 @@ export function ToolbarPlugin() {
           size="sm"
           variant="ghost"
           color={isItalic ? activeColor : undefined}
-          bg={isItalic ? useColorModeValue('orange.50', 'orange.900') : undefined}
+          bg={isItalic ? activeBg : undefined}
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
           _hover={{ bg: hoverBg }}
         />
@@ -247,7 +249,7 @@ export function ToolbarPlugin() {
           size="sm"
           variant="ghost"
           color={isUnderline ? activeColor : undefined}
-          bg={isUnderline ? useColorModeValue('orange.50', 'orange.900') : undefined}
+          bg={isUnderline ? activeBg : undefined}
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')}
           _hover={{ bg: hoverBg }}
         />
@@ -259,7 +261,7 @@ export function ToolbarPlugin() {
           size="sm"
           variant="ghost"
           color={isStrikethrough ? activeColor : undefined}
-          bg={isStrikethrough ? useColorModeValue('orange.50', 'orange.900') : undefined}
+          bg={isStrikethrough ? activeBg : undefined}
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')}
           _hover={{ bg: hoverBg }}
         />
@@ -271,7 +273,7 @@ export function ToolbarPlugin() {
           size="sm"
           variant="ghost"
           color={isCode ? activeColor : undefined}
-          bg={isCode ? useColorModeValue('orange.50', 'orange.900') : undefined}
+          bg={isCode ? activeBg : undefined}
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
           _hover={{ bg: hoverBg }}
         />
@@ -287,7 +289,7 @@ export function ToolbarPlugin() {
           size="sm"
           variant="ghost"
           color={blockType === 'ul' ? activeColor : undefined}
-          bg={blockType === 'ul' ? useColorModeValue('orange.50', 'orange.900') : undefined}
+          bg={blockType === 'ul' ? activeBg : undefined}
           onClick={formatBulletList}
           _hover={{ bg: hoverBg }}
         />
@@ -299,7 +301,7 @@ export function ToolbarPlugin() {
           size="sm"
           variant="ghost"
           color={blockType === 'ol' ? activeColor : undefined}
-          bg={blockType === 'ol' ? useColorModeValue('orange.50', 'orange.900') : undefined}
+          bg={blockType === 'ol' ? activeBg : undefined}
           onClick={formatNumberedList}
           _hover={{ bg: hoverBg }}
         />
@@ -307,4 +309,3 @@ export function ToolbarPlugin() {
     </Flex>
   );
 }
-
