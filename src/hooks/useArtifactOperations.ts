@@ -1,22 +1,46 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
-import { ArtifactData } from '@/types/types';
+import { ArtifactData, ArtifactType, ToolCallData } from '@/types/types';
 import { parseArtifacts, hasArtifacts } from '@/utils/artifactParser';
+import { handleToolCalls } from '@/utils/toolCallHandler';
+
+const MAX_VERSION_HISTORY = 50;
+
+interface ArtifactInput {
+  identifier?: string;
+  type: ArtifactType;
+  title: string;
+  code: string;
+  language?: string;
+  createdAt?: string;
+  operation?: string;
+  revertToVersion?: number;
+}
+
+interface ToolCallInfo {
+  operation: string;
+  artifactType?: ArtifactType;
+  artifactTitle?: string;
+  revertToVersion?: number;
+}
 
 interface ArtifactOperationResult {
   artifactData?: ArtifactData;
-  toolCallData?: any;
+  toolCallData?: ToolCallInfo;
   cleanContent: string;
 }
 
 export function useArtifactOperations() {
   const toast = useToast();
-  const [currentArtifact, setCurrentArtifact] = useState<ArtifactData | null>(null);
+  const [artifacts, setArtifacts] = useState<ArtifactData[]>([]);
+  const [currentArtifactId, setCurrentArtifactId] = useState<string | null>(null);
   const [isArtifactPanelOpen, setIsArtifactPanelOpen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
-  // Save artifact to database
-  const saveArtifactToDatabase = useCallback(async (artifactData: ArtifactData, conversationId: string | null) => {
+  // Get current artifact from the list
+  const currentArtifact = artifacts.find(a => a.identifier === currentArtifactId) || null;
+
+  const saveArtifactToDatabase = useCallback(async (artifactData: ArtifactData, conversationId: string | null): Promise<boolean> => {
     try {
       const response = await fetch('/api/artifacts', {
         method: 'POST',
@@ -34,78 +58,73 @@ export function useArtifactOperations() {
       });
 
       if (!response.ok) {
-        console.error('Failed to save artifact:', await response.text());
+        throw new Error(await response.text());
       }
+      return true;
     } catch (error) {
       console.error('Error saving artifact:', error);
+      return false;
     }
   }, []);
 
-  // Update artifact in database
-  const updateArtifactInDatabase = useCallback(async (artifactData: ArtifactData) => {
+  const updateArtifactInDatabase = useCallback(async (artifactData: ArtifactData): Promise<boolean> => {
     try {
-      // Find existing artifact by identifier
       const searchResponse = await fetch(`/api/artifacts?conversationId=${currentConversationId}`);
-      if (searchResponse.ok) {
-        const data = await searchResponse.json();
-        const existingArtifact = data.artifacts?.find((a: any) => a.identifier === artifactData.identifier);
-        
-        if (existingArtifact) {
-          // Update existing artifact
-          const updateResponse = await fetch(`/api/artifacts/${existingArtifact.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              title: artifactData.title,
-              code: artifactData.code,
-              language: artifactData.language,
-              versions: artifactData.versions,
-              currentVersion: artifactData.currentVersion,
-            }),
-          });
-
-          if (!updateResponse.ok) {
-            console.error('Failed to update artifact:', await updateResponse.text());
-          }
-        }
+      if (!searchResponse.ok) {
+        throw new Error('Failed to search for artifact');
       }
+
+      const data = await searchResponse.json();
+      const existingArtifact = data.artifacts?.find((a: { identifier: string }) => a.identifier === artifactData.identifier);
+      
+      if (existingArtifact) {
+        const updateResponse = await fetch(`/api/artifacts/${existingArtifact.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: artifactData.title,
+            code: artifactData.code,
+            language: artifactData.language,
+            versions: artifactData.versions,
+            currentVersion: artifactData.currentVersion,
+          }),
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error(await updateResponse.text());
+        }
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('Error updating artifact:', error);
+      return false;
     }
   }, [currentConversationId]);
 
-  const handleCreate = (artifact: any): ArtifactData | null => {
-    if (currentArtifact) {
-      toast({
-        title: 'Artifact Already Exists',
-        description: 'Please edit the existing artifact or ask me to delete it first',
-        status: 'warning',
-        duration: 4000,
-        isClosable: true,
-        position: 'top',
-      });
-      return null;
-    }
-
+  const handleCreate = async (artifact: ArtifactInput): Promise<ArtifactData | null> => {
     const artifactData: ArtifactData = {
-      identifier: artifact.identifier,
+      identifier: artifact.identifier || `artifact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: artifact.type,
       title: artifact.title,
       code: artifact.code,
       language: artifact.language,
-      createdAt: artifact.createdAt,
+      createdAt: artifact.createdAt || new Date().toISOString(),
     };
 
-    setCurrentArtifact(artifactData);
+    // Add to artifacts list
+    setArtifacts(prev => [...prev, artifactData]);
+    setCurrentArtifactId(artifactData.identifier);
     setIsArtifactPanelOpen(true);
 
-    // Save to database
-    saveArtifactToDatabase(artifactData, currentConversationId);
+    const saved = await saveArtifactToDatabase(artifactData, currentConversationId);
 
     toast({
-      title: 'Artifact Created',
-      description: `"${artifactData.title}" is ready to preview`,
-      status: 'success',
+      title: saved ? 'Artifact Created' : 'Artifact Created (Save Failed)',
+      description: saved
+        ? `"${artifactData.title}" is ready to preview`
+        : 'Created locally but failed to save to database',
+      status: saved ? 'success' : 'warning',
       duration: 3000,
       isClosable: true,
       position: 'top',
@@ -114,8 +133,12 @@ export function useArtifactOperations() {
     return artifactData;
   };
 
-  const handleEdit = (artifact: any): ArtifactData | null => {
-    if (!currentArtifact) {
+  const handleEdit = async (artifact: ArtifactInput): Promise<ArtifactData | null> => {
+    // Find the artifact to edit by identifier or use current
+    const targetIdentifier = artifact.identifier || currentArtifactId;
+    const targetArtifact = artifacts.find(a => a.identifier === targetIdentifier);
+
+    if (!targetArtifact) {
       toast({
         title: 'No Artifact to Edit',
         description: 'Please create an artifact first',
@@ -127,36 +150,57 @@ export function useArtifactOperations() {
       return null;
     }
 
-    const versions = currentArtifact.versions || [];
+    const versions = targetArtifact.versions || [];
     const newVersion = {
-      code: currentArtifact.code,
-      timestamp: currentArtifact.updatedAt || currentArtifact.createdAt,
+      code: targetArtifact.code,
+      timestamp: targetArtifact.updatedAt || targetArtifact.createdAt,
       description: `Version ${versions.length + 1}`,
+      language: targetArtifact.language,
     };
 
+    let limitedVersions = [...versions, newVersion];
+
+    if (limitedVersions.length > MAX_VERSION_HISTORY) {
+      limitedVersions = [
+        limitedVersions[0],
+        ...limitedVersions.slice(-(MAX_VERSION_HISTORY - 1))
+      ];
+
+      toast({
+        title: 'Version History Pruned',
+        description: `Keeping latest ${MAX_VERSION_HISTORY} versions`,
+        status: 'info',
+        duration: 2000,
+        isClosable: true,
+        position: 'top',
+      });
+    }
+
     const artifactData: ArtifactData = {
-      ...currentArtifact,
+      ...targetArtifact,
       type: artifact.type,
       title: artifact.title,
       code: artifact.code,
       language: artifact.language,
       updatedAt: new Date().toISOString(),
-      versions: [...versions, newVersion],
-      currentVersion: versions.length + 1,
+      versions: limitedVersions,
+      currentVersion: limitedVersions.length,
     };
 
-    setCurrentArtifact(artifactData);
+    // Update in artifacts list
+    setArtifacts(prev => prev.map(a => a.identifier === artifactData.identifier ? artifactData : a));
     if (!isArtifactPanelOpen) {
       setIsArtifactPanelOpen(true);
     }
 
-    // Update in database
-    updateArtifactInDatabase(artifactData);
+    const updated = await updateArtifactInDatabase(artifactData);
 
     toast({
-      title: 'Artifact Updated',
-      description: `"${artifactData.title}" - Version ${artifactData.currentVersion}`,
-      status: 'success',
+      title: updated ? 'Artifact Updated' : 'Artifact Updated (Save Failed)',
+      description: updated
+        ? `"${artifactData.title}" - Version ${artifactData.currentVersion}`
+        : 'Updated locally but failed to save to database',
+      status: updated ? 'success' : 'warning',
       duration: 3000,
       isClosable: true,
       position: 'top',
@@ -165,11 +209,11 @@ export function useArtifactOperations() {
     return artifactData;
   };
 
-  const handleRevert = (targetVersion: number | undefined): ArtifactData | null => {
-    if (!currentArtifact || !currentArtifact.versions || currentArtifact.versions.length === 0) {
+  const handleRevert = async (targetVersion: number | undefined): Promise<ArtifactData | null> => {
+    if (!currentArtifact) {
       toast({
-        title: 'No Version History',
-        description: 'No previous versions available to revert to',
+        title: 'No Artifact',
+        description: 'No artifact to revert',
         status: 'warning',
         duration: 3000,
         isClosable: true,
@@ -178,10 +222,13 @@ export function useArtifactOperations() {
       return null;
     }
 
-    if (targetVersion === undefined || targetVersion < 1 || targetVersion > currentArtifact.versions.length) {
+    const versions = currentArtifact.versions || [];
+    const totalVersions = versions.length + 1;
+
+    if (targetVersion === undefined || targetVersion < 1 || targetVersion > totalVersions) {
       toast({
         title: 'Invalid Version',
-        description: `Version ${targetVersion} does not exist. Available: 1-${currentArtifact.versions.length}`,
+        description: `Version ${targetVersion} does not exist. Available: 1-${totalVersions}`,
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -190,11 +237,24 @@ export function useArtifactOperations() {
       return null;
     }
 
-    const revertToVersion = currentArtifact.versions[targetVersion - 1];
+    if (targetVersion === totalVersions) {
+      toast({
+        title: 'Already Latest Version',
+        description: 'This is the current version',
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
+        position: 'top',
+      });
+      return currentArtifact;
+    }
+
+    const revertToVersion = versions[targetVersion - 1];
 
     const artifactData: ArtifactData = {
       ...currentArtifact,
       code: revertToVersion.code,
+      language: revertToVersion.language || currentArtifact.language,
       updatedAt: new Date().toISOString(),
       currentVersion: targetVersion,
     };
@@ -204,13 +264,14 @@ export function useArtifactOperations() {
       setIsArtifactPanelOpen(true);
     }
 
-    // Update in database
-    updateArtifactInDatabase(artifactData);
+    const updated = await updateArtifactInDatabase(artifactData);
 
     toast({
-      title: 'Artifact Reverted',
-      description: `Restored to Version ${targetVersion}`,
-      status: 'info',
+      title: updated ? 'Artifact Reverted' : 'Artifact Reverted (Save Failed)',
+      description: updated
+        ? `Restored to Version ${targetVersion}`
+        : 'Reverted locally but failed to save to database',
+      status: updated ? 'info' : 'warning',
       duration: 3000,
       isClosable: true,
       position: 'top',
@@ -219,9 +280,22 @@ export function useArtifactOperations() {
     return artifactData;
   };
 
-  const handleDelete = () => {
-    setCurrentArtifact(null);
-    setIsArtifactPanelOpen(false);
+  const handleDelete = (identifier?: string) => {
+    const targetId = identifier || currentArtifactId;
+    if (!targetId) return;
+
+    setArtifacts(prev => prev.filter(a => a.identifier !== targetId));
+
+    // If deleting current artifact, switch to another or close panel
+    if (targetId === currentArtifactId) {
+      const remaining = artifacts.filter(a => a.identifier !== targetId);
+      if (remaining.length > 0) {
+        setCurrentArtifactId(remaining[remaining.length - 1].identifier);
+      } else {
+        setCurrentArtifactId(null);
+        setIsArtifactPanelOpen(false);
+      }
+    }
 
     toast({
       title: 'Artifact Deleted',
@@ -233,12 +307,47 @@ export function useArtifactOperations() {
     });
   };
 
-  const processArtifactResponse = (response: string): ArtifactOperationResult => {
+  const processArtifactResponse = async (response: string, toolCalls?: ToolCallData[]): Promise<ArtifactOperationResult> => {
     let artifactData: ArtifactData | undefined;
-    let toolCallData: any | undefined;
+    let toolCallData: ToolCallInfo | undefined;
     let cleanContent = response;
 
-    if (hasArtifacts(response)) {
+    if (toolCalls && toolCalls.length > 0) {
+      const result = handleToolCalls(response, toolCalls, currentArtifact || undefined);
+      artifactData = result.artifactData;
+      toolCallData = result.toolCallData;
+      cleanContent = result.cleanContent;
+
+      if (toolCallData) {
+        switch (toolCallData.operation) {
+          case 'delete':
+            handleDelete();
+            break;
+          case 'create':
+            if (artifactData) {
+              artifactData = await handleCreate(artifactData) || undefined;
+            }
+            break;
+          case 'edit':
+            if (artifactData) {
+              artifactData = await handleEdit(artifactData) || undefined;
+            }
+            break;
+          case 'revert':
+            artifactData = await handleRevert(toolCallData.revertToVersion) || undefined;
+            break;
+          case 'insert_section':
+          case 'update_section':
+          case 'delete_section':
+          case 'apply_formatting':
+            if (artifactData) {
+              artifactData = await handleEdit(artifactData) || undefined;
+            }
+            break;
+        }
+      }
+    }
+    else if (hasArtifacts(response)) {
       const { cleanText, artifacts } = parseArtifacts(response);
       cleanContent = cleanText;
 
@@ -258,15 +367,15 @@ export function useArtifactOperations() {
             break;
 
           case 'create':
-            artifactData = handleCreate(latestArtifact) || undefined;
+            artifactData = await handleCreate(latestArtifact) || undefined;
             break;
 
           case 'edit':
-            artifactData = handleEdit(latestArtifact) || undefined;
+            artifactData = await handleEdit(latestArtifact) || undefined;
             break;
 
           case 'revert':
-            artifactData = handleRevert(latestArtifact.revertToVersion) || undefined;
+            artifactData = await handleRevert(latestArtifact.revertToVersion) || undefined;
             break;
         }
       }
@@ -276,23 +385,44 @@ export function useArtifactOperations() {
   };
 
   const resetArtifacts = useCallback(() => {
-    setCurrentArtifact(null);
+    setArtifacts([]);
+    setCurrentArtifactId(null);
     setIsArtifactPanelOpen(false);
   }, []);
 
   const restoreArtifact = useCallback((artifactData: ArtifactData) => {
-    setCurrentArtifact(artifactData);
-    setIsArtifactPanelOpen(false);
+    // Check if artifact already exists
+    setArtifacts(prev => {
+      const exists = prev.some(a => a.identifier === artifactData.identifier);
+      if (exists) {
+        return prev.map(a => a.identifier === artifactData.identifier ? artifactData : a);
+      }
+      return [...prev, artifactData];
+    });
+    setCurrentArtifactId(artifactData.identifier);
+    setIsArtifactPanelOpen(true);
   }, []);
+
+  const switchArtifact = useCallback((identifier: string) => {
+    setCurrentArtifactId(identifier);
+  }, []);
+
+  const deleteArtifact = useCallback((identifier: string) => {
+    handleDelete(identifier);
+  }, [artifacts, currentArtifactId]);
 
   return {
     currentArtifact,
+    artifacts,
     isArtifactPanelOpen,
     setIsArtifactPanelOpen,
     setCurrentConversationId,
     processArtifactResponse,
     resetArtifacts,
     restoreArtifact,
+    switchArtifact,
+    deleteArtifact,
+    revertToVersion: handleRevert,
   };
 }
 

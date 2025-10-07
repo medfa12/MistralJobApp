@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useState, useRef, useImperativeHandle } from 'react';
+import { forwardRef, useState, useRef, useImperativeHandle, useId } from 'react';
 import {
   Box,
   Flex,
@@ -28,7 +28,7 @@ import {
   TabPanels,
   TabPanel,
 } from '@chakra-ui/react';
-import { MdClose, MdCode, MdChevronLeft, MdChevronRight, MdMoreVert, MdHistory, MdCompare, MdRestore } from 'react-icons/md';
+import { MdClose, MdCode, MdChevronLeft, MdChevronRight, MdMoreVert, MdHistory, MdCompare, MdRestore, MdDescription, MdAdd } from 'react-icons/md';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
 import { ArtifactRenderer, ArtifactRendererRef } from './ArtifactRenderer';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
@@ -37,11 +37,14 @@ import { motion } from 'framer-motion';
 
 interface Props {
   artifact: ArtifactData | null;
+  artifacts?: ArtifactData[];
   onClose: () => void;
   onCodeAttach?: (attachment: InspectedCodeAttachment) => void;
   onClearInspection?: () => void;
   onVersionChange?: (version: number) => void;
   onRevertToVersion?: (version: number) => void;
+  onArtifactSwitch?: (identifier: string) => void;
+  onArtifactDelete?: (identifier: string) => void;
 }
 
 export interface ArtifactWorkspaceRef {
@@ -50,15 +53,19 @@ export interface ArtifactWorkspaceRef {
 
 const MotionBox = motion(Box);
 
-export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({ 
-  artifact, 
-  onClose, 
+export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
+  artifact,
+  artifacts = [],
+  onClose,
   onCodeAttach,
   onClearInspection,
   onVersionChange,
-  onRevertToVersion 
+  onRevertToVersion,
+  onArtifactSwitch,
+  onArtifactDelete
 }, ref) => {
   const artifactRendererRef = useRef<ArtifactRendererRef>(null);
+  const versionMenuId = useId();
 
   useImperativeHandle(ref, () => ({
     clearInspection: () => {
@@ -97,27 +104,21 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
       </Flex>
     );
   }
-
   const currentVersion = artifact.currentVersion || (artifact.versions ? artifact.versions.length + 1 : 1);
   const totalVersions = (artifact.versions?.length || 0) + 1;
   const hasVersionHistory = totalVersions > 1;
 
-  const navigateVersion = (version: number) => {
-    if (onVersionChange && version >= 1 && version <= totalVersions) {
-      onVersionChange(version);
-    }
-  };
-
   const handleVersionSelect = (version: number) => {
-    navigateVersion(version);
-    onHistoryClose();
-  };
-
-  const handleRevertToVersion = (version: number) => {
     if (onRevertToVersion) {
       onRevertToVersion(version);
     }
     onHistoryClose();
+  };
+
+  const navigateVersion = (version: number) => {
+    if (onRevertToVersion && version >= 1 && version <= totalVersions) {
+      onRevertToVersion(version);
+    }
   };
 
   const handleCompareVersions = () => {
@@ -197,7 +198,7 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
               />
             </Tooltip>
 
-            <Menu>
+            <Menu id={versionMenuId}>
               <MenuButton
                 as={IconButton}
                 icon={<Icon as={MdMoreVert} />}
@@ -238,18 +239,98 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
         />
       </Flex>
 
+      {/* Artifact Selector - Show only if multiple artifacts */}
+      {artifacts.length > 1 && (
+        <Flex
+          px={4}
+          py={2}
+          borderBottom="1px solid"
+          borderColor={borderColor}
+          bg={useColorModeValue('gray.50', 'gray.900')}
+          overflowX="auto"
+          gap={2}
+          css={{
+            '&::-webkit-scrollbar': {
+              height: '6px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: 'transparent',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: useColorModeValue('gray.300', 'gray.600'),
+              borderRadius: '3px',
+            },
+          }}
+        >
+          {artifacts.map((art) => {
+            const isActive = art.identifier === artifact?.identifier;
+            const artIcon = art.type === 'markdown' || art.type === 'document' ? MdDescription : MdCode;
+
+            return (
+              <Flex
+                key={art.identifier}
+                align="center"
+                gap={2}
+                px={3}
+                py={2}
+                borderRadius="md"
+                bg={isActive ? useColorModeValue('white', 'gray.800') : 'transparent'}
+                border="1px solid"
+                borderColor={isActive ? 'orange.400' : 'transparent'}
+                cursor="pointer"
+                onClick={() => onArtifactSwitch?.(art.identifier)}
+                _hover={{ bg: isActive ? useColorModeValue('white', 'gray.800') : useColorModeValue('gray.100', 'gray.700') }}
+                transition="all 0.2s"
+                minW="fit-content"
+                position="relative"
+              >
+                <Icon
+                  as={artIcon}
+                  boxSize={4}
+                  color={isActive ? 'orange.500' : 'gray.500'}
+                />
+                <Text
+                  fontSize="sm"
+                  fontWeight={isActive ? '600' : '400'}
+                  color={isActive ? textColor : 'gray.600'}
+                  noOfLines={1}
+                  maxW="150px"
+                >
+                  {art.title}
+                </Text>
+                <Badge colorScheme={isActive ? 'orange' : 'gray'} fontSize="xs">
+                  {art.type}
+                </Badge>
+                {artifacts.length > 1 && (
+                  <IconButton
+                    aria-label="Delete artifact"
+                    icon={<Icon as={MdClose} />}
+                    size="xs"
+                    variant="ghost"
+                    colorScheme="red"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Delete "${art.title}"?`)) {
+                        onArtifactDelete?.(art.identifier);
+                      }
+                    }}
+                    opacity={isActive ? 1 : 0}
+                    _groupHover={{ opacity: 1 }}
+                  />
+                )}
+              </Flex>
+            );
+          })}
+        </Flex>
+      )}
+
       {/* Artifact Content */}
       <Box flex={1} overflow="hidden">
-        <ArtifactRenderer 
+        <ArtifactRenderer
           ref={artifactRendererRef}
-          artifact={artifact} 
+          artifact={artifact}
           onCodeAttach={onCodeAttach}
-          onClearInspection={() => {
-            artifactRendererRef.current?.clearInspection();
-            if (onClearInspection) {
-              onClearInspection();
-            }
-          }}
+          onClearInspection={onClearInspection}
         />
       </Box>
 
@@ -296,6 +377,8 @@ function getArtifactBadgeColor(type: string): string {
     html: 'green',
     javascript: 'yellow',
     vue: 'teal',
+    markdown: 'orange',
+    document: 'purple',
   };
   return colorMap[type] || 'gray';
 }

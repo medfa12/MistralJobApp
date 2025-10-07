@@ -7,9 +7,14 @@ import {
   Text,
   Icon,
   useColorModeValue,
+  useToast,
 } from '@chakra-ui/react';
-import { MdAttachFile, MdImage, MdDescription } from 'react-icons/md';
+import { MdAttachFile, MdImage, MdDescription, MdMic } from 'react-icons/md';
 import { ModelInfo } from '@/config/models';
+import { useState, useCallback } from 'react';
+import { VoiceRecorder } from './VoiceRecorder';
+import { TranscribingIndicator } from './TranscribingIndicator';
+import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 
 interface ChatInputProps {
   value: string;
@@ -42,6 +47,129 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     { color: 'whiteAlpha.600' },
   );
 
+  const toast = useToast();
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [autoSend, setAutoSend] = useState(true);
+  const transcriptionAbortRef = useState<AbortController | null>(null)[0];
+
+  const handleTranscription = useCallback(async (audioBlob: Blob, duration: number) => {
+    setIsTranscribing(true);
+    setIsVoiceMode(false);
+
+    try {
+      const apiKey = localStorage.getItem('apiKey');
+      
+      if (!apiKey) {
+        throw new Error('API key not found');
+      }
+
+      const abortController = new AbortController();
+      if (transcriptionAbortRef) {
+        transcriptionAbortRef.constructor(abortController);
+      }
+
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+      formData.append('apiKey', apiKey);
+
+      const response = await fetch('/api/chat/transcribe', {
+        method: 'POST',
+        body: formData,
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error('Transcription failed');
+      }
+
+      const result = await response.json();
+      const transcribedText = result.text || '';
+
+      onChange(transcribedText);
+      setIsTranscribing(false);
+
+      if (autoSend && transcribedText.trim()) {
+        setTimeout(() => {
+          onSubmit();
+        }, 100);
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Transcription cancelled');
+      } else {
+        console.error('Transcription error:', error);
+        toast({
+          title: 'Transcription Failed',
+          description: 'Could not transcribe audio. Please try again.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+          position: 'top',
+        });
+      }
+      setIsTranscribing(false);
+    }
+  }, [onChange, onSubmit, autoSend, toast, transcriptionAbortRef]);
+
+  const {
+    isRecording,
+    hasRecording,
+    elapsedTime,
+    audioBlob,
+    audioStream,
+    permission,
+    error: micError,
+    startRecording,
+    stopRecording,
+    reset,
+  } = useVoiceRecording({
+    onRecordingComplete: handleTranscription,
+    autoSend,
+  });
+
+  const handleMicClick = useCallback(async () => {
+    if (loading || isTranscribing) return;
+    
+    const success = await startRecording();
+    
+    if (success) {
+      setIsVoiceMode(true);
+    } else if (micError) {
+      toast({
+        title: 'Microphone Error',
+        description: micError,
+        status: 'error',
+        duration: 7000,
+        isClosable: true,
+        position: 'top',
+      });
+    }
+  }, [loading, isTranscribing, startRecording, micError, toast]);
+
+  const handleVoiceCancel = useCallback(() => {
+    if (isRecording) {
+      stopRecording();
+    }
+    reset();
+    setIsVoiceMode(false);
+  }, [isRecording, stopRecording, reset]);
+
+  const handleVoiceSend = useCallback(() => {
+    stopRecording();
+    if (audioBlob) {
+      handleTranscription(audioBlob, 0);
+    }
+    reset();
+  }, [stopRecording, audioBlob, handleTranscription, reset]);
+
+  const handleCancelTranscription = useCallback(() => {
+    if (transcriptionAbortRef) {
+      transcriptionAbortRef.abort?.();
+    }
+    setIsTranscribing(false);
+  }, [transcriptionAbortRef]);
+
   const handleImageSelect = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -68,6 +196,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     };
     input.click();
   };
+
+  if (isTranscribing) {
+    return <TranscribingIndicator onCancel={handleCancelTranscription} />;
+  }
+
+  if (isVoiceMode) {
+    return (
+      <VoiceRecorder
+        isRecording={isRecording}
+        elapsedTime={elapsedTime}
+        autoSend={autoSend}
+        hasRecording={hasRecording}
+        onToggleAutoSend={() => setAutoSend(!autoSend)}
+        onSend={handleVoiceSend}
+        onCancel={handleVoiceCancel}
+        audioStream={audioStream}
+      />
+    );
+  }
 
   return (
     <Flex direction="column" gap="10px" flexShrink={0}>
@@ -102,7 +249,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </Flex>
       )}
 
-      <Flex gap="10px">
+      <Flex gap="10px" align="center">
         <Input
           minH="54px"
           h="100%"
@@ -121,13 +268,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onChange={(e) => onChange(e.target.value)}
           onKeyPress={onKeyPress}
         />
+        
+        <Button
+          minW="54px"
+          w="54px"
+          h="54px"
+          borderRadius="45px"
+          bg="white"
+          _hover={{ bg: 'gray.100' }}
+          onClick={handleMicClick}
+          isDisabled={loading}
+          p="0"
+        >
+          <Icon as={MdMic} color="gray.800" boxSize="24px" />
+        </Button>
+
         <Button
           variant="primary"
           py="20px"
           px="16px"
           fontSize="sm"
           borderRadius="45px"
-          ms="auto"
           w={{ base: '160px', md: '210px' }}
           h="54px"
           _hover={{

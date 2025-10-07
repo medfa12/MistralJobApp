@@ -128,7 +128,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
         x: rect.left,
         y: rect.top,
       },
-      styles: computed as any,
+      styles: computed as CSSStyleDeclaration | undefined,
       path: getElementPath(element),
       attributes: Array.from(element.attributes).reduce((acc, attr) => {
         acc[attr.name] = attr.value;
@@ -289,7 +289,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
               <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'unsafe-inline'; img-src data: https:;">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'unsafe-inline'; img-src data: https:; connect-src https://unpkg.com;">
                 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
                 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
                 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -327,7 +327,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
               <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'unsafe-inline'; img-src data: https:;">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'unsafe-inline'; img-src data: https:; connect-src https://unpkg.com;">
                 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
                 <style>
                   body { 
@@ -368,8 +368,18 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
       setError(null);
       
       errorHandler = (event: ErrorEvent) => {
-        console.error('Iframe runtime error:', event.error);
-        setError(`Runtime error: ${event.error?.message || 'Unknown error in artifact code'}`);
+        if (!event.error && !event.message) {
+          return;
+        }
+        if (event.error) {
+          console.error('Iframe runtime error:', event.error);
+          setError(`Runtime error: ${event.error.message || 'Unknown error in artifact code'}`);
+        } else if (event.message) {
+          console.error('Iframe error message:', event.message);
+          if (!event.message.includes('ResizeObserver')) {
+            setError(`Error: ${event.message}`);
+          }
+        }
       };
       
       iframe.contentWindow?.addEventListener('error', errorHandler);

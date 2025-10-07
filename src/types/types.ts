@@ -39,28 +39,32 @@ export interface ChatBody {
   messages?: Message[];
   model: MistralModel;
   apiKey?: string | undefined | null;
+  projectId?: string;
+  libraryId?: string;
 }
 
 // Artifact Types
-export type ArtifactType = 'react' | 'html' | 'javascript' | 'vue';
+export type ArtifactType = 'react' | 'html' | 'javascript' | 'vue' | 'markdown' | 'document';
 export type ArtifactOperation = 'create' | 'edit' | 'delete' | 'revert';
 
 export interface ArtifactVersion {
   code: string;
   timestamp: string;
-  description: string;
+  description?: string;
+  language?: string;
 }
 
 export interface ArtifactData {
   identifier: string;      // Unique ID for the artifact
   type: ArtifactType;      // Type of artifact
   title: string;           // Display title
-  code: string;            // The actual code (current version)
+  code: string;            // The actual code (for documents, this is markdown)
   language?: string;       // Code language for syntax highlighting
   createdAt: string;       // ISO timestamp
   updatedAt?: string;      // ISO timestamp for updates
   versions?: ArtifactVersion[]; // Version history
   currentVersion?: number; // Index of current version
+  aiModifiedSections?: string[]; // For documents: sections recently modified by AI
 }
 
 export interface InspectedCodeAttachment {
@@ -78,4 +82,13 @@ export interface ToolCall {
   artifactType?: ArtifactType;
   artifactTitle?: string;
   revertToVersion?: number;
+}
+
+export interface ToolCallData {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
 }

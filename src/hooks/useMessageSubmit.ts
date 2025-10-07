@@ -4,7 +4,8 @@ import {
   Message as MessageType, 
   MistralModel, 
   InspectedCodeAttachment,
-  ArtifactData 
+  ArtifactData,
+  ToolCallData
 } from '@/types/types';
 import { useValidation } from './useValidation';
 import { useMessageBuilder } from './useMessageBuilder';
@@ -17,10 +18,11 @@ interface UseMessageSubmitOptions {
   model: MistralModel;
   currentConversationId: string | null;
   currentArtifact: ArtifactData | null;
+  libraryId?: string;
   createNewConversation: (firstMessage: string, model: MistralModel) => Promise<string | null>;
   saveMessage: (convId: string, role: string, content: string, attachments?: any[], artifact?: ArtifactData, toolCall?: any) => Promise<void>;
   processAttachments: () => Promise<{ contentArray: any[]; uploadedAttachments: any[] }>;
-  processArtifactResponse: (response: string) => { artifactData?: ArtifactData; toolCallData?: any; cleanContent: string };
+  processArtifactResponse: (response: string, toolCalls?: ToolCallData[]) => Promise<{ artifactData?: ArtifactData; toolCallData?: any; cleanContent: string }>;
   clearAttachments: () => void;
 }
 
@@ -40,6 +42,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     model,
     currentConversationId,
     currentArtifact,
+    libraryId,
     createNewConversation,
     saveMessage,
     processAttachments,
@@ -151,6 +154,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
       await sendMessage({
         apiMessages,
         model,
+        libraryId,
         onStreamUpdate: (response, isGenerating, loadingInfo) => {
           setIsGeneratingArtifact(isGenerating);
           setArtifactLoadingInfo(loadingInfo);
@@ -161,12 +165,14 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
             setStreamingMessage(response);
           }
         },
-        onComplete: async (response) => {
-          const { artifactData, toolCallData, cleanContent } = processArtifactResponse(response);
+        onComplete: async (response, toolCalls) => {
+          const { artifactData, toolCallData, cleanContent } = await processArtifactResponse(response, toolCalls);
+
+          const finalContent = cleanContent.trim() || (toolCallData ? '[Tool call executed]' : '');
 
           const assistantMessage: MessageType = { 
             role: 'assistant', 
-            content: cleanContent,
+            content: finalContent,
             artifact: artifactData,
             toolCall: toolCallData,
           };
@@ -178,7 +184,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
           setLoading(false);
 
           if (convId) {
-            await saveMessage(convId, 'assistant', getMessageText(cleanContent), undefined, artifactData, toolCallData);
+            await saveMessage(convId, 'assistant', finalContent, undefined, artifactData, toolCallData);
           }
         },
         onError: () => {

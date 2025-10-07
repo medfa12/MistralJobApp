@@ -18,20 +18,15 @@ export function parseArtifacts(text: string): {
 } {
   const artifacts: ParsedArtifact[] = [];
   
-  // New format regex: <artifact operation="..." type="..." title="..." version="...">
   const newFormatRegex = /<artifact\s+operation=["']([^"']+)["'](?:\s+type=["']([^"']+)["'])?(?:\s+title=["']([^"']+)["'])?(?:\s+version=["']([^"']+)["'])?>([\s\S]*?)<\/artifact>/g;
-  
-  // Legacy format regex (for backward compatibility)
   const legacyFormatRegex = /<artifact\s+identifier=["']([^"']+)["']\s+type=["']([^"']+)["']\s+title=["']([^"']+)["']>([\s\S]*?)<\/artifact>/g;
   
   let cleanText = text;
-  
-  // Parse new format
   let match;
+  
   while ((match = newFormatRegex.exec(text)) !== null) {
     const [fullMatch, operation, type, title, version, content] = match;
     
-    // Handle delete operation
     if (operation === 'delete') {
       artifacts.push({
         operation: 'delete',
@@ -65,7 +60,6 @@ export function parseArtifacts(text: string): {
       continue;
     }
     
-    // Validate type for create/edit
     if (!type || !isValidArtifactType(type)) {
       console.warn(`Invalid or missing artifact type: ${type}`);
       continue;
@@ -84,10 +78,9 @@ export function parseArtifacts(text: string): {
       continue;
     }
     
-    // Generate identifier for new artifacts
     const identifier = operation === 'create' 
       ? `artifact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      : 'current-artifact'; // Edit uses same ID
+      : 'current-artifact';
 
     const artifact: ParsedArtifact = {
       operation: operation as ArtifactOperation,
@@ -101,12 +94,10 @@ export function parseArtifacts(text: string): {
 
     artifacts.push(artifact);
     
-    // Add a reference marker in the cleaned text
     const operationLabel = operation === 'create' ? 'Created' : 'Updated';
     cleanText = cleanText.replace(fullMatch, `\n\n[Artifact ${operationLabel}: ${artifact.title}]\n\n`);
   }
   
-  // Parse legacy format (backward compatibility)
   while ((match = legacyFormatRegex.exec(text)) !== null) {
     const [fullMatch, identifier, type, title, content] = match;
     
@@ -129,7 +120,7 @@ export function parseArtifacts(text: string): {
     }
 
     const artifact: ParsedArtifact = {
-      operation: 'create', // Legacy format defaults to create
+      operation: 'create',
       identifier,
       type: type as ArtifactType,
       title,
@@ -188,38 +179,19 @@ export function validateArtifactCode(code: string, type: ArtifactType): {
   if (code.length > 50000) {
     errors.push('Code exceeds maximum length of 50KB');
   }
-  const dangerousPatterns = [
-    { pattern: /eval\s*\(/gi, name: 'eval()' },
-    { pattern: /Function\s*\(/gi, name: 'Function constructor' },
-    { pattern: /new\s+Function/gi, name: 'new Function()' },
-    { pattern: /setTimeout\s*\(\s*["'`]/gi, name: 'setTimeout with string' },
-    { pattern: /setInterval\s*\(\s*["'`]/gi, name: 'setInterval with string' },
-    { pattern: /<script[^>]*src=/gi, name: 'external script' },
-    { pattern: /document\.write/gi, name: 'document.write' },
-    { pattern: /import\s*\(/gi, name: 'dynamic import()' },
-    { pattern: /XMLHttpRequest/gi, name: 'XMLHttpRequest' },
-    { pattern: /WebSocket/gi, name: 'WebSocket' },
-    { pattern: /<iframe/gi, name: 'nested iframe' },
-    { pattern: /javascript:/gi, name: 'javascript: protocol' },
-    { pattern: /<[^>]+\s+on\w+\s*=\s*["']/gi, name: 'inline event handler (in HTML)' },
-    { pattern: /\.call\s*\(\s*null/gi, name: 'suspicious .call()' },
-    { pattern: /\.apply\s*\(\s*null/gi, name: 'suspicious .apply()' },
-    { pattern: /__proto__/gi, name: 'prototype pollution' },
-    { pattern: /constructor\[/gi, name: 'constructor access' },
-    { pattern: /\[\s*["']constructor["']\s*\]/gi, name: 'constructor string access' },
-    { pattern: /globalThis/gi, name: 'globalThis access' },
-    { pattern: /process\./gi, name: 'process object access' },
-    { pattern: /require\s*\(/gi, name: 'require()' },
-    { pattern: /import\s+.*\s+from/gi, name: 'ES6 import statement' },
-    { pattern: /<link[^>]*href=["'](?!data:)/gi, name: 'external stylesheet' },
-    { pattern: /top\./gi, name: 'top frame access' },
-    { pattern: /parent\./gi, name: 'parent frame access' },
-    { pattern: /window\.open/gi, name: 'window.open()' },
-  ];
+  
+  if (type !== 'markdown' && type !== 'document') {
+    const dangerousPatterns = [
+      { pattern: /\b(window\.top|top\.location|top\.document)\b/gi, name: 'top frame access' },
+      { pattern: /\b(window\.parent|parent\.location|parent\.document)\b/gi, name: 'parent frame access' },
+      { pattern: /\b__proto__\b/gi, name: 'prototype pollution' },
+      { pattern: /\bconstructor\s*\[/gi, name: 'constructor access' },
+    ];
 
-  for (const { pattern, name } of dangerousPatterns) {
-    if (pattern.test(code)) {
-      errors.push(`Code contains potentially dangerous pattern: ${name}`);
+    for (const { pattern, name } of dangerousPatterns) {
+      if (pattern.test(code)) {
+        errors.push(`Code contains potentially dangerous pattern: ${name}`);
+      }
     }
   }
 
@@ -235,6 +207,12 @@ export function validateArtifactCode(code: string, type: ArtifactType): {
     }
   }
 
+  if (type === 'markdown' || type === 'document') {
+    if (code.trim().length < 10) {
+      errors.push('Document content seems too short');
+    }
+  }
+
   return {
     valid: errors.length === 0,
     errors: errors.length > 0 ? errors : undefined,
@@ -242,7 +220,7 @@ export function validateArtifactCode(code: string, type: ArtifactType): {
 }
 
 function isValidArtifactType(type: string): boolean {
-  return ['react', 'html', 'javascript', 'vue'].includes(type);
+  return ['react', 'html', 'javascript', 'vue', 'markdown', 'document'].includes(type);
 }
 
 function getLanguageFromType(type: ArtifactType): string {
@@ -251,6 +229,8 @@ function getLanguageFromType(type: ArtifactType): string {
     html: 'html',
     javascript: 'javascript',
     vue: 'javascript',
+    markdown: 'markdown',
+    document: 'markdown',
   };
   return languageMap[type];
 }
@@ -301,29 +281,22 @@ export function extractElementCode(element: Element, sourceType: ArtifactType): 
   }
 }
 
-/**
- * Converts DOM element to JSX-like string
- */
 function convertToJSX(element: Element): string {
   const tag = element.tagName.toLowerCase();
   const attributes: string[] = [];
 
-  // Convert attributes to JSX format
   Array.from(element.attributes).forEach(attr => {
     let name = attr.name;
     let value = attr.value;
 
-    // Convert class to className
     if (name === 'class') {
       name = 'className';
     }
 
-    // Convert style string to object notation (simplified)
     if (name === 'style') {
-      return; // We'll handle styles separately
+      return;
     }
 
-    // Handle boolean attributes
     if (value === '' || value === name) {
       attributes.push(name);
     } else {
@@ -331,7 +304,6 @@ function convertToJSX(element: Element): string {
     }
   });
 
-  // Get computed styles
   const computedStyle = window.getComputedStyle(element);
   const importantStyles = [
     'backgroundColor', 'color', 'padding', 'margin',
@@ -364,11 +336,7 @@ function convertToJSX(element: Element): string {
   }
 }
 
-/**
- * Formats HTML for better readability
- */
 function formatHTML(html: string): string {
-  // Basic HTML formatting (simplified)
   return html
     .replace(/></g, '>\n<')
     .split('\n')

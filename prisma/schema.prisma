@@ -37,6 +37,7 @@ model User {
   conversations          ChatConversation[]
   usageLogs              UsageLog[]
   artifacts              Artifact[]
+  projects               Project[]
 
   @@map(name: "users")
 }
@@ -127,5 +128,50 @@ model Artifact {
   @@map(name: "artifacts")
   @@index([userId, createdAt])
   @@index([conversationId])
+}
+
+model Project {
+  id                    String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId                String          @db.ObjectId
+  name                  String          // Project name
+  description           String?         // Project description
+  mistralLibraryId      String          @unique @map(name: "mistral_library_id") // Mistral Document Library ID
+  emoji                 String?         // Optional emoji for the project
+  generatedName         String?         @map(name: "generated_name") // Auto-generated name from Mistral
+  generatedDescription  String?         @map(name: "generated_description") // Auto-generated description
+  totalSize             Int?            @default(0) @map(name: "total_size") // Total size of documents in bytes
+  documentCount         Int?            @default(0) @map(name: "document_count") // Number of documents
+  createdAt             DateTime        @default(now()) @map(name: "created_at")
+  updatedAt             DateTime        @updatedAt @map(name: "updated_at")
+  
+  // Relations
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents             ProjectDocument[]
+
+  @@map(name: "projects")
+  @@index([userId, createdAt])
+}
+
+model ProjectDocument {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  projectId             String    @db.ObjectId
+  mistralDocumentId     String    @map(name: "mistral_document_id") // Mistral Document ID
+  name                  String    // Document name
+  extension             String    // File extension (pdf, txt, etc.)
+  mimeType              String    @map(name: "mime_type") // MIME type
+  size                  Int       // File size in bytes
+  numberOfPages         Int?      @map(name: "number_of_pages") // Number of pages (for PDFs)
+  summary               String?   // Auto-generated summary from Mistral
+  processingStatus      String    @map(name: "processing_status") // Running, Completed, Failed
+  hash                  String?   // Document hash for deduplication
+  uploadedAt            DateTime  @default(now()) @map(name: "uploaded_at")
+  lastProcessedAt       DateTime? @map(name: "last_processed_at")
+  
+  // Relations
+  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map(name: "project_documents")
+  @@index([projectId])
+  @@index([mistralDocumentId])
 }
 

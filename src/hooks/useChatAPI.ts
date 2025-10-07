@@ -1,13 +1,14 @@
 import { useRef, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
-import { ChatBody, MistralModel } from '@/types/types';
+import { ChatBody, MistralModel, ToolCallData } from '@/types/types';
 import { detectArtifactInStream } from '@/utils/streamingHelpers';
 
 interface StreamOptions {
   apiMessages: any[];
   model: MistralModel;
+  libraryId?: string;
   onStreamUpdate: (response: string, isGeneratingArtifact: boolean, artifactLoadingInfo: any) => void;
-  onComplete: (response: string) => void;
+  onComplete: (response: string, toolCalls?: ToolCallData[]) => void;
   onError: (error: Error) => void;
 }
 
@@ -22,7 +23,7 @@ export function useChatAPI() {
   }, []);
 
   const sendMessage = useCallback(async (options: StreamOptions) => {
-    const { apiMessages, model, onStreamUpdate, onComplete, onError } = options;
+    const { apiMessages, model, libraryId, onStreamUpdate, onComplete, onError } = options;
 
     try {
       const apiKey = localStorage.getItem('apiKey');
@@ -41,6 +42,7 @@ export function useChatAPI() {
         messages: apiMessages,
         model,
         apiKey,
+        libraryId,
       };
 
       const response = await fetch('../api/chatAPI', {
@@ -89,23 +91,38 @@ export function useChatAPI() {
         throw new Error('No response data received');
       }
 
-      // Stream processing
       const reader = data.getReader();
       const decoder = new TextDecoder();
       let done = false;
       let accumulatedResponse = '';
       let isGeneratingArtifact = false;
       let artifactLoadingInfo: any = null;
+      let accumulatedToolCalls: ToolCallData[] = [];
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         const chunkValue = decoder.decode(value);
-        accumulatedResponse += chunkValue;
+        
+        if (chunkValue.includes('__TOOL_CALLS__:')) {
+          const toolCallMatch = chunkValue.match(/__TOOL_CALLS__:(.+)/);
+          if (toolCallMatch) {
+            try {
+              const toolCallData = JSON.parse(toolCallMatch[1]);
+              accumulatedToolCalls = toolCallData.tool_calls || [];
+              accumulatedResponse += chunkValue.replace(/__TOOL_CALLS__:.+/, '');
+            } catch (e) {
+              accumulatedResponse += chunkValue;
+            }
+          }
+        } else {
+          accumulatedResponse += chunkValue;
+        }
         
         const streamingState = detectArtifactInStream(accumulatedResponse, {
           isGeneratingArtifact,
           artifactLoadingInfo,
+          toolCalls: accumulatedToolCalls,
         });
         
         isGeneratingArtifact = streamingState.isGeneratingArtifact;
@@ -114,7 +131,7 @@ export function useChatAPI() {
         onStreamUpdate(accumulatedResponse, isGeneratingArtifact, artifactLoadingInfo);
       }
 
-      onComplete(accumulatedResponse);
+      onComplete(accumulatedResponse, accumulatedToolCalls);
       
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {

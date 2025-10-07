@@ -1,5 +1,5 @@
 'use client';
-// Chakra Imports
+import { useId } from 'react';
 import {
   Box,
   Button,
@@ -33,6 +33,8 @@ export default function HeaderLinks(props: {
   setApiKey: any;
 }) {
   const { secondary, setApiKey } = props;
+  const infoMenuId = useId();
+  const userMenuId = useId();
   const { colorMode, toggleColorMode } = useColorMode();
   const { fullName, initials, avatar, loading, stripePriceId, isSubscriptionActive } = useUserData();
   
@@ -84,7 +86,7 @@ export default function HeaderLinks(props: {
       <SidebarResponsive routes={routes} />
       <APIModal setApiKey={setApiKey} />
 
-      <Menu>
+      <Menu id={infoMenuId}>
         <MenuButton p="0px">
           <Icon
             mt="6px"
@@ -172,7 +174,7 @@ export default function HeaderLinks(props: {
           as={colorMode === 'light' ? IoMdMoon : IoMdSunny}
         />
       </Button>
-      <Menu>
+      <Menu id={userMenuId}>
         <MenuButton p="0px" style={{ position: 'relative' }}>
           {loading ? (
             <Skeleton w="40px" h="40px" borderRadius="50%" />

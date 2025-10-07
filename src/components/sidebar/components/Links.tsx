@@ -33,6 +33,7 @@ import {
   Input,
   Button,
   Portal,
+  Tooltip,
 } from '@chakra-ui/react';
 import { FaCircle } from 'react-icons/fa';
 import { IoMdAdd } from 'react-icons/io';
@@ -44,6 +45,7 @@ import { MdMessage, MdMoreVert, MdEdit, MdDelete } from 'react-icons/md';
 
 interface SidebarLinksProps extends PropsWithChildren {
   routes: IRoute[];
+  isCollapsed?: boolean;
 }
 
 export function SidebarLinks(props: SidebarLinksProps) {
@@ -60,13 +62,24 @@ export function SidebarLinks(props: SidebarLinksProps) {
     return null;
   };
   
-  let activeColor = useColorModeValue('navy.700', 'white');
-  let inactiveColor = useColorModeValue('gray.500', 'gray.500');
-  let borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
-  let activeIcon = useColorModeValue('brand.500', 'white');
-  let iconColor = useColorModeValue('navy.700', 'white');
+  // Call all useColorModeValue hooks at the top level
+  const activeColor = useColorModeValue('navy.700', 'white');
+  const inactiveColor = useColorModeValue('gray.500', 'gray.500');
+  const borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
+  const activeIcon = useColorModeValue('brand.500', 'white');
+  const iconColor = useColorModeValue('navy.700', 'white');
+  const collapsedBgActive = useColorModeValue('brand.50', 'whiteAlpha.200');
+  const collapsedBgHover = useColorModeValue('gray.100', 'whiteAlpha.200');
+  const hoverBg = useColorModeValue('gray.50', 'whiteAlpha.100');
+  const scrollbarThumb = useColorModeValue('gray.300', 'whiteAlpha.300');
+  const scrollbarThumbHover = useColorModeValue('gray.400', 'whiteAlpha.400');
+  const modalBg = useColorModeValue('white', 'navy.800');
+  const modalColor = useColorModeValue('navy.700', 'white');
+  const inputBg = useColorModeValue('white', 'navy.700');
+  const inputBorderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
+  const inputFocusBorderColor = useColorModeValue('brand.500', 'brand.400');
 
-  const { routes } = props;
+  const { routes, isCollapsed = false } = props;
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
@@ -80,10 +93,11 @@ export function SidebarLinks(props: SidebarLinksProps) {
       const response = await fetch('/api/chat/conversations?limit=20');
       if (response.ok) {
         const data = await response.json();
-        setConversations(data);
+        setConversations(data.conversations || []);
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      setConversations([]);
     } finally {
       if (showLoading) {
         setLoading(false);
@@ -223,7 +237,7 @@ export function SidebarLinks(props: SidebarLinksProps) {
   // this function creates the links and collapses that appear in the sidebar (left menu)
   const createLinks = (routes: IRoute[]) => {
     return routes.map((route, key) => {
-      if (route.collapse && !route.invisible) {
+      if (route.collapse && !route.invisible && !isCollapsed) {
         return (
           <Accordion allowToggle key={key}>
             <AccordionItem border="none" mb="14px">
@@ -332,84 +346,127 @@ export function SidebarLinks(props: SidebarLinksProps) {
         return (
           <div key={key}>
             {route.icon ? (
-              <Flex
-                align="center"
-                justifyContent="space-between"
-                w="100%"
-                maxW="100%"
-                ps="17px"
-                mb="0px"
-                key={key}
-              >
-                <HStack
+              isCollapsed ? (
+                // Collapsed view - icon only with tooltip
+                <Flex
+                  align="center"
+                  justifyContent="center"
                   w="100%"
                   mb="14px"
-                  spacing={
-                    activeRoute(route.path.toLowerCase()) ? '22px' : '26px'
-                  }
+                  key={key}
                 >
-                  <NavLink
-                    href={route.layout ? route.layout + route.path : route.path}
-                    // key={key}
-                    styles={{ width: '100%' }}
-                  >
-                    <Flex w="100%" alignItems="center" justifyContent="center">
-                      <Box
-                        color={
-                          activeRoute(route.path.toLowerCase())
-                            ? activeIcon
-                            : inactiveColor
-                        }
-                        me="12px"
-                        mt="6px"
+                  <Tooltip label={route.name} placement="right" hasArrow>
+                    <Box>
+                      <NavLink
+                        href={route.layout ? route.layout + route.path : route.path}
+                        styles={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                       >
-                        {route.icon}
-                      </Box>
-                      <Text
-                        me="auto"
-                        color={
-                          activeRoute(route.path.toLowerCase())
-                            ? activeColor
-                            : 'gray.500'
-                        }
-                        fontWeight="500"
-                        letterSpacing="0px"
-                        fontSize="sm"
-                      >
-                        {route.name}
-                      </Text>
-                      {route.rightElement ? (
                         <Flex
-                          border="1px solid"
-                          borderColor={borderColor}
-                          borderRadius="full"
-                          w="34px"
-                          h="34px"
-                          justify={'center'}
-                          align="center"
-                          color={iconColor}
-                          ms="auto"
-                          me="10px"
-                          cursor="pointer"
-                          _hover={{ bg: 'gray.50', _dark: { bg: 'whiteAlpha.100' } }}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            window.location.href = '/chat';
+                          alignItems="center"
+                          justifyContent="center"
+                          w="40px"
+                          h="40px"
+                          borderRadius="10px"
+                          bg={activeRoute(route.path.toLowerCase()) ? collapsedBgActive : 'transparent'}
+                          _hover={{
+                            bg: collapsedBgHover,
                           }}
                         >
-                          <Icon
-                            as={IoMdAdd}
-                            width="20px"
-                            height="20px"
-                            color="inherit"
-                          />
+                          <Box
+                            color={
+                              activeRoute(route.path.toLowerCase())
+                                ? activeIcon
+                                : inactiveColor
+                            }
+                          >
+                            {route.icon}
+                          </Box>
                         </Flex>
-                      ) : null}
-                    </Flex>
-                  </NavLink>
-                </HStack>
-              </Flex>
+                      </NavLink>
+                    </Box>
+                  </Tooltip>
+                </Flex>
+              ) : (
+                // Expanded view - icon and text
+                <Flex
+                  align="center"
+                  justifyContent="space-between"
+                  w="100%"
+                  maxW="100%"
+                  ps="17px"
+                  mb="0px"
+                  key={key}
+                >
+                  <HStack
+                    w="100%"
+                    mb="14px"
+                    spacing={
+                      activeRoute(route.path.toLowerCase()) ? '22px' : '26px'
+                    }
+                  >
+                    <NavLink
+                      href={route.layout ? route.layout + route.path : route.path}
+                      // key={key}
+                      styles={{ width: '100%' }}
+                    >
+                      <Flex w="100%" alignItems="center" justifyContent="center">
+                        <Box
+                          color={
+                            activeRoute(route.path.toLowerCase())
+                              ? activeIcon
+                              : inactiveColor
+                          }
+                          me="12px"
+                          mt="6px"
+                        >
+                          {route.icon}
+                        </Box>
+                        <Text
+                          me="auto"
+                          color={
+                            activeRoute(route.path.toLowerCase())
+                              ? activeColor
+                              : 'gray.500'
+                          }
+                          fontWeight="500"
+                          letterSpacing="0px"
+                          fontSize="sm"
+                        >
+                          {route.name}
+                        </Text>
+                        {route.rightElement ? (
+                          <Flex
+                            border="1px solid"
+                            borderColor={borderColor}
+                            borderRadius="full"
+                            w="34px"
+                            h="34px"
+                            justify={'center'}
+                            align="center"
+                            color={iconColor}
+                            ms="auto"
+                            me="10px"
+                            cursor="pointer"
+                            _hover={{ bg: hoverBg }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              router.push('/chat');
+                            }}
+                          >
+                            <Icon
+                              as={IoMdAdd}
+                              width="20px"
+                              height="20px"
+                              color="inherit"
+                            />
+                          </Flex>
+                        ) : null}
+                      </Flex>
+                    </NavLink>
+                  </HStack>
+                </Flex>
+              )
             ) : (
               <ListItem ms={0} key={key}>
                 <Flex ps="32px" alignItems="center" mb="8px">
@@ -494,11 +551,11 @@ export function SidebarLinks(props: SidebarLinksProps) {
               background: 'transparent',
             },
             '&::-webkit-scrollbar-thumb': {
-              background: useColorModeValue('gray.300', 'whiteAlpha.300'),
+              background: scrollbarThumb,
               borderRadius: '24px',
             },
             '&::-webkit-scrollbar-thumb:hover': {
-              background: useColorModeValue('gray.400', 'whiteAlpha.400'),
+              background: scrollbarThumbHover,
             },
           }}
         >
@@ -517,7 +574,7 @@ export function SidebarLinks(props: SidebarLinksProps) {
               align="center"
               ps="17px"
               mb="10px"
-              _hover={{ bg: 'gray.50', _dark: { bg: 'whiteAlpha.100' } }}
+              _hover={{ bg: hoverBg }}
               borderRadius="8px"
               py="8px"
               position="relative"
@@ -540,7 +597,7 @@ export function SidebarLinks(props: SidebarLinksProps) {
                   {conversation.title}
                 </Text>
               </NavLink>
-              <Menu>
+              <Menu id={`conversation-menu-${conversation.id}`}>
                 <MenuButton
                   as={IconButton}
                   icon={<Icon as={MdMoreVert} />}
@@ -584,13 +641,13 @@ export function SidebarLinks(props: SidebarLinksProps) {
   return (
     <>
       {createLinks(routes)}
-      {renderChatHistory()}
+      {!isCollapsed && renderChatHistory()}
       
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
         <ModalContent
-          bg={useColorModeValue('white', 'navy.800')}
-          color={useColorModeValue('navy.700', 'white')}
+          bg={modalBg}
+          color={modalColor}
           borderRadius="20px"
           boxShadow="xl"
         >
@@ -601,11 +658,11 @@ export function SidebarLinks(props: SidebarLinksProps) {
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="Enter new name"
-              bg={useColorModeValue('white', 'navy.700')}
+              bg={inputBg}
               border="1px solid"
-              borderColor={useColorModeValue('gray.200', 'whiteAlpha.200')}
+              borderColor={inputBorderColor}
               _focus={{
-                borderColor: useColorModeValue('brand.500', 'brand.400'),
+                borderColor: inputFocusBorderColor,
               }}
               onKeyPress={(e) => {
                 if (e.key === 'Enter') {
