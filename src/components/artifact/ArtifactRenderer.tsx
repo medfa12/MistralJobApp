@@ -17,6 +17,7 @@ interface Props {
   artifact: ArtifactData;
   onCodeAttach?: (attachment: InspectedCodeAttachment) => void;
   onClearInspection?: () => void;
+  onDocumentChange?: (markdown: string) => void;
 }
 
 export interface ArtifactRendererRef {
@@ -26,7 +27,7 @@ export interface ArtifactRendererRef {
 const MotionBox = motion(Box);
 const MotionFlex = motion(Flex);
 
-export const ArtifactRenderer = forwardRef<ArtifactRendererRef, Props>(({ artifact, onCodeAttach, onClearInspection }, ref) => {
+export const ArtifactRenderer = forwardRef<ArtifactRendererRef, Props>(({ artifact, onCodeAttach, onClearInspection, onDocumentChange }, ref) => {
   const previewRef = useRef<PreviewViewRef>(null);
   const [activeTab, setActiveTab] = useState<ArtifactTab>('code');
 
@@ -115,6 +116,7 @@ export const ArtifactRenderer = forwardRef<ArtifactRendererRef, Props>(({ artifa
                 <LexicalEditor 
                   initialMarkdown={artifact.code}
                   readOnly={false}
+                  onContentChange={onDocumentChange}
                 />
               )}
             </MotionBox>
@@ -159,4 +161,3 @@ export const ArtifactRenderer = forwardRef<ArtifactRendererRef, Props>(({ artifa
 });
 
 ArtifactRenderer.displayName = 'ArtifactRenderer';
-

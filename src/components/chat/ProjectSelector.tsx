@@ -32,9 +32,14 @@ interface ProjectSelectorProps {
 export function ProjectSelector({ selectedProject, onProjectSelect }: ProjectSelectorProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Generate stable ID for SSR/client hydration
   const menuId = useId();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const bgColor = useColorModeValue('white', 'navy.800');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
@@ -60,6 +65,23 @@ export function ProjectSelector({ selectedProject, onProjectSelect }: ProjectSel
       setLoading(false);
     }
   };
+
+  // Prevent hydration mismatch by only rendering Menu on client
+  if (!isMounted) {
+    return (
+      <Flex align="center" gap="10px">
+        <Button
+          rightIcon={<Icon as={MdArrowDropDown} />}
+          leftIcon={<Icon as={MdFolder} />}
+          variant="outline"
+          size="sm"
+          isDisabled
+        >
+          Select Project
+        </Button>
+      </Flex>
+    );
+  }
 
   return (
     <Flex align="center" gap="10px">

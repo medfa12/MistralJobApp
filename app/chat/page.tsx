@@ -87,6 +87,8 @@ function ChatContent() {
     switchArtifact,
     deleteArtifact,
     revertToVersion,
+    updateCurrentDocument,
+    saveCurrentArtifactVersion,
   } = useArtifactOperations();
 
   const {
@@ -95,6 +97,7 @@ function ChatContent() {
     streamingMessage,
     isGeneratingArtifact,
     artifactLoadingInfo,
+    streamingArtifactCode,
     abortRequest,
   } = useMessageSubmit({
     messages,
@@ -177,7 +180,6 @@ function ChatContent() {
       onInputClear: () => setInputCode(''),
       onInspectedCodeClear: () => {
         setInspectedCodeAttachment(null);
-        // Clear inspection mode in artifact workspace
         artifactWorkspaceRef.current?.clearInspection();
       },
     });
@@ -299,6 +301,7 @@ function ChatContent() {
             streamingMessage={streamingMessage}
             isGeneratingArtifact={isGeneratingArtifact}
             artifactLoadingInfo={artifactLoadingInfo}
+            streamingArtifactCode={streamingArtifactCode}
             messagesEndRef={messagesEndRef}
             currentArtifact={currentArtifact}
             isArtifactPanelOpen={isArtifactPanelOpen}
@@ -412,6 +415,8 @@ function ChatContent() {
                 onRevertToVersion={handleRevertToVersion}
                 onArtifactSwitch={switchArtifact}
                 onArtifactDelete={deleteArtifact}
+                onDocumentChange={updateCurrentDocument}
+                onSaveVersion={saveCurrentArtifactVersion}
               />
             </ArtifactErrorBoundary>
           </Box>

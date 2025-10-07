@@ -27,8 +27,9 @@ import {
   Tab,
   TabPanels,
   TabPanel,
+  Button,
 } from '@chakra-ui/react';
-import { MdClose, MdCode, MdChevronLeft, MdChevronRight, MdMoreVert, MdHistory, MdCompare, MdRestore, MdDescription, MdAdd } from 'react-icons/md';
+import { MdClose, MdCode, MdChevronLeft, MdChevronRight, MdMoreVert, MdHistory, MdCompare, MdRestore, MdDescription, MdAdd, MdViewModule, MdCheck, MdSave } from 'react-icons/md';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
 import { ArtifactRenderer, ArtifactRendererRef } from './ArtifactRenderer';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
@@ -45,6 +46,8 @@ interface Props {
   onRevertToVersion?: (version: number) => void;
   onArtifactSwitch?: (identifier: string) => void;
   onArtifactDelete?: (identifier: string) => void;
+  onDocumentChange?: (markdown: string) => void;
+  onSaveVersion?: () => void;
 }
 
 export interface ArtifactWorkspaceRef {
@@ -53,7 +56,7 @@ export interface ArtifactWorkspaceRef {
 
 const MotionBox = motion(Box);
 
-export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
+export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({ 
   artifact,
   artifacts = [],
   onClose,
@@ -62,7 +65,9 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
   onVersionChange,
   onRevertToVersion,
   onArtifactSwitch,
-  onArtifactDelete
+  onArtifactDelete,
+  onDocumentChange,
+  onSaveVersion
 }, ref) => {
   const artifactRendererRef = useRef<ArtifactRendererRef>(null);
   const versionMenuId = useId();
@@ -77,6 +82,15 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const headerBg = useColorModeValue('gray.50', 'gray.900');
   const textColor = useColorModeValue('gray.800', 'white');
+  // Hoisted color mode values to comply with Rules of Hooks
+  const selectorBg = useColorModeValue('gray.50', 'gray.900');
+  const switchHoverBg = useColorModeValue('orange.50', 'orange.900');
+  const switchActiveBg = useColorModeValue('orange.100', 'orange.800');
+  const menuBg = useColorModeValue('rgba(255, 255, 255, 0.95)', 'rgba(26, 32, 44, 0.95)');
+  const scrollThumbBg = useColorModeValue('gray.300', 'gray.600');
+  const itemActiveBg = useColorModeValue('orange.50', 'orange.900');
+  const itemActiveHoverBg = useColorModeValue('orange.100', 'orange.800');
+  const itemInactiveHoverBg = useColorModeValue('gray.100', 'gray.700');
 
   const { isOpen: isHistoryOpen, onOpen: onHistoryOpen, onClose: onHistoryClose } = useDisclosure();
   const { isOpen: isCompareOpen, onOpen: onCompareOpen, onClose: onCompareClose } = useDisclosure();
@@ -229,6 +243,21 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
           </HStack>
         )}
 
+        {/* Save Version for document artifacts */}
+        {artifact.type === 'document' && (
+          <Tooltip label="Save Version Snapshot">
+            <IconButton
+              aria-label="Save version"
+              icon={<Icon as={MdSave} />}
+              onClick={() => onSaveVersion?.()}
+              variant="solid"
+              size="sm"
+              colorScheme="orange"
+              mr={2}
+            />
+          </Tooltip>
+        )}
+
         <IconButton
           aria-label="Close artifact workspace"
           icon={<Icon as={MdClose} boxSize={5} />}
@@ -246,81 +275,125 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
           py={2}
           borderBottom="1px solid"
           borderColor={borderColor}
-          bg={useColorModeValue('gray.50', 'gray.900')}
-          overflowX="auto"
+          bg={selectorBg}
+          align="center"
           gap={2}
-          css={{
-            '&::-webkit-scrollbar': {
-              height: '6px',
-            },
-            '&::-webkit-scrollbar-track': {
-              background: 'transparent',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: useColorModeValue('gray.300', 'gray.600'),
-              borderRadius: '3px',
-            },
-          }}
         >
-          {artifacts.map((art) => {
-            const isActive = art.identifier === artifact?.identifier;
-            const artIcon = art.type === 'markdown' || art.type === 'document' ? MdDescription : MdCode;
+          <Menu>
+            <MenuButton
+              as={Button}
+              leftIcon={<Icon as={MdViewModule} />}
+              rightIcon={<Icon as={MdChevronRight} transform="rotate(90deg)" />}
+              size="sm"
+              variant="outline"
+              borderColor="orange.400"
+              color={textColor}
+              _hover={{ bg: switchHoverBg }}
+              _active={{ bg: switchActiveBg }}
+            >
+              Switch Artifacts ({artifacts.length})
+            </MenuButton>
+            <MenuList
+              maxH="400px"
+              overflowY="auto"
+              p={3}
+              borderRadius="xl"
+              boxShadow="2xl"
+              bg={menuBg}
+              border="1px solid"
+              borderColor={borderColor}
+              backdropFilter="blur(20px) saturate(180%)"
+              position="relative"
+              css={{
+                '&::-webkit-scrollbar': {
+                  width: '6px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: 'transparent',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: scrollThumbBg,
+                  borderRadius: '3px',
+                },
+              }}
+            >
+              {artifacts.map((art, index) => {
+                const isActive = art.identifier === artifact?.identifier;
+                const artIcon = art.type === 'markdown' || art.type === 'document' ? MdDescription : MdCode;
+                const activeIndex = artifacts.findIndex(a => a.identifier === artifact?.identifier);
+                const distance = Math.abs(activeIndex - index);
+                const opacity = Math.max(0.3, 1 - (distance * 0.15));
 
-            return (
-              <Flex
-                key={art.identifier}
-                align="center"
-                gap={2}
-                px={3}
-                py={2}
-                borderRadius="md"
-                bg={isActive ? useColorModeValue('white', 'gray.800') : 'transparent'}
-                border="1px solid"
-                borderColor={isActive ? 'orange.400' : 'transparent'}
-                cursor="pointer"
-                onClick={() => onArtifactSwitch?.(art.identifier)}
-                _hover={{ bg: isActive ? useColorModeValue('white', 'gray.800') : useColorModeValue('gray.100', 'gray.700') }}
-                transition="all 0.2s"
-                minW="fit-content"
-                position="relative"
-              >
-                <Icon
-                  as={artIcon}
-                  boxSize={4}
-                  color={isActive ? 'orange.500' : 'gray.500'}
-                />
-                <Text
-                  fontSize="sm"
-                  fontWeight={isActive ? '600' : '400'}
-                  color={isActive ? textColor : 'gray.600'}
-                  noOfLines={1}
-                  maxW="150px"
-                >
-                  {art.title}
-                </Text>
-                <Badge colorScheme={isActive ? 'orange' : 'gray'} fontSize="xs">
-                  {art.type}
-                </Badge>
-                {artifacts.length > 1 && (
-                  <IconButton
-                    aria-label="Delete artifact"
-                    icon={<Icon as={MdClose} />}
-                    size="xs"
-                    variant="ghost"
-                    colorScheme="red"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm(`Delete "${art.title}"?`)) {
-                        onArtifactDelete?.(art.identifier);
-                      }
+                return (
+                  <MenuItem
+                    key={art.identifier}
+                    onClick={() => onArtifactSwitch?.(art.identifier)}
+                    borderRadius="lg"
+                    mb={2}
+                    p={3}
+                    bg={isActive ? itemActiveBg : 'transparent'}
+                    _hover={{
+                      bg: isActive ? itemActiveHoverBg : itemInactiveHoverBg,
+                      transform: 'translateX(4px)',
+                      opacity: 1,
                     }}
-                    opacity={isActive ? 1 : 0}
-                    _groupHover={{ opacity: 1 }}
-                  />
-                )}
-              </Flex>
-            );
-          })}
+                    position="relative"
+                    opacity={opacity}
+                    transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+                    transform={isActive ? 'scale(1.02)' : 'scale(1)'}
+                    boxShadow={isActive ? '0 4px 12px rgba(251, 146, 60, 0.3)' : 'none'}
+                  >
+                    <Flex align="center" gap={3} w="100%">
+                      <Icon
+                        as={artIcon}
+                        boxSize={5}
+                        color={isActive ? 'orange.500' : 'gray.500'}
+                      />
+                      <Box flex={1} minW={0}>
+                        <Text
+                          fontSize="sm"
+                          fontWeight={isActive ? '600' : '500'}
+                          color={isActive ? 'orange.500' : textColor}
+                          noOfLines={1}
+                        >
+                          {art.title}
+                        </Text>
+                        <Flex gap={2} mt={1}>
+                          <Badge colorScheme={isActive ? 'orange' : 'gray'} fontSize="xs">
+                            {art.type}
+                          </Badge>
+                          {art.currentVersion && (
+                            <Badge colorScheme="purple" fontSize="xs">
+                              v{art.currentVersion}
+                            </Badge>
+                          )}
+                        </Flex>
+                      </Box>
+                      {isActive && (
+                        <Icon as={MdCheck} boxSize={5} color="orange.500" />
+                      )}
+                      <IconButton
+                        aria-label="Delete artifact"
+                        icon={<Icon as={MdClose} />}
+                        size="xs"
+                        variant="ghost"
+                        colorScheme="red"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete "${art.title}"?`)) {
+                            onArtifactDelete?.(art.identifier);
+                          }
+                        }}
+                      />
+                    </Flex>
+                  </MenuItem>
+                );
+              })}
+            </MenuList>
+          </Menu>
+          <Text fontSize="xs" color="gray.500">
+            {artifact?.title}
+          </Text>
         </Flex>
       )}
 
@@ -331,6 +404,7 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
           artifact={artifact}
           onCodeAttach={onCodeAttach}
           onClearInspection={onClearInspection}
+          onDocumentChange={onDocumentChange}
         />
       </Box>
 
@@ -382,4 +456,3 @@ function getArtifactBadgeColor(type: string): string {
   };
   return colorMap[type] || 'gray';
 }
-

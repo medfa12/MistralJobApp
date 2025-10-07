@@ -73,9 +73,8 @@ export function parseArtifacts(text: string): {
     
     const validation = validateArtifactCode(code, type as ArtifactType);
     if (!validation.valid) {
-      console.warn(`Invalid artifact code for ${type}:`, validation.errors);
+      console.warn(`Artifact code validation warnings for ${type}:`, validation.errors);
       console.warn(`Code preview:`, code.substring(0, 200));
-      continue;
     }
     
     const identifier = operation === 'create' 
@@ -196,20 +195,20 @@ export function validateArtifactCode(code: string, type: ArtifactType): {
   }
 
   if (type === 'react') {
-    if (!code.includes('window.App')) {
-      errors.push('React artifacts must export component as window.App');
+    if (!code.includes('window.App') && !code.includes('export default')) {
+      console.log('Warning: React artifact should export component as window.App');
     }
   }
 
   if (type === 'html') {
     if (!code.includes('<') || !code.includes('>')) {
-      errors.push('HTML artifacts must contain valid HTML tags');
+      console.log('Warning: HTML artifact should contain valid HTML tags');
     }
   }
 
   if (type === 'markdown' || type === 'document') {
     if (code.trim().length < 10) {
-      errors.push('Document content seems too short');
+      console.log('Warning: Document content seems too short');
     }
   }
 
