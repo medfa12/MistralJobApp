@@ -7,24 +7,25 @@
 ![MongoDB](https://img.shields.io/badge/MongoDB-Prisma_5.7.1-green)
 ![Stripe](https://img.shields.io/badge/Stripe-14.10.0-blueviolet)
 
-A **production-ready**, full-stack chat application showcasing Mistral AI's capabilities with an innovative **Interactive Artifacts System**. Features complete authentication, subscription management, admin dashboard, usage analytics, and comprehensive API endpoints. Built with Next.js, React, TypeScript, MongoDB, and modern web technologies.
+A **production-ready**, full-stack chat application showcasing Mistral AI's capabilities with an innovative **Interactive Artifacts System** powered by native function calling. Features complete authentication, subscription management, admin dashboard, usage analytics, and comprehensive API endpoints. Built with Next.js, React, TypeScript, MongoDB, and modern web technologies.
 
 ---
 
 ## 🌟 Overview
 
-A **production-ready** chat application showcasing advanced Mistral AI integration with real-time streaming, multi-modal inputs (images & PDFs), and an innovative **Artifacts System** that generates live, interactive code components directly in the interface. This is a comprehensive platform with full authentication, subscription management, admin dashboard, and usage analytics.
+A **production-ready** chat application showcasing advanced Mistral AI integration with native function calling, real-time streaming, multi-modal inputs (images & PDFs), and an innovative **Artifacts System** that generates live, interactive code components directly in the interface. The artifact system leverages Mistral's function calling API for seamless create, edit, delete, and revert operations with full version control. This is a comprehensive platform with complete authentication, subscription management, admin dashboard, and usage analytics.
 
 ### 🎯 Key Highlights
 
+- 🔧 **Function Calling** - Native Mistral function calling API for artifact operations
 - 🚀 **Interactive Artifacts** - Generate React, HTML, Vue, and JavaScript components that render live in a side panel
 - 💬 **Advanced Chat Interface** - Real-time streaming with conversation history and context management
 - 🖼️ **Multi-Modal Support** - Image and PDF attachments for vision-enabled models
 - 🎨 **Code Inspector** - Inspect and extract code from rendered artifacts
 - 📊 **Multiple AI Models** - Support for 4 Mistral models with different capabilities
-- 🔄 **Version Control** - Artifact versioning with edit history and revert functionality
+- 🔄 **Version Control** - Full artifact versioning with edit history and revert functionality
 - 🔐 **Authentication** - Secure user management with NextAuth
-- 💾 **Persistent Storage** - MongoDB database for conversations and messages
+- 💾 **Persistent Storage** - MongoDB database with Prisma ORM for all data
 - 💳 **Stripe Integration** - Complete subscription management with webhooks
 - 🎨 **Modern UI** - Beautiful interface with Chakra UI and Mistral branding
 - 👨‍💼 **Admin Dashboard** - Comprehensive user and usage management
@@ -35,9 +36,9 @@ A **production-ready** chat application showcasing advanced Mistral AI integrati
 
 ## ✨ Features
 
-### 🎨 Artifact System (NEW!)
+### 🎨 Artifact System
 
-The flagship feature that sets this application apart:
+The flagship feature that sets this application apart - interactive code components that render live using Mistral's function calling API:
 
 #### Supported Artifact Types
 - **React/JSX** - Interactive React components with hooks and inline styling
@@ -46,17 +47,19 @@ The flagship feature that sets this application apart:
 - **Vue 3** - Vue components using Composition or Options API
 
 #### Artifact Operations
-- **Create** - Generate new interactive components
-- **Edit** - Modify existing artifacts with full context awareness
-- **Delete** - Remove artifacts when no longer needed
-- **Revert** - Roll back to previous versions (version control system)
+- **Create** - Generate new interactive components via `create_artifact` function
+- **Edit** - Modify existing artifacts with full context awareness via `edit_artifact`
+- **Delete** - Remove artifacts when no longer needed via `delete_artifact`
+- **Revert** - Roll back to previous versions via `revert_artifact` function
 
 #### Advanced Capabilities
-- **Live Preview** - Real-time rendering in secure sandboxed iframe
+- **Function Calling** - Native Mistral function calling for artifact operations
+- **Live Preview** - Real-time rendering in secure sandboxed iframe with CSP
 - **Code Inspection** - Click any element to inspect its code and styles
 - **Element Extraction** - Extract code snippets to refine specific elements
-- **Version History** - Track all changes with timestamps
+- **Version History** - Full version control with timestamps and revert capability
 - **Syntax Highlighting** - Beautiful code display with Tokyo Night theme
+- **Database Persistence** - All artifacts and version history saved to MongoDB
 - **Code Export** - Copy artifact code with one click
 
 ### 💬 Chat Features
@@ -183,68 +186,57 @@ npm start
 
 ---
 
-## 🚧 Current Status & Roadmap
-
-### ✅ Completed Features
+## ✅ Feature Status
 
 **Core Chat System**
-- [x] Real-time chat with SSE streaming
-- [x] Multi-modal inputs (images & PDFs)
-- [x] Conversation history & management
-- [x] Context window tracking per model
-- [x] Model selection with detailed info cards
-- [x] Markdown rendering with math support
+- Real-time chat with SSE streaming
+- Multi-modal inputs (images & PDFs)
+- Conversation history & management with pagination
+- Context window tracking per model
+- Model selection with detailed info cards
+- Markdown rendering with math support
 
 **Artifact System**
-- [x] Interactive artifacts (React, HTML, JS, Vue)
-- [x] Code inspector with element extraction
-- [x] Artifact versioning & revert
-- [x] Security validation & sandboxing
-- [x] Live preview with error boundaries
-- [x] Syntax highlighting (Tokyo Night theme)
+- Native Mistral function calling integration
+- Interactive artifacts (React, HTML, JS, Vue)
+- Code inspector with element extraction
+- Full version control with revert capability
+- Database persistence for all artifacts
+- Security validation & iframe sandboxing with CSP
+- Live preview with error boundaries
+- Syntax highlighting (Tokyo Night theme)
 
 **Authentication & Users**
-- [x] User authentication with NextAuth
-- [x] User registration & login
-- [x] Profile management (avatar, bio, job)
-- [x] Password change functionality
-- [x] Account deletion with cascade
+- User authentication with NextAuth
+- User registration & login
+- Profile management (avatar, bio, job)
+- Password change functionality
+- Account deletion with cascade
 
 **Payments & Subscriptions**
-- [x] Stripe checkout integration
-- [x] Webhook event handling (6+ event types)
-- [x] Subscription management (cancel, reactivate)
-- [x] Customer portal access
-- [x] Payment status tracking
-- [x] Database synchronization
+- Stripe checkout integration
+- Webhook event handling (6+ event types)
+- Subscription management (cancel, reactivate)
+- Customer portal access
+- Payment status tracking
+- Database synchronization
 
 **Admin & Analytics**
-- [x] Admin dashboard with statistics
-- [x] User management interface
-- [x] Usage analytics with charts
-- [x] Role-based access control
-- [x] System-wide metrics
-- [x] Per-user insights
+- Admin dashboard with statistics
+- User management interface
+- Usage analytics with charts
+- Role-based access control
+- System-wide metrics
+- Per-user insights
 
 **Infrastructure**
-- [x] MongoDB with Prisma ORM
-- [x] Cloudinary file uploads
-- [x] API key management
-- [x] Dark/light mode toggle
-- [x] Responsive design
-- [x] Docusaurus documentation site
-
-### 🎯 Planned Features
-- [ ] Artifact collaboration & sharing between users
-- [ ] Export artifacts to CodePen/StackBlitz/JSFiddle
-- [x] API rate limiting per user/plan ✅ (Implemented Oct 2025)
-- [x] Artifact persistence in database ✅ (Implemented Oct 2025)
-- [x] Conversation pagination ✅ (Implemented Oct 2025)
-- [ ] Real-time collaboration
-- [ ] My Projects functionality (page exists, needs artifact gallery)
-- [ ] Email notifications
-- [ ] Advanced admin analytics
-
+- MongoDB with Prisma ORM
+- Cloudinary file uploads
+- API key management
+- API rate limiting per user/plan
+- Dark/light mode toggle
+- Responsive design
+- Docusaurus documentation site
 
 ---
 
@@ -339,6 +331,9 @@ NEXTAUTH_SECRET=your-nextauth-secret-key-here
 
 # Mistral AI
 MISTRAL_API_KEY=your-mistral-api-key
+
+# Artifact System (Feature Flag)
+USE_FUNCTION_CALLING_ARTIFACTS=true
 
 # Database (MongoDB)
 DATABASE_URL=mongodb+srv://user:password@cluster.mongodb.net/mistral-chat
@@ -510,15 +505,18 @@ mistral/
 │   │   ├── charts/           # Usage charts
 │   │   └── ...               # Various UI components
 │   ├── config/               # Configuration files
-│   │   └── models.ts         # Mistral model definitions
+│   │   ├── models.ts         # Mistral model definitions
+│   │   └── artifactTools.ts  # Function calling tool schemas
 │   ├── types/                # TypeScript type definitions
 │   ├── utils/                # Utility functions
 │   │   ├── artifactParser.ts # Artifact parsing logic
 │   │   ├── artifactSystemPrompt.ts # AI system prompts
 │   │   ├── chatStream.ts     # Streaming utilities
+│   │   ├── toolCallHandler.ts # Tool call processing
 │   │   └── ...               # Various helpers
 │   ├── hooks/                # Custom React hooks
 │   │   ├── useChatAPI.ts     # Chat API hook
+│   │   ├── useArtifactOperations.ts # Artifact lifecycle
 │   │   ├── useSubscription.ts # Subscription hook
 │   │   └── ...               # Various hooks
 │   ├── features/             # Feature modules
@@ -549,10 +547,12 @@ mistral/
 ## 🔒 Security
 
 ### Artifact Sandboxing
-- Artifacts run in sandboxed iframes with strict CSP
-- Code validation prevents dangerous patterns (eval, XSS, etc.)
-- No external script execution allowed
-- Limited API access (no file system, no network for some types)
+- Artifacts run in sandboxed iframes with `sandbox="allow-scripts allow-modals"`
+- Strict Content Security Policy (CSP) headers prevent XSS and code injection
+- Code validation focused on frame-busting and prototype pollution
+- Browser-level security features handle eval, Function(), setTimeout with strings, etc.
+- No parent/top frame access allowed
+- Limited API access (no file system, controlled network access)
 
 ### Authentication
 - Passwords hashed with bcrypt (10 rounds)
@@ -582,18 +582,25 @@ The application uses **MongoDB** with **Prisma ORM**. Key models include:
 - Basic info: email, password (hashed), name, avatar
 - Profile: bio, job title, role (admin/member)
 - Stripe fields: customerId, subscriptionId, priceId, periodEnd
-- Relations: conversations, usage logs
+- Relations: conversations, usage logs, artifacts
 
 ### ChatConversation Model
 - Linked to user
 - Stores: title, model used, timestamps
-- Relations: messages array
+- Relations: messages array, artifacts
 
 ### ChatMessage Model
 - Linked to conversation
 - Content: role, message text
 - Special fields: artifact JSON, tool calls, inspected code
 - Relations: file attachments
+
+### Artifact Model
+- Linked to user and conversation
+- Stores: identifier, type, title, code, language
+- Version control: versions array (JSON), currentVersion number
+- Timestamps: createdAt, updatedAt
+- Full version history with code snapshots
 
 ### MessageAttachment Model
 - File metadata: name, size, MIME type
@@ -687,34 +694,23 @@ Make sure to set these in your deployment platform:
 
 ---
 
-## 🐛 Known Issues & Limitations
+## 📝 Notes & Limitations
 
-### Current Limitations
+### Current Implementation
 1. **Artifacts**:
-   - Only 1 artifact active per conversation
-   - ~~No artifact persistence in database~~ ✅ **FIXED - Oct 2025**
-   - Svelte/Angular not yet supported
-   - No artifact sharing or export to external platforms
+   - Single active artifact per conversation (clean focused experience)
+   - Svelte/Angular support not yet implemented
+   - Full version control with database persistence
 
 2. **Performance**:
-   - Large conversations may hit token limits
-   - ~~No pagination on conversation history~~ ✅ **FIXED - Oct 2025**
-   - File uploads limited to Cloudinary
+   - Large conversations may approach token limits
+   - Conversation pagination implemented for optimal loading
+   - File uploads handled via Cloudinary CDN
 
-3. **Features**:
-   - My Projects page exists but functionality TBD (artifact gallery pending)
-   - No real-time collaboration between users
-   - ~~API rate limiting not implemented~~ ✅ **FIXED - Oct 2025**
-
-### Recommended Improvements
-- [x] Add artifact database persistence ✅ **COMPLETED - Oct 2025**
-- [x] Add conversation pagination ✅ **COMPLETED - Oct 2025**
-- [x] Implement API rate limiting ✅ **COMPLETED - Oct 2025**
-- [ ] Add comprehensive testing suite
-- [ ] Add real-time collaboration features
-- [ ] Implement artifact export to external platforms
-- [ ] Add comprehensive error logging
-- [ ] Create artifact gallery page (/my-projects)
+3. **Architecture**:
+   - My Projects page layout exists (artifact gallery implementation pending)
+   - MongoDB database with Prisma ORM
+   - API rate limiting configured per user/plan
 
 ---
 

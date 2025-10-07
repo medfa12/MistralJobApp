@@ -29,7 +29,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import Card from '@/components/card/Card';
-import { MdSearch, MdMessage, MdMoreVert, MdEdit, MdDelete, MdVisibility, MdAttachFile } from 'react-icons/md';
+import { MdSearch, MdMessage, MdMoreVert, MdEdit, MdDelete, MdVisibility, MdAttachFile, MdViewModule, MdViewList, MdDeleteSweep } from 'react-icons/md';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -61,19 +61,22 @@ export default function History() {
   const router = useRouter();
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  
+  const { isOpen: isDeleteAllOpen, onOpen: onDeleteAllOpen, onClose: onDeleteAllClose } = useDisclosure();
+
   const textColor = useColorModeValue('navy.700', 'white');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const bgHover = useColorModeValue('gray.50', 'whiteAlpha.100');
   const secondaryText = useColorModeValue('gray.600', 'gray.400');
-  
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [newTitle, setNewTitle] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     limit: 20,
@@ -180,6 +183,11 @@ export default function History() {
         });
         fetchConversations();
         onClose();
+
+        // Notify sidebar to refresh
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('conversationUpdated'));
+        }
       }
     } catch (error) {
       toast({
@@ -211,6 +219,11 @@ export default function History() {
           position: 'top',
         });
         fetchConversations();
+
+        // Notify sidebar to refresh
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('conversationUpdated'));
+        }
       }
     } catch (error) {
       toast({
@@ -220,6 +233,46 @@ export default function History() {
         isClosable: true,
         position: 'top',
       });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    setDeletingAll(true);
+    try {
+      const response = await fetch('/api/chat/conversations/delete-all', {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast({
+          title: 'All conversations deleted',
+          description: `${data.deletedCount} conversation(s) deleted successfully`,
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+          position: 'top',
+        });
+        onDeleteAllClose();
+        fetchConversations();
+
+        // Notify sidebar to refresh
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('conversationUpdated'));
+        }
+      } else {
+        throw new Error('Failed to delete conversations');
+      }
+    } catch (error) {
+      toast({
+        title: 'Failed to delete all conversations',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'top',
+      });
+    } finally {
+      setDeletingAll(false);
     }
   };
 
@@ -246,23 +299,64 @@ export default function History() {
         <Text fontSize="2xl" fontWeight="700" color={textColor}>
           Chat History
         </Text>
-        <InputGroup maxW="300px">
-          <InputLeftElement pointerEvents="none">
-            <Icon as={MdSearch} color="gray.400" />
-          </InputLeftElement>
-          <Input
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            borderColor={borderColor}
-          />
-        </InputGroup>
+        <Flex gap="10px" align="center" flexWrap="wrap">
+          <InputGroup maxW="300px">
+            <InputLeftElement pointerEvents="none">
+              <Icon as={MdSearch} color="gray.400" />
+            </InputLeftElement>
+            <Input
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              borderColor={borderColor}
+            />
+          </InputGroup>
+
+          {/* View Mode Toggle */}
+          <Flex borderRadius="md" border="1px solid" borderColor={borderColor} overflow="hidden">
+            <IconButton
+              aria-label="Grid view"
+              icon={<Icon as={MdViewModule} />}
+              size="sm"
+              variant={viewMode === 'grid' ? 'solid' : 'ghost'}
+              bg={viewMode === 'grid' ? 'brand.500' : 'transparent'}
+              color={viewMode === 'grid' ? 'white' : textColor}
+              _hover={{ bg: viewMode === 'grid' ? 'brand.600' : bgHover }}
+              borderRadius="0"
+              onClick={() => setViewMode('grid')}
+            />
+            <IconButton
+              aria-label="List view"
+              icon={<Icon as={MdViewList} />}
+              size="sm"
+              variant={viewMode === 'list' ? 'solid' : 'ghost'}
+              bg={viewMode === 'list' ? 'brand.500' : 'transparent'}
+              color={viewMode === 'list' ? 'white' : textColor}
+              _hover={{ bg: viewMode === 'list' ? 'brand.600' : bgHover }}
+              borderRadius="0"
+              onClick={() => setViewMode('list')}
+            />
+          </Flex>
+
+          {/* Delete All Button */}
+          {filteredConversations.length > 0 && (
+            <Button
+              leftIcon={<Icon as={MdDeleteSweep} />}
+              colorScheme="red"
+              variant="outline"
+              size="sm"
+              onClick={onDeleteAllOpen}
+            >
+              Delete All
+            </Button>
+          )}
+        </Flex>
       </Flex>
 
       {loading ? (
-        <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap="20px">
+        <SimpleGrid columns={{ base: 1, md: viewMode === 'list' ? 1 : 2, xl: viewMode === 'list' ? 1 : 3 }} gap="20px">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} height="150px" borderRadius="20px" />
+            <Skeleton key={i} height={viewMode === 'list' ? '80px' : '150px'} borderRadius="20px" />
           ))}
         </SimpleGrid>
       ) : filteredConversations.length === 0 ? (
@@ -287,7 +381,91 @@ export default function History() {
             </Button>
           )}
         </Card>
+      ) : viewMode === 'list' ? (
+        // List View
+        <Flex direction="column" gap="10px">
+          {filteredConversations.map((conversation) => (
+            <Card
+              key={conversation.id}
+              p="15px"
+              cursor="pointer"
+              _hover={{ bg: bgHover }}
+              transition="all 0.2s"
+              position="relative"
+              role="group"
+            >
+              <Flex justify="space-between" align="center" gap="15px">
+                <Flex align="center" flex="1" gap="15px" onClick={() => handleView(conversation.id)}>
+                  <Icon as={MdMessage} boxSize="20px" color="brand.500" flexShrink={0} />
+                  <Text
+                    fontSize="md"
+                    fontWeight="700"
+                    color={textColor}
+                    noOfLines={1}
+                    flex="1"
+                  >
+                    {conversation.title}
+                  </Text>
+                </Flex>
+
+                <Flex align="center" gap="10px" flexShrink={0}>
+                  <Badge colorScheme="orange" fontSize="xs">
+                    {conversation.model}
+                  </Badge>
+                  {conversation._count?.artifacts && conversation._count.artifacts > 0 && (
+                    <Badge colorScheme="purple" fontSize="xs">
+                      {conversation._count.artifacts} {conversation._count.artifacts === 1 ? 'Artifact' : 'Artifacts'}
+                    </Badge>
+                  )}
+                  {conversation.messages && conversation.messages.some(m => m.attachments?.length > 0) && (
+                    <Flex align="center" gap="4px">
+                      <Icon as={MdAttachFile} boxSize="14px" color="gray.500" />
+                      <Text fontSize="xs" color="gray.500">
+                        {conversation.messages.reduce((sum, m) => sum + (m.attachments?.length || 0), 0)}
+                      </Text>
+                    </Flex>
+                  )}
+                  <Text fontSize="xs" color={secondaryText} minW="80px" textAlign="right">
+                    {formatDate(conversation.updatedAt)}
+                  </Text>
+
+                  <Menu>
+                    <MenuButton
+                      as={IconButton}
+                      icon={<Icon as={MdMoreVert} />}
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Options"
+                    />
+                    <MenuList>
+                      <MenuItem
+                        icon={<Icon as={MdVisibility} />}
+                        onClick={() => handleView(conversation.id)}
+                      >
+                        View
+                      </MenuItem>
+                      <MenuItem
+                        icon={<Icon as={MdEdit} />}
+                        onClick={() => handleRenameClick(conversation)}
+                      >
+                        Rename
+                      </MenuItem>
+                      <MenuItem
+                        icon={<Icon as={MdDelete} />}
+                        onClick={() => handleDelete(conversation.id)}
+                        color="red.500"
+                      >
+                        Delete
+                      </MenuItem>
+                    </MenuList>
+                  </Menu>
+                </Flex>
+              </Flex>
+            </Card>
+          ))}
+        </Flex>
       ) : (
+        // Grid View
         <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap="20px">
           {filteredConversations.map((conversation) => (
             <Card
@@ -404,6 +582,7 @@ export default function History() {
         </Flex>
       )}
 
+      {/* Rename Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
         <ModalContent
@@ -447,6 +626,60 @@ export default function History() {
               isDisabled={!newTitle.trim()}
             >
               Rename
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete All Confirmation Modal */}
+      <Modal isOpen={isDeleteAllOpen} onClose={onDeleteAllClose}>
+        <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
+        <ModalContent
+          bg={useColorModeValue('white', 'navy.800')}
+          color={useColorModeValue('navy.700', 'white')}
+          borderRadius="20px"
+          boxShadow="xl"
+        >
+          <ModalHeader>Delete All Conversations</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <Flex direction="column" gap="15px">
+              <Flex
+                p="15px"
+                bg={useColorModeValue('red.50', 'red.900')}
+                borderRadius="10px"
+                align="center"
+                gap="10px"
+              >
+                <Icon as={MdDeleteSweep} boxSize="24px" color="red.500" />
+                <Text fontSize="sm" fontWeight="600" color={useColorModeValue('red.700', 'red.200')}>
+                  Warning: This action cannot be undone!
+                </Text>
+              </Flex>
+              <Text>
+                Are you sure you want to delete all <strong>{pagination.total}</strong> conversation(s)?
+              </Text>
+              <Text fontSize="sm" color={secondaryText}>
+                This will permanently delete:
+              </Text>
+              <Box pl="20px">
+                <Text fontSize="sm" color={secondaryText}>• All conversation messages</Text>
+                <Text fontSize="sm" color={secondaryText}>• All artifacts</Text>
+                <Text fontSize="sm" color={secondaryText}>• All attachments from Cloudinary</Text>
+              </Box>
+            </Flex>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onDeleteAllClose} isDisabled={deletingAll}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="red"
+              onClick={handleDeleteAll}
+              isLoading={deletingAll}
+              loadingText="Deleting..."
+            >
+              Delete All
             </Button>
           </ModalFooter>
         </ModalContent>

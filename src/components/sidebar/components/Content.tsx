@@ -11,6 +11,7 @@ import {
   Text,
   useColorModeValue,
   Skeleton,
+  Tooltip,
 } from '@chakra-ui/react';
 import NavLink from '@/components/link/NavLink';
 import avatar from '/public/img/avatars/avatar.png';
@@ -33,11 +34,12 @@ import { useColorMode } from '@chakra-ui/react';
 
 interface SidebarContent extends PropsWithChildren {
   routes: IRoute[];
+  isCollapsed?: boolean;
   [x: string]: any;
 }
 
 function SidebarContent(props: SidebarContent) {
-  const { routes, setApiKey } = props;
+  const { routes, setApiKey, isCollapsed = false } = props;
   const { fullName, avatar, loading, role } = useUserData();
   const [hasApiKey, setHasApiKey] = React.useState(false);
   const [isApiModalOpen, setIsApiModalOpen] = React.useState(false);
@@ -79,6 +81,234 @@ function SidebarContent(props: SidebarContent) {
     await signOut({ callbackUrl: '/auth/login' });
   };
 
+  if (isCollapsed) {
+    // Collapsed sidebar - only show icons
+    return (
+      <Flex
+        direction="column"
+        height="100%"
+        pt="60px"
+        pb="26px"
+        borderRadius="30px"
+        px="0px"
+        alignItems="center"
+        justifyContent="center"
+      >
+        <Brand isCollapsed={true} />
+        <Stack direction="column" mb="auto" mt="8px" width="100%" alignItems="center" spacing="0px">
+          <Box width="100%" display="flex" flexDirection="column" alignItems="center">
+            <Links routes={filteredRoutes} isCollapsed={true} />
+          </Box>
+        </Stack>
+
+        {!hasApiKey && <APIModal setApiKey={setApiKey} sidebar={true} onApiKeySet={handleApiKeySet} />}
+        <APIModal 
+          setApiKey={setApiKey} 
+          externalOpen={isApiModalOpen} 
+          onExternalClose={() => setIsApiModalOpen(false)}
+          onApiKeySet={handleApiKeySet}
+        />
+        
+        {/* User section in collapsed state */}
+        <Flex
+          mt="20px"
+          direction="column"
+          alignItems="center"
+          gap="10px"
+        >
+          {loading ? (
+            <Skeleton h="34px" w="34px" borderRadius="full" />
+          ) : avatar ? (
+            <Tooltip label={fullName} placement="right" hasArrow>
+              <Box
+                as="button"
+                onClick={() => {}}
+                _hover={{ opacity: 0.8 }}
+                cursor="pointer"
+              >
+                <Image
+                  src={avatar}
+                  alt={fullName}
+                  width={34}
+                  height={34}
+                  style={{
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                  }}
+                />
+              </Box>
+            </Tooltip>
+          ) : null}
+          
+          <Menu id="sidebar-menu">
+            <Tooltip label="Settings" placement="right" hasArrow>
+              <MenuButton
+                as={Button}
+                variant="transparent"
+                aria-label="Settings"
+                border="1px solid"
+                borderColor={borderColor}
+                borderRadius="full"
+                w="34px"
+                h="34px"
+                px="0px"
+                p="0px"
+                minW="34px"
+                justifyContent={'center'}
+                alignItems="center"
+                color={iconColor}
+                suppressHydrationWarning
+              >
+                <Flex align="center" justifyContent="center">
+                  <Icon
+                    as={MdOutlineSettings}
+                    width="18px"
+                    height="18px"
+                    color="inherit"
+                  />
+                </Flex>
+              </MenuButton>
+            </Tooltip>
+            <MenuList
+              ms="-20px"
+              py="25px"
+              ps="20px"
+              pe="80px"
+              w="246px"
+              borderRadius="16px"
+              transform="translate(19px, -62px)!important"
+              border="0px"
+              boxShadow={shadow}
+              bg={bgColor}
+            >
+              <Box mb="30px">
+                <NavLink href="/settings">
+                  <Flex align="center">
+                    <Icon
+                      as={MdOutlineManageAccounts}
+                      width="24px"
+                      height="24px"
+                      color={gray}
+                      me="12px"
+                    />
+                    <Text color={gray} fontWeight="500" fontSize="sm">
+                      Profile Settings
+                    </Text>
+                  </Flex>
+                </NavLink>
+              </Box>
+              <Box mb="30px">
+                <NavLink href="/history">
+                  <Flex align="center">
+                    <Icon
+                      as={LuHistory}
+                      width="24px"
+                      height="24px"
+                      color={gray}
+                      me="12px"
+                    />
+                    <Text color={gray} fontWeight="500" fontSize="sm">
+                      History
+                    </Text>
+                  </Flex>
+                </NavLink>
+              </Box>
+              <Box mb="30px">
+                <NavLink href="/usage">
+                  <Flex align="center">
+                    <Icon
+                      as={RoundedChart}
+                      width="24px"
+                      height="24px"
+                      color={gray}
+                      me="12px"
+                    />
+                    <Text color={gray} fontWeight="500" fontSize="sm">
+                      Usage
+                    </Text>
+                  </Flex>
+                </NavLink>
+              </Box>
+              <Box mb="30px">
+                <NavLink href="/my-plan">
+                  <Flex align="center">
+                    <Icon
+                      as={IoMdPerson}
+                      width="24px"
+                      height="24px"
+                      color={gray}
+                      me="12px"
+                    />
+                    <Text color={gray} fontWeight="500" fontSize="sm">
+                      My Plan
+                    </Text>
+                  </Flex>
+                </NavLink>
+              </Box>
+              <Box mb="30px">
+                <Flex 
+                  align="center" 
+                  cursor="pointer" 
+                  onClick={() => setIsApiModalOpen(true)}
+                  _hover={{ opacity: 0.8 }}
+                >
+                  <Icon
+                    as={MdLock}
+                    width="24px"
+                    height="24px"
+                    color={gray}
+                    me="12px"
+                  />
+                  <Text color={gray} fontWeight="500" fontSize="sm">
+                    Setup API Key
+                  </Text>
+                </Flex>
+              </Box>
+              <Box>
+                <Flex 
+                  align="center" 
+                  cursor="pointer" 
+                  onClick={toggleColorMode}
+                  _hover={{ opacity: 0.8 }}
+                >
+                  <Icon
+                    as={colorMode === 'light' ? IoMdMoon : IoMdSunny}
+                    width="24px"
+                    height="24px"
+                    color={gray}
+                    me="12px"
+                  />
+                  <Text color={gray} fontWeight="500" fontSize="sm">
+                    {colorMode === 'light' ? 'Dark Mode' : 'Light Mode'}
+                  </Text>
+                </Flex>
+              </Box>
+            </MenuList>
+          </Menu>
+          
+          <Tooltip label="Logout" placement="right" hasArrow>
+            <Button
+              variant="transparent"
+              border="1px solid"
+              borderColor={borderColor}
+              borderRadius="full"
+              w="34px"
+              h="34px"
+              px="0px"
+              minW="34px"
+              justifyContent={'center'}
+              alignItems="center"
+              onClick={handleLogout}
+            >
+              <Icon as={FiLogOut} width="16px" height="16px" color="inherit" />
+            </Button>
+          </Tooltip>
+        </Flex>
+      </Flex>
+    );
+  }
+  
+  // Normal expanded sidebar
   return (
     <Flex
       direction="column"
@@ -92,7 +322,7 @@ function SidebarContent(props: SidebarContent) {
       <Brand />
       <Stack direction="column" mb="auto" mt="8px">
         <Box ps="0px" pe={{ md: '0px', '2xl': '0px' }}>
-          <Links routes={filteredRoutes} />
+          <Links routes={filteredRoutes} isCollapsed={false} />
         </Box>
       </Stack>
 

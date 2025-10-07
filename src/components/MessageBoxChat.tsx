@@ -267,20 +267,38 @@ export default function MessageBox(props: {
       
       {thinking && (
         <Accordion allowToggle mb="20px">
-          <AccordionItem 
-            border="1px solid" 
+          <AccordionItem
+            border="1px solid"
             borderColor={thinkingBorder}
             borderRadius="12px"
             bg={thinkingBg}
           >
-            <AccordionButton 
+            <AccordionButton
               _hover={{ bg: 'transparent' }}
               borderRadius="12px"
             >
               <Box flex="1" textAlign="left">
                 <Flex align="center">
-                  <Text fontWeight="700" fontSize="md" color={textColor}>
-                    🧠 Thinking Process
+                  <Text
+                    fontWeight="700"
+                    fontSize="md"
+                    color={textColor}
+                    bgGradient="linear(to-r, purple.400, pink.400, purple.400)"
+                    bgClip="text"
+                    bgSize="200% auto"
+                    animation="shimmer 3s linear infinite"
+                    sx={{
+                      '@keyframes shimmer': {
+                        '0%': {
+                          backgroundPosition: '0% center',
+                        },
+                        '100%': {
+                        backgroundPosition: '200% center',
+                        },
+                      },
+                    }}
+                  >
+                    Thinking Process
                   </Text>
                   <Text ml="10px" fontSize="xs" color="gray.500">
                     (Click to expand)
@@ -290,7 +308,7 @@ export default function MessageBox(props: {
               <AccordionIcon />
             </AccordionButton>
             <AccordionPanel pb={4}>
-              <ReactMarkdown 
+              <ReactMarkdown
                 className="font-medium"
                 remarkPlugins={[remarkMath]}
                 rehypePlugins={[rehypeKatex]}

@@ -238,11 +238,50 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
             h="40px"
             minH="40px"
             minW="40px"
+            position="relative"
+            _before={{
+              content: '""',
+              position: 'absolute',
+              top: '-2px',
+              left: '-2px',
+              right: '-2px',
+              bottom: '-2px',
+              borderRadius: 'full',
+              background: 'linear-gradient(45deg, #FA500F, #FF8205, #FA500F)',
+              backgroundSize: '200% 200%',
+              animation: 'pulse-glow 2s ease-in-out infinite',
+              opacity: 0.6,
+              zIndex: -1,
+            }}
+            sx={{
+              '@keyframes pulse-glow': {
+                '0%, 100%': {
+                  backgroundPosition: '0% 50%',
+                  transform: 'scale(1)',
+                },
+                '50%': {
+                  backgroundPosition: '100% 50%',
+                  transform: 'scale(1.1)',
+                },
+              },
+            }}
           >
-            <Icon as={MdAutoAwesome} width="20px" height="20px" color="white" />
+            <Icon
+              as={MdAutoAwesome}
+              width="20px"
+              height="20px"
+              color="white"
+              animation="spin 3s linear infinite"
+              sx={{
+                '@keyframes spin': {
+                  '0%': { transform: 'rotate(0deg)' },
+                  '100%': { transform: 'rotate(360deg)' },
+                },
+              }}
+            />
           </Flex>
           <Box w="100%">
-            <ArtifactLoadingCard 
+            <ArtifactLoadingCard
               operation={artifactLoadingInfo.operation}
               title={artifactLoadingInfo.title}
             />
@@ -261,8 +300,47 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
             h="40px"
             minH="40px"
             minW="40px"
+            position="relative"
+            _before={{
+              content: '""',
+              position: 'absolute',
+              top: '-2px',
+              left: '-2px',
+              right: '-2px',
+              bottom: '-2px',
+              borderRadius: 'full',
+              background: 'linear-gradient(45deg, #FA500F, #FF8205, #FA500F)',
+              backgroundSize: '200% 200%',
+              animation: 'pulse-glow 2s ease-in-out infinite',
+              opacity: 0.6,
+              zIndex: -1,
+            }}
+            sx={{
+              '@keyframes pulse-glow': {
+                '0%, 100%': {
+                  backgroundPosition: '0% 50%',
+                  transform: 'scale(1)',
+                },
+                '50%': {
+                  backgroundPosition: '100% 50%',
+                  transform: 'scale(1.1)',
+                },
+              },
+            }}
           >
-            <Icon as={MdAutoAwesome} width="20px" height="20px" color="white" />
+            <Icon
+              as={MdAutoAwesome}
+              width="20px"
+              height="20px"
+              color="white"
+              animation="spin 3s linear infinite"
+              sx={{
+                '@keyframes spin': {
+                  '0%': { transform: 'rotate(0deg)' },
+                  '100%': { transform: 'rotate(360deg)' },
+                },
+              }}
+            />
           </Flex>
           <Box w="100%">
             <MessageBoxChat output={streamingMessage} />

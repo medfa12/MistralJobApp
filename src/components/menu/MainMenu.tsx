@@ -1,5 +1,5 @@
 'use client';
-// Chakra imports
+import { useId } from 'react';
 import {
   Icon,
   Flex,
@@ -21,6 +21,7 @@ import {
 
 export default function Banner(props: { [x: string]: any }) {
   const { ...rest } = props;
+  const menuId = useId();
 
   const textColor = useColorModeValue('gray.500', 'white');
   const textHover = useColorModeValue(
@@ -43,7 +44,6 @@ export default function Banner(props: { [x: string]: any }) {
     { bg: 'whiteAlpha.100' },
   );
 
-  // Ellipsis modals
   const {
     isOpen: isOpen1,
     onOpen: onOpen1,
@@ -51,7 +51,7 @@ export default function Banner(props: { [x: string]: any }) {
   } = useDisclosure();
 
   return (
-    <Menu isOpen={isOpen1} onClose={onClose1}>
+    <Menu isOpen={isOpen1} onClose={onClose1} id={menuId}>
       <MenuButton
         alignItems="center"
         justifyContent="center"

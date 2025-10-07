@@ -1,5 +1,5 @@
 'use client';
-import React, { PropsWithChildren } from 'react';
+import React, { PropsWithChildren, useContext } from 'react';
 
 // chakra imports
 import {
@@ -13,6 +13,7 @@ import {
   useDisclosure,
   DrawerContent,
   DrawerCloseButton,
+  IconButton,
 } from '@chakra-ui/react';
 import Content from '@/components/sidebar/components/Content';
 import {
@@ -23,8 +24,10 @@ import {
 import { Scrollbars } from 'react-custom-scrollbars-2';
 
 import { IoMenuOutline } from 'react-icons/io5';
+import { MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import { IRoute } from '@/types/navigation';
 import { isWindowAvailable } from '@/utils/navigation';
+import { SidebarContext } from '@/contexts/SidebarContext';
 
 export interface SidebarProps extends PropsWithChildren {
   routes: IRoute[];
@@ -33,6 +36,8 @@ export interface SidebarProps extends PropsWithChildren {
 
 function Sidebar(props: SidebarProps) {
   const { routes, setApiKey } = props;
+  const { isCollapsed, setIsCollapsed } = useContext(SidebarContext);
+  
   // this is for the rest of the collapses
   let variantChange = '0.2s linear';
   let shadow = useColorModeValue(
@@ -43,13 +48,16 @@ function Sidebar(props: SidebarProps) {
   let sidebarBg = useColorModeValue('white', 'navy.800');
   let sidebarRadius = '14px';
   let sidebarMargins = '0px';
+  let iconColor = useColorModeValue('navy.700', 'white');
+  let borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
+  
   // SIDEBAR
   return (
     <Box display={{ base: 'none', xl: 'block' }} position="fixed" minH="100%">
       <Box
         bg={sidebarBg}
         transition={variantChange}
-        w="285px"
+        w={isCollapsed ? '80px' : '285px'}
         ms={{
           sm: '16px',
         }}
@@ -60,17 +68,37 @@ function Sidebar(props: SidebarProps) {
         m={sidebarMargins}
         borderRadius={sidebarRadius}
         minH="100%"
-        overflowX="hidden"
+        overflow="hidden"
         boxShadow={shadow}
+        position="relative"
+        display="flex"
+        flexDirection="column"
       >
-        <Scrollbars
-          autoHide
-          renderTrackVertical={renderTrack}
-          renderThumbVertical={renderThumb}
-          renderView={renderView}
-        >
-          <Content setApiKey={setApiKey} routes={routes} />
-        </Scrollbars>
+        <IconButton
+          aria-label="Toggle sidebar"
+          icon={<Icon as={isCollapsed ? MdChevronRight : MdChevronLeft} w="20px" h="20px" />}
+          position="absolute"
+          top="20px"
+          right={isCollapsed ? 'calc(50% - 14px)' : '20px'}
+          zIndex={10}
+          size="sm"
+          variant="ghost"
+          color={iconColor}
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          _hover={{
+            bg: useColorModeValue('gray.100', 'whiteAlpha.200'),
+          }}
+        />
+        <Box flex="1" overflow="hidden">
+          <Scrollbars
+            autoHide
+            renderTrackVertical={renderTrack}
+            renderThumbVertical={renderThumb}
+            renderView={renderView}
+          >
+            <Content setApiKey={setApiKey} routes={routes} isCollapsed={isCollapsed} />
+          </Scrollbars>
+        </Box>
       </Box>
     </Box>
   );

@@ -29,6 +29,7 @@ import {
   TokenCounter,
   AttachmentPreview,
   InspectedCodePreview,
+  ProjectSelector,
 } from '@/components/chat';
 
 function ChatContent() {
@@ -40,6 +41,13 @@ function ChatContent() {
   const [messages, setMessages] = useState<MessageType[]>([]);
   const [model, setModel] = useState<MistralModel>('mistral-small-latest');
   const [inspectedCodeAttachment, setInspectedCodeAttachment] = useState<InspectedCodeAttachment | null>(null);
+  const [selectedProject, setSelectedProject] = useState<{
+    id: string;
+    name: string;
+    emoji?: string;
+    documentCount?: number;
+    mistralLibraryId: string;
+  } | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -69,12 +77,16 @@ function ChatContent() {
 
   const {
     currentArtifact,
+    artifacts,
     isArtifactPanelOpen,
     setIsArtifactPanelOpen,
     setCurrentConversationId: setArtifactConversationId,
     processArtifactResponse,
     resetArtifacts,
     restoreArtifact,
+    switchArtifact,
+    deleteArtifact,
+    revertToVersion,
   } = useArtifactOperations();
 
   const {
@@ -90,6 +102,7 @@ function ChatContent() {
     model,
     currentConversationId,
     currentArtifact,
+    libraryId: selectedProject?.mistralLibraryId,
     createNewConversation,
     saveMessage,
     processAttachments,
@@ -119,16 +132,17 @@ function ChatContent() {
       loadConversation(conversationId).then((loadedMessages) => {
         if (loadedMessages) {
           setMessages(loadedMessages);
-          
+
+          // Restore all artifacts from messages
           const messagesWithArtifacts = loadedMessages
             .filter(msg => msg.artifact)
-            .reverse();
-          
+            .map(msg => msg.artifact as ArtifactData);
+
           if (messagesWithArtifacts.length > 0) {
-            const latestArtifact = messagesWithArtifacts[0].artifact;
-            if (latestArtifact) {
-              restoreArtifact(latestArtifact);
-            }
+            // Restore all artifacts (newest first)
+            messagesWithArtifacts.reverse().forEach(artifact => {
+              restoreArtifact(artifact);
+            });
           } else {
             resetArtifacts();
           }
@@ -161,7 +175,11 @@ function ChatContent() {
       inspectedCodeAttachment,
       hasAttachments: attachments.length > 0,
       onInputClear: () => setInputCode(''),
-      onInspectedCodeClear: () => setInspectedCodeAttachment(null),
+      onInspectedCodeClear: () => {
+        setInspectedCodeAttachment(null);
+        // Clear inspection mode in artifact workspace
+        artifactWorkspaceRef.current?.clearInspection();
+      },
     });
   };
 
@@ -191,6 +209,18 @@ function ChatContent() {
     restoreArtifact(artifact);
     setIsArtifactPanelOpen(true);
   }, [restoreArtifact, setIsArtifactPanelOpen]);
+
+  const handleVersionChange = useCallback((version: number) => {
+    if (revertToVersion) {
+      revertToVersion(version);
+    }
+  }, [revertToVersion]);
+
+  const handleRevertToVersion = useCallback((version: number) => {
+    if (revertToVersion) {
+      revertToVersion(version);
+    }
+  }, [revertToVersion]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -244,10 +274,16 @@ function ChatContent() {
           messagesCount={messages.length}
         />
 
-        <ModelSelector
-          selectedModel={model}
-          onModelChange={setModel}
-        />
+        <Flex gap="10px" mb="10px" align="center" px="20px" flexWrap="wrap">
+          <ModelSelector
+            selectedModel={model}
+            onModelChange={setModel}
+          />
+          <ProjectSelector
+            selectedProject={selectedProject}
+            onProjectSelect={setSelectedProject}
+          />
+        </Flex>
 
         <Flex
           ref={chatContainerRef}
@@ -368,9 +404,14 @@ function ChatContent() {
               <ArtifactWorkspace
                 ref={artifactWorkspaceRef}
                 artifact={currentArtifact}
+                artifacts={artifacts}
                 onClose={() => setIsArtifactPanelOpen(false)}
                 onCodeAttach={handleCodeAttach}
                 onClearInspection={handleRemoveInspectedCode}
+                onVersionChange={handleVersionChange}
+                onRevertToVersion={handleRevertToVersion}
+                onArtifactSwitch={switchArtifact}
+                onArtifactDelete={deleteArtifact}
               />
             </ArtifactErrorBoundary>
           </Box>

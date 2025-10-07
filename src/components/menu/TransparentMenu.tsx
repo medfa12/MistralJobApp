@@ -1,5 +1,5 @@
 'use client';
-// Chakra imports
+import { useId } from 'react';
 import {
   Menu,
   MenuButton,
@@ -22,8 +22,8 @@ export default function Banner(props: {
   [x: string]: any;
 }) {
   const { icon, ...rest } = props;
+  const menuId = useId();
 
-  // Ellipsis modals
   const {
     isOpen: isOpen1,
     onOpen: onOpen1,
@@ -44,7 +44,7 @@ export default function Banner(props: {
   );
 
   return (
-    <Menu isOpen={isOpen1} onClose={onClose1}>
+    <Menu isOpen={isOpen1} onClose={onClose1} id={menuId}>
       <MenuButton {...rest} onClick={onOpen1}>
         {icon}
       </MenuButton>

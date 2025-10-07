@@ -5,11 +5,13 @@ import { Box, Flex, Icon, useColorModeValue, Tooltip } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdCode, MdVisibility } from 'react-icons/md';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
-
-export type ArtifactTab = 'code' | 'preview';
 import { CodeView } from './CodeView';
 import { PreviewView, PreviewViewRef } from './PreviewView';
+import { MarkdownView } from './MarkdownView';
+import { LexicalEditor } from './lexical/LexicalEditor';
 import { tabContentVariants } from './animations';
+
+export type ArtifactTab = 'code' | 'preview';
 
 interface Props {
   artifact: ArtifactData;
@@ -41,10 +43,14 @@ export const ArtifactRenderer = forwardRef<ArtifactRendererRef, Props>(({ artifa
   const iconColor = useColorModeValue('gray.600', 'gray.300');
   const activeIconColor = useColorModeValue('orange.500', 'orange.300');
 
-  const tabs: { id: ArtifactTab; icon: any; label: string }[] = [
-    { id: 'code', icon: MdCode, label: 'Code View' },
-    { id: 'preview', icon: MdVisibility, label: 'Preview' },
-  ];
+  const isDocument = artifact.type === 'markdown' || artifact.type === 'document';
+  
+  const tabs: { id: ArtifactTab; icon: any; label: string }[] = isDocument
+    ? [{ id: 'preview', icon: MdVisibility, label: artifact.type === 'document' ? 'Edit' : 'Preview' }]
+    : [
+        { id: 'code', icon: MdCode, label: 'Code View' },
+        { id: 'preview', icon: MdVisibility, label: 'Preview' },
+      ];
 
   return (
     <Box
@@ -56,74 +62,95 @@ export const ArtifactRenderer = forwardRef<ArtifactRendererRef, Props>(({ artifa
       overflow="hidden"
       boxShadow="lg"
     >
-      {/* Tab Navigation */}
-      <Flex
-        bg={tabBg}
-        borderBottom="1px solid"
-        borderColor={borderColor}
-        p={2}
-        gap={2}
-      >
-        {tabs.map((tab) => (
-          <Tooltip key={tab.id} label={tab.label} placement="top">
-            <MotionFlex
-              align="center"
-              justify="center"
-              w="50px"
-              h="50px"
-              borderRadius="lg"
-              cursor="pointer"
-              bg={activeTab === tab.id ? activeTabBg : 'transparent'}
-              color={activeTab === tab.id ? activeIconColor : iconColor}
-              onClick={() => setActiveTab(tab.id)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              // @ts-ignore - framer-motion transition
-              transition={{ duration: 0.2 }}
-              boxShadow={
-                activeTab === tab.id
-                  ? '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  : 'none'
-              }
-            >
-              <Icon as={tab.icon} boxSize={6} />
-            </MotionFlex>
-          </Tooltip>
-        ))}
-      </Flex>
+      {!isDocument && (
+        <Flex
+          bg={tabBg}
+          borderBottom="1px solid"
+          borderColor={borderColor}
+          p={2}
+          gap={2}
+        >
+          {tabs.map((tab) => (
+            <Tooltip key={tab.id} label={tab.label} placement="top">
+              <MotionFlex
+                align="center"
+                justify="center"
+                w="50px"
+                h="50px"
+                borderRadius="lg"
+                cursor="pointer"
+                bg={activeTab === tab.id ? activeTabBg : 'transparent'}
+                color={activeTab === tab.id ? activeIconColor : iconColor}
+                onClick={() => setActiveTab(tab.id)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2 } as any}
+                boxShadow={
+                  activeTab === tab.id
+                    ? '0 2px 8px rgba(0, 0, 0, 0.1)'
+                    : 'none'
+                }
+              >
+                <Icon as={tab.icon} boxSize={6} />
+              </MotionFlex>
+            </Tooltip>
+          ))}
+        </Flex>
+      )}
 
-      {/* Tab Content */}
       <Box position="relative" minH="600px">
         <AnimatePresence mode="wait">
-          {activeTab === 'code' && (
+          {isDocument ? (
             <MotionBox
-              key="code"
+              key="document"
               p={4}
               variants={tabContentVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
             >
-              <CodeView artifact={artifact} />
+              {artifact.type === 'markdown' ? (
+                <MarkdownView markdown={artifact.code} />
+              ) : (
+                <LexicalEditor 
+                  initialMarkdown={artifact.code}
+                  readOnly={false}
+                />
+              )}
             </MotionBox>
-          )}
+          ) : (
+            <>
+              {activeTab === 'code' && (
+                <MotionBox
+                  key="code"
+                  p={4}
+                  variants={tabContentVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  <CodeView artifact={artifact} />
+                </MotionBox>
+              )}
 
-          {activeTab === 'preview' && (
-            <MotionBox
-              key="preview"
-              p={4}
-              variants={tabContentVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-            >
-              <PreviewView 
-                ref={previewRef}
-                artifact={artifact} 
-                onCodeAttach={onCodeAttach}
-                onClearInspection={onClearInspection}
-              />
-            </MotionBox>
+              {activeTab === 'preview' && (
+                <MotionBox
+                  key="preview"
+                  p={4}
+                  variants={tabContentVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  <PreviewView 
+                    ref={previewRef}
+                    artifact={artifact} 
+                    onCodeAttach={onCodeAttach}
+                    onClearInspection={onClearInspection}
+                  />
+                </MotionBox>
+              )}
+            </>
           )}
         </AnimatePresence>
       </Box>

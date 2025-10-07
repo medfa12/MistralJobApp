@@ -1,15 +1,15 @@
 import { Box, Flex, Text, Icon, useColorModeValue, Badge } from '@chakra-ui/react';
-import { MdCode, MdEdit, MdDelete, MdHistory } from 'react-icons/md';
+import { MdCode, MdEdit, MdDelete, MdHistory, MdAdd } from 'react-icons/md';
 import { ArtifactOperation, ArtifactType } from '@/types/types';
 
 interface ToolCallBoxProps {
-  operation: ArtifactOperation;
+  operation: ArtifactOperation | string;
   artifactType?: ArtifactType;
   artifactTitle?: string;
   revertToVersion?: number;
 }
 
-const operationConfig = {
+const operationConfig: Record<string, { icon: any; label: string; colorScheme: string }> = {
   create: {
     icon: MdCode,
     label: 'Create Artifact',
@@ -30,6 +30,26 @@ const operationConfig = {
     label: 'Revert Artifact',
     colorScheme: 'purple',
   },
+  insert_section: {
+    icon: MdAdd,
+    label: 'Add Section',
+    colorScheme: 'green',
+  },
+  update_section: {
+    icon: MdEdit,
+    label: 'Update Section',
+    colorScheme: 'blue',
+  },
+  delete_section: {
+    icon: MdDelete,
+    label: 'Remove Section',
+    colorScheme: 'red',
+  },
+  apply_formatting: {
+    icon: MdEdit,
+    label: 'Format Text',
+    colorScheme: 'orange',
+  },
 };
 
 export default function ToolCallBox({ operation, artifactType, artifactTitle, revertToVersion }: ToolCallBoxProps) {
@@ -38,7 +58,7 @@ export default function ToolCallBox({ operation, artifactType, artifactTitle, re
   const textColor = useColorModeValue('gray.800', 'white');
   const subtextColor = useColorModeValue('gray.600', 'gray.400');
 
-  const config = operationConfig[operation];
+  const config = operationConfig[operation] || operationConfig.edit;
 
   return (
     <Flex

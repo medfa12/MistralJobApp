@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 
 import { HSeparator } from '@/components/separator/Separator';
 
-export function SidebarBrand() {
+export function SidebarBrand({ isCollapsed = false }: { isCollapsed?: boolean }) {
   //   Chakra color mode
   const [mounted, setMounted] = useState(false);
   let logoColor = useColorModeValue('navy.700', 'white');
@@ -14,6 +14,19 @@ export function SidebarBrand() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  if (isCollapsed) {
+    return (
+      <Flex alignItems="center" justifyContent="center" flexDirection="column" mb="20px" w="100%">
+        <Image 
+          src={mounted ? logoSrc : '/img/m-boxed/m-boxed-orange.svg'}
+          alt="Mistral AI" 
+          width="40px" 
+          height="40px"
+        />
+      </Flex>
+    );
+  }
 
   return (
     <Flex alignItems="center" flexDirection="column">
