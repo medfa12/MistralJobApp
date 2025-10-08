@@ -55,8 +55,8 @@ export function handleToolCalls(
 
       case 'edit_artifact':
         artifactData = {
-          // Preserve the current artifact identifier so we truly edit it
-          identifier: currentArtifact?.identifier || 'current-artifact',
+          // Allow targeting by provided identifier; otherwise edit current
+          identifier: (args.identifier && typeof args.identifier === 'string') ? args.identifier : (currentArtifact?.identifier || 'current-artifact'),
           type: args.type,
           title: args.title,
           code: args.code,
@@ -198,4 +198,3 @@ function getLanguageFromType(type: string): string {
   };
   return languageMap[type] || 'javascript';
 }
-

@@ -9,12 +9,13 @@ import {
   useColorModeValue,
   useToast,
 } from '@chakra-ui/react';
-import { MdAttachFile, MdImage, MdDescription, MdMic } from 'react-icons/md';
+import { MdAttachFile, MdImage, MdDescription, MdMic, MdStop } from 'react-icons/md';
 import { ModelInfo } from '@/config/models';
 import { useState, useCallback } from 'react';
 import { VoiceRecorder } from './VoiceRecorder';
 import { TranscribingIndicator } from './TranscribingIndicator';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
+import { motion } from 'framer-motion';
 
 interface ChatInputProps {
   value: string;
@@ -26,6 +27,7 @@ interface ChatInputProps {
   attachmentCount: number;
   onImageAttach: (file: File, preview: string) => void;
   onDocumentAttach: (file: File) => void;
+  onAbort?: () => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -38,6 +40,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   attachmentCount,
   onImageAttach,
   onDocumentAttach,
+  onAbort,
 }) => {
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const inputColor = useColorModeValue('navy.700', 'white');
@@ -284,25 +287,76 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </Button>
 
         <Button
+          as={motion.button}
           variant="primary"
           py="20px"
           px="16px"
           fontSize="sm"
           borderRadius="45px"
-          w={{ base: '160px', md: '210px' }}
           h="54px"
+          animate={{
+            width: loading ? '54px' : undefined,
+            borderRadius: loading ? '50%' : '45px',
+          }}
+          transition={{
+            duration: 0.3,
+            ease: 'easeInOut',
+          } as any}
           _hover={{
             boxShadow:
               '0px 21px 27px -10px rgba(250, 80, 15, 0.48) !important',
-            bg: 'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%) !important',
+            bg: loading
+              ? 'linear-gradient(15.46deg, #c53030 26.3%, #e53e3e 86.4%) !important'
+              : 'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%) !important',
             _disabled: {
               bg: 'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)',
             },
           }}
-          onClick={onSubmit}
-          isLoading={loading}
+          bg={loading
+            ? 'linear-gradient(15.46deg, #c53030 26.3%, #e53e3e 86.4%)'
+            : undefined
+          }
+          onClick={loading ? onAbort : onSubmit}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          overflow="hidden"
+          minW={loading ? '54px' : { base: '160px', md: '210px' }}
+          w={loading ? '54px' : { base: '160px', md: '210px' }}
         >
-          Submit
+          <motion.div
+            initial={false}
+            animate={{
+              opacity: loading ? 0 : 1,
+              scale: loading ? 0 : 1,
+            }}
+            transition={{
+              duration: 0.2,
+            }}
+            style={{
+              position: loading ? 'absolute' : 'relative',
+            }}
+          >
+            Submit
+          </motion.div>
+          <motion.div
+            initial={false}
+            animate={{
+              opacity: loading ? 1 : 0,
+              scale: loading ? 1 : 0,
+            }}
+            transition={{
+              duration: 0.2,
+            }}
+            style={{
+              position: loading ? 'relative' : 'absolute',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon as={MdStop} boxSize="24px" />
+          </motion.div>
         </Button>
       </Flex>
     </Flex>

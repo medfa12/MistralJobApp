@@ -34,8 +34,9 @@ export default function Footer() {
             fontWeight="500"
             fontSize={{ base: 'xs', md: 'sm' }}
             color={textColor}
-            isExternal
             href="https://mistral.ai/terms"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             Terms & Conditions
           </Link>
@@ -50,8 +51,9 @@ export default function Footer() {
             fontWeight="500"
             fontSize={{ base: 'xs', md: 'sm' }}
             color={textColor}
-            isExternal
             href="https://mistral.ai/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             Privacy Policy
           </Link>
@@ -66,8 +68,9 @@ export default function Footer() {
             fontWeight="500"
             fontSize={{ base: 'xs', md: 'sm' }}
             color={textColor}
-            isExternal
             href="https://mistral.ai/legal"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             License
           </Link>
@@ -77,8 +80,9 @@ export default function Footer() {
             fontWeight="500"
             fontSize={{ base: 'xs', md: 'sm' }}
             color={textColor}
-            isExternal
             href="https://mistral.ai/support"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             Refund Policy
           </Link>

@@ -111,9 +111,10 @@ export default function HeaderLinks(props: {
           {/* <Flex bgImage={navImage} borderRadius="16px" mb="28px" alt="" /> */}
           <Flex flexDirection="column">
             <Link
-              isExternal
               w="100%"
               href="https://mistral.ai"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <Button
                 variant="primary"
@@ -129,9 +130,10 @@ export default function HeaderLinks(props: {
               </Button>
             </Link>
             <Link
-              isExternal
               w="100%"
               href="https://docs.mistral.ai"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <Button
                 bg={buttonBg}

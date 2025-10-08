@@ -66,7 +66,7 @@ export const MISTRAL_MODELS: Record<string, ModelInfo> = {
   'mistral-large-latest': {
     id: 'mistral-large-latest',
     name: 'mistral-large-latest',
-    displayName: 'Mistral Medium',
+    displayName: 'Mistral Large',
     description: 'Most capable multimodal model for complex tasks',
     contextWindow: 128000,
     maxOutput: 16384,
@@ -78,7 +78,7 @@ export const MISTRAL_MODELS: Record<string, ModelInfo> = {
     icon: MdBolt,
     color: 'linear-gradient(15.46deg, #FA500F 26.3%, #FF8205 86.4%)',
     version: '25.08',
-    apiEndpoint: 'mistral-medium-2508',
+    apiEndpoint: 'mistral-large-2508',
     supportedAttachments: ['image', 'document'],
     attachmentLimits: {
       image: {

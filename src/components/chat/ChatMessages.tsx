@@ -215,14 +215,15 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
                 />
               </Flex>
               <Box w="100%">
-                <MessageBoxChat 
-                  output={getMessageText(message.content)} 
+                <MessageBoxChat
+                  output={getMessageText(message.content)}
                   attachments={message.attachments}
                   toolCall={message.toolCall}
                   artifact={message.artifact}
                   inspectedCodeAttachment={message.inspectedCodeAttachment}
                   onArtifactClick={message.artifact ? () => onArtifactClick(message.artifact!) : undefined}
                   isArtifactOpen={!!(currentArtifact && message.artifact && currentArtifact.identifier === message.artifact.identifier && isArtifactPanelOpen)}
+                  messageIndex={index}
                 />
               </Box>
             </Flex>

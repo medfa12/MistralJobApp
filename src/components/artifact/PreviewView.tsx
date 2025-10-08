@@ -13,8 +13,10 @@ import {
   Badge,
   Text,
   useColorModeValue,
+  CloseButton,
+  Code,
 } from '@chakra-ui/react';
-import { MdSearch, MdSearchOff } from 'react-icons/md';
+import { MdSearch, MdSearchOff, MdRefresh } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
 import { InspectorPanel } from './InspectorPanel';
@@ -243,6 +245,15 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
 
     const iframe = iframeRef.current;
     let errorHandler: ((event: ErrorEvent) => void) | null = null;
+    let messageHandler: ((event: MessageEvent) => void) | null = null;
+
+    // Listen for error messages from iframe
+    messageHandler = (event: MessageEvent) => {
+      if (event.data?.type === 'preview-error') {
+        setError(event.data.error || 'Unknown error in artifact code');
+      }
+    };
+    window.addEventListener('message', messageHandler);
 
     try {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -283,10 +294,55 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
               <body>
                 <script>
                   window.onerror = function(message, source, lineno, colno, error) {
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'error-box';
-                    errorDiv.innerHTML = '<h3>⚠️ Error</h3><p><strong>Message:</strong> ' + message + '</p><p><strong>Line:</strong> ' + lineno + ':' + colno + '</p>';
-                    document.body.appendChild(errorDiv);
+                    // Create enhanced error display
+                    const errorContainer = document.createElement('div');
+                    errorContainer.style.cssText = \`
+                      position: fixed;
+                      top: 0;
+                      left: 0;
+                      right: 0;
+                      background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+                      padding: 20px;
+                      z-index: 10000;
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+                      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    \`;
+
+                    errorContainer.innerHTML = \`
+                      <div style="background: #fff; border-left: 4px solid #e53e3e; border-radius: 8px; padding: 16px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                          <span style="font-size: 24px;">⚠️</span>
+                          <h3 style="margin: 0; color: #c53030; font-size: 18px; font-weight: 600;">
+                            JavaScript Error
+                          </h3>
+                        </div>
+                        <p style="margin: 8px 0; color: #742a2a; font-size: 14px;">
+                          <strong>Message:</strong> \${message}
+                        </p>
+                        <p style="margin: 8px 0; color: #742a2a; font-size: 14px;">
+                          <strong>Location:</strong> Line \${lineno}, Column \${colno}
+                        </p>
+                        \${error && error.stack ? \`
+                          <details style="margin-top: 12px;">
+                            <summary style="cursor: pointer; color: #c53030; font-weight: 600;">
+                              Stack Trace
+                            </summary>
+                            <pre style="margin: 8px 0 0 0; padding: 12px; background: #f7fafc; border-radius: 4px; overflow: auto; font-size: 12px; color: #4a5568;">\${error.stack}</pre>
+                          </details>
+                        \` : ''}
+                      </div>
+                    \`;
+
+                    document.body.insertBefore(errorContainer, document.body.firstChild);
+
+                    // Notify parent window
+                    window.parent.postMessage({
+                      type: 'preview-error',
+                      error: message,
+                      line: lineno,
+                      column: colno
+                    }, '*');
+
                     return true;
                   };
                 </script>
@@ -337,10 +393,112 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
                     }
                   } catch (e) {
                     console.error('Render error:', e);
-                    const errorDiv = document.createElement('div');
-                    errorDiv.style.cssText = 'padding: 20px; background: #fee; border: 2px solid #f00; border-radius: 8px; margin: 20px; font-family: monospace;';
-                    errorDiv.innerHTML = '<h3 style="color: #c00; margin-top: 0;">⚠️ Runtime Error</h3><p>' + e.message + '</p><pre style="background: #fff; padding: 10px; border-radius: 4px; overflow: auto;">' + e.stack + '</pre>';
-                    document.getElementById('root').appendChild(errorDiv);
+
+                    // Create enhanced error display
+                    const errorContainer = document.createElement('div');
+                    errorContainer.style.cssText = \`
+                      position: fixed;
+                      top: 0;
+                      left: 0;
+                      right: 0;
+                      bottom: 0;
+                      background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+                      padding: 40px;
+                      overflow: auto;
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+                    \`;
+
+                    // Error header
+                    const header = document.createElement('div');
+                    header.style.cssText = \`
+                      background: #fff;
+                      border-left: 4px solid #e53e3e;
+                      border-radius: 8px;
+                      padding: 20px;
+                      margin-bottom: 20px;
+                      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                    \`;
+                    header.innerHTML = \`
+                      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 32px;">⚠️</span>
+                        <h2 style="margin: 0; color: #c53030; font-size: 24px; font-weight: 600;">
+                          Runtime Error
+                        </h2>
+                      </div>
+                      <p style="margin: 0; color: #742a2a; font-size: 16px; line-height: 1.5;">
+                        There's an error in your code that's preventing it from running.
+                      </p>
+                    \`;
+
+                    // Error message
+                    const messageBox = document.createElement('div');
+                    messageBox.style.cssText = \`
+                      background: #fff;
+                      border-radius: 8px;
+                      padding: 20px;
+                      margin-bottom: 20px;
+                      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                    \`;
+                    messageBox.innerHTML = \`
+                      <h3 style="margin: 0 0 12px 0; color: #2d3748; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Error Message
+                      </h3>
+                      <p style="margin: 0; color: #c53030; font-size: 16px; font-family: 'Monaco', 'Menlo', monospace; background: #fff5f5; padding: 12px; border-radius: 6px; border: 1px solid #feb2b2;">
+                        \${e.message}
+                      </p>
+                    \`;
+
+                    // Stack trace
+                    if (e.stack) {
+                      const stackBox = document.createElement('div');
+                      stackBox.style.cssText = \`
+                        background: #fff;
+                        border-radius: 8px;
+                        padding: 20px;
+                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                      \`;
+                      stackBox.innerHTML = \`
+                        <h3 style="margin: 0 0 12px 0; color: #2d3748; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                          Stack Trace
+                        </h3>
+                        <pre style="margin: 0; color: #4a5568; font-size: 13px; font-family: 'Monaco', 'Menlo', monospace; background: #f7fafc; padding: 16px; border-radius: 6px; overflow: auto; line-height: 1.6; border: 1px solid #e2e8f0;">\${e.stack}</pre>
+                      \`;
+                      errorContainer.appendChild(header);
+                      errorContainer.appendChild(messageBox);
+                      errorContainer.appendChild(stackBox);
+                    } else {
+                      errorContainer.appendChild(header);
+                      errorContainer.appendChild(messageBox);
+                    }
+
+                    // Add helpful tips
+                    const tipsBox = document.createElement('div');
+                    tipsBox.style.cssText = \`
+                      background: #fff;
+                      border-radius: 8px;
+                      padding: 20px;
+                      margin-top: 20px;
+                      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                      border-left: 4px solid #ed8936;
+                    \`;
+                    tipsBox.innerHTML = \`
+                      <h3 style="margin: 0 0 12px 0; color: #2d3748; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                        💡 Common Fixes
+                      </h3>
+                      <ul style="margin: 0; padding-left: 20px; color: #4a5568; line-height: 1.8;">
+                        <li>Check for syntax errors (missing brackets, parentheses, or semicolons)</li>
+                        <li>Verify all variables are defined before use</li>
+                        <li>Make sure function names are spelled correctly</li>
+                        <li>Check that all imports and dependencies are available</li>
+                        <li>Look for typos in component or variable names</li>
+                      </ul>
+                    \`;
+                    errorContainer.appendChild(tipsBox);
+
+                    document.getElementById('root').appendChild(errorContainer);
+
+                    // Notify parent window
+                    window.parent.postMessage({ type: 'preview-error', error: e.message, stack: e.stack }, '*');
                   }
                 </script>
               </body>
@@ -428,16 +586,47 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
       if (errorHandler && iframe.contentWindow) {
         iframe.contentWindow.removeEventListener('error', errorHandler);
       }
+      if (messageHandler) {
+        window.removeEventListener('message', messageHandler);
+      }
     };
   }, [artifact]);
 
   return (
     <Box w="100%" h="100%" position="relative">
       {error && (
-        <Alert status="error" mb={4}>
-          <AlertIcon />
-          <AlertTitle>Preview Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+        <Alert
+          status="error"
+          mb={4}
+          borderRadius="lg"
+          boxShadow="lg"
+          variant="left-accent"
+        >
+          <AlertIcon boxSize={6} />
+          <Box flex="1">
+            <AlertTitle fontSize="lg" mb={2}>
+              ⚠️ Preview Error
+            </AlertTitle>
+            <AlertDescription display="block">
+              <Text mb={2}>{error}</Text>
+              <Code
+                fontSize="sm"
+                colorScheme="red"
+                p={2}
+                borderRadius="md"
+                display="block"
+                whiteSpace="pre-wrap"
+              >
+                Check the browser console for more details
+              </Code>
+            </AlertDescription>
+          </Box>
+          <CloseButton
+            position="absolute"
+            right={2}
+            top={2}
+            onClick={() => setError(null)}
+          />
         </Alert>
       )}
 

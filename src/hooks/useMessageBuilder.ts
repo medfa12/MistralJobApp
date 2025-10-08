@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Message as MessageType, InspectedCodeAttachment, ArtifactData } from '@/types/types';
+import { Message as MessageType, InspectedCodeAttachment, ArtifactData, ToolCall } from '@/types/types';
 import { buildArtifactContext, getToolSuggestion } from '@/utils/artifactHelpers';
 import { artifactSystemPrompt } from '@/utils/enhancedArtifactSystemPrompt';
 
@@ -36,8 +36,25 @@ export function useMessageBuilder() {
   ): any[] => {
     const { messages, userMessageContent, currentArtifact, inspectedCodeAttachment } = options;
 
-    const artifactContext = buildArtifactContext(currentArtifact);
-    const toolSuggestion = getToolSuggestion(!!currentArtifact);
+    // Decide whether to append tool suggestions and artifact context
+    const lastAssistantWithTool = [...messages].reverse().find((m) => m.role === 'assistant' && !!m.toolCall) as (MessageType | undefined);
+    const lastToolOp = (lastAssistantWithTool?.toolCall as ToolCall | undefined)?.operation;
+
+    const userText = typeof userMessageContent === 'string'
+      ? userMessageContent
+      : Array.isArray(userMessageContent) && userMessageContent.length > 0 && userMessageContent[0]?.type === 'text'
+      ? userMessageContent[0].text || ''
+      : '';
+
+    const userMentionsArtifact = /\bartifact(s)?\b/i.test(userText);
+    const hadRecentToolCall = !!lastAssistantWithTool;
+    const isDeleteOp = lastToolOp === 'delete';
+
+    const shouldAppendToolSuggestion = userMentionsArtifact || hadRecentToolCall;
+    const shouldAppendArtifactContext = !!currentArtifact && shouldAppendToolSuggestion && !isDeleteOp;
+
+    const artifactContext = shouldAppendArtifactContext ? buildArtifactContext(currentArtifact) : '';
+    const toolSuggestion = shouldAppendToolSuggestion ? getToolSuggestion(!!currentArtifact) : '';
     const systemPromptWithToolContext = artifactSystemPrompt + toolSuggestion;
 
     let inspectedCodeContext = '';
@@ -45,11 +62,11 @@ export function useMessageBuilder() {
       inspectedCodeContext = `\n\n---\n**Inspected Element (Reference Code - NOT a complete artifact):**\nElement: <${inspectedCodeAttachment.elementTag}>${inspectedCodeAttachment.elementId ? ` #${inspectedCodeAttachment.elementId}` : ''}${inspectedCodeAttachment.elementClasses ? ` .${inspectedCodeAttachment.elementClasses}` : ''}\nSource: ${inspectedCodeAttachment.sourceArtifactId}\n\n\`\`\`${inspectedCodeAttachment.sourceArtifactId.includes('react') ? 'jsx' : 'html'}\n${inspectedCodeAttachment.code}\n\`\`\`${inspectedCodeAttachment.styles ? `\n\n**Styles:** ${inspectedCodeAttachment.styles}` : ''}\n\nNote: This is a code snippet for reference. When creating React artifacts, always include: window.App = YourComponent\n---`;
     }
 
-    const finalUserContent = typeof userMessageContent === 'string' 
+    const finalUserContent = typeof userMessageContent === 'string'
       ? userMessageContent + inspectedCodeContext + artifactContext
       : Array.isArray(userMessageContent)
-        ? [{ type: 'text', text: userMessageContent[0].text + inspectedCodeContext + artifactContext }, ...userMessageContent.slice(1)]
-        : userMessageContent + inspectedCodeContext + artifactContext;
+        ? [{ type: 'text', text: (userMessageContent[0].text || '') + inspectedCodeContext + artifactContext }, ...userMessageContent.slice(1)]
+        : userMessageContent;
 
     return [
       { role: 'system' as const, content: systemPromptWithToolContext },
@@ -69,4 +86,3 @@ export function useMessageBuilder() {
     buildApiMessages,
   };
 }
-

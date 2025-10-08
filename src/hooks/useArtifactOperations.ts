@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { ArtifactData, ArtifactType, ToolCallData } from '@/types/types';
-import { parseArtifacts, hasArtifacts } from '@/utils/artifactParser';
+// XML artifact parsing deprecated
 import { handleToolCalls } from '@/utils/toolCallHandler';
 
 const MAX_VERSION_HISTORY = 50;
+const MAX_ARTIFACTS = 5; // Hard limit on number of artifacts retained in a chat
 
 interface ArtifactInput {
   identifier?: string;
@@ -40,8 +41,23 @@ export function useArtifactOperations() {
   // Get current artifact from the list
   const currentArtifact = artifacts.find(a => a.identifier === currentArtifactId) || null;
 
+  const pruneArtifacts = useCallback((list: ArtifactData[]): { list: ArtifactData[]; pruned: number } => {
+    if (list.length <= MAX_ARTIFACTS) return { list, pruned: 0 };
+    const sorted = [...list].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const prunedCount = sorted.length - MAX_ARTIFACTS;
+    const trimmed = sorted.slice(prunedCount);
+    return { list: trimmed, pruned: prunedCount };
+  }, []);
+
   const saveArtifactToDatabase = useCallback(async (artifactData: ArtifactData, conversationId: string | null): Promise<boolean> => {
     try {
+      console.log('[Artifact Save] Attempting to save artifact:', {
+        identifier: artifactData.identifier,
+        type: artifactData.type,
+        title: artifactData.title,
+        conversationId,
+      });
+
       const response = await fetch('/api/artifacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,26 +74,66 @@ export function useArtifactOperations() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        console.error('[Artifact Save] API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+        });
+        throw new Error(errorText);
       }
+
+      const result = await response.json();
+      console.log('[Artifact Save] Success:', result);
       return true;
     } catch (error) {
-      console.error('Error saving artifact:', error);
+      console.error('[Artifact Save] Exception:', error);
       return false;
     }
   }, []);
 
   const updateArtifactInDatabase = useCallback(async (artifactData: ArtifactData): Promise<boolean> => {
     try {
+      console.log('[Artifact Update] Searching for existing artifact:', {
+        identifier: artifactData.identifier,
+        conversationId: currentConversationId,
+      });
+
+      if (!currentConversationId) {
+        console.error('[Artifact Update] No conversation ID available');
+        return false;
+      }
+
       const searchResponse = await fetch(`/api/artifacts?conversationId=${currentConversationId}`);
       if (!searchResponse.ok) {
+        console.error('[Artifact Update] Search failed:', searchResponse.status);
         throw new Error('Failed to search for artifact');
       }
 
       const data = await searchResponse.json();
-      const existingArtifact = data.artifacts?.find((a: { identifier: string }) => a.identifier === artifactData.identifier);
-      
+      console.log('[Artifact Update] Search returned:', {
+        totalArtifacts: data.artifacts?.length || 0,
+        artifacts: data.artifacts?.map((a: any) => ({ id: a.id, identifier: a.identifier })),
+      });
+
+      let existingArtifact = data.artifacts?.find((a: { identifier: string }) => a.identifier === artifactData.identifier);
+
+      // If not found by conversationId, try searching without conversationId filter
+      if (!existingArtifact) {
+        console.log('[Artifact Update] Not found in conversation, searching globally by identifier');
+        const globalSearchResponse = await fetch(`/api/artifacts?identifier=${artifactData.identifier}`);
+        if (globalSearchResponse.ok) {
+          const globalData = await globalSearchResponse.json();
+          existingArtifact = globalData.artifacts?.[0];
+          if (existingArtifact) {
+            console.log('[Artifact Update] Found artifact globally:', existingArtifact.id);
+          }
+        }
+      }
+
       if (existingArtifact) {
+        console.log('[Artifact Update] Found existing artifact, updating:', existingArtifact.id);
+
         const updateResponse = await fetch(`/api/artifacts/${existingArtifact.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -91,13 +147,23 @@ export function useArtifactOperations() {
         });
 
         if (!updateResponse.ok) {
-          throw new Error(await updateResponse.text());
+          const errorText = await updateResponse.text();
+          console.error('[Artifact Update] Update failed:', {
+            status: updateResponse.status,
+            error: errorText,
+          });
+          throw new Error(errorText);
         }
+
+        const result = await updateResponse.json();
+        console.log('[Artifact Update] Success:', result);
         return true;
       }
+
+      console.warn('[Artifact Update] No existing artifact found, cannot update');
       return false;
     } catch (error) {
-      console.error('Error updating artifact:', error);
+      console.error('[Artifact Update] Exception:', error);
       return false;
     }
   }, [currentConversationId]);
@@ -112,7 +178,21 @@ export function useArtifactOperations() {
       createdAt: artifact.createdAt || new Date().toISOString(),
     };
 
-    setArtifacts(prev => [...prev, artifactData]);
+    setArtifacts(prev => {
+      const next = [...prev, artifactData];
+      const { list, pruned } = pruneArtifacts(next);
+      if (pruned > 0) {
+        toast({
+          title: 'Artifact Limit Reached',
+          description: `Keeping newest ${MAX_ARTIFACTS} artifacts. Removed ${pruned} older item(s).`,
+          status: 'info',
+          duration: 2500,
+          isClosable: true,
+          position: 'top',
+        });
+      }
+      return list;
+    });
     setCurrentArtifactId(artifactData.identifier);
     setIsArtifactPanelOpen(true);
 
@@ -340,39 +420,6 @@ export function useArtifactOperations() {
         }
       }
     }
-    else if (hasArtifacts(response)) {
-      const { cleanText, artifacts } = parseArtifacts(response);
-      cleanContent = cleanText;
-
-      if (artifacts.length > 0) {
-        const latestArtifact = artifacts[artifacts.length - 1];
-
-        toolCallData = {
-          operation: latestArtifact.operation,
-          artifactType: latestArtifact.type,
-          artifactTitle: latestArtifact.title,
-          revertToVersion: latestArtifact.revertToVersion,
-        };
-
-        switch (latestArtifact.operation) {
-          case 'delete':
-            handleDelete();
-            break;
-
-          case 'create':
-            artifactData = await handleCreate(latestArtifact) || undefined;
-            break;
-
-          case 'edit':
-            artifactData = await handleEdit(latestArtifact) || undefined;
-            break;
-
-          case 'revert':
-            artifactData = await handleRevert(latestArtifact.revertToVersion) || undefined;
-            break;
-        }
-      }
-    }
 
     return { artifactData, toolCallData, cleanContent };
   };
@@ -387,14 +434,25 @@ export function useArtifactOperations() {
     // Check if artifact already exists
     setArtifacts(prev => {
       const exists = prev.some(a => a.identifier === artifactData.identifier);
-      if (exists) {
-        return prev.map(a => a.identifier === artifactData.identifier ? artifactData : a);
+      const next = exists
+        ? prev.map(a => a.identifier === artifactData.identifier ? artifactData : a)
+        : [...prev, artifactData];
+      const { list, pruned } = pruneArtifacts(next);
+      if (pruned > 0) {
+        toast({
+          title: 'Artifact Limit Reached',
+          description: `Keeping newest ${MAX_ARTIFACTS} artifacts. Removed ${pruned} older item(s).`,
+          status: 'info',
+          duration: 2000,
+          isClosable: true,
+          position: 'top',
+        });
       }
-      return [...prev, artifactData];
+      return list;
     });
     setCurrentArtifactId(artifactData.identifier);
     setIsArtifactPanelOpen(true);
-  }, []);
+  }, [pruneArtifacts, toast]);
 
   const switchArtifact = useCallback((identifier: string) => {
     setCurrentArtifactId(identifier);

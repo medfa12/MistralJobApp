@@ -18,14 +18,14 @@ ${artifact.code}
 Available Operations:
 - EDIT: Modify the artifact (provide complete updated code)
 ${artifact.versions && artifact.versions.length > 0 ? `- REVERT: Go back to version 1-${artifact.versions.length}` : ''}
-- DELETE: Remove the artifact
+${'' /* Intentionally omit DELETE from the visible operations to reduce accidental deletions */}
+- CREATE: You may also create additional artifacts; do not delete existing ones unless the user explicitly asks.
 ---`;
 }
 
 export function getToolSuggestion(hasArtifact: boolean): string {
   if (hasArtifact) {
-    return `\n\n[System Context: User has an active artifact. If they're asking to modify/improve/add features, use <artifact operation="edit">. If they want to undo changes, use <artifact operation="revert" version="N">. Only delete if explicitly requested.]`;
+    return `\n\n[System Context: User has an active artifact. If they're asking to modify/improve/add features, use <artifact operation=\"edit\">. If they want to undo changes, use <artifact operation=\"revert\" version=\"N\">. Do not delete unless the user explicitly says so (e.g., \"delete\", \"remove\").]`;
   }
-  return `\n\n[System Context: No artifact exists. If user requests a component/widget/interactive demo, use <artifact operation="create">.]`;
+  return `\n\n[System Context: No artifact exists. If the user requests a component/widget/document/interactive demo, use <artifact operation=\"create\"> with a supported type.]`;
 }
-

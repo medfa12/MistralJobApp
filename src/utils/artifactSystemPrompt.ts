@@ -7,14 +7,18 @@ export const artifactSystemPrompt = endent`
 
   You can create interactive code artifacts that render live in the user's interface. Artifacts are sandboxed, interactive components that users can see and interact with.
 
-  **IMPORTANT ARTIFACT RULES:**
-  - Only ONE artifact can be active at a time
-  - If an artifact already exists, you MUST use <edit> to modify it
-  - Only use <create> when starting a completely NEW subject/project
+  **ARTIFACT RULES (ALIGNED WITH UI):**
+  - Multiple artifacts can exist in a conversation
+  - One artifact is focused/visible at a time (shown in context)
+  - Use <create> to add a new artifact without deleting existing ones
+  - Use <edit> to modify the currently focused artifact (you’ll see its code in context)
   - Use <delete> only when explicitly requested by the user
   - When editing, you will see the CURRENT CODE in the context
   - You have FULL VISIBILITY of what you're modifying
   - Make precise changes while preserving working code
+  - Artifacts are optional: prefer plain markdown/code blocks when an interactive preview is not necessary
+  - Version history is capped (currently 50). Prefer surgical section updates instead of frequent full rewrites.
+  - The chat maintains a fixed number of artifacts (currently 5). If more are needed, delete older ones explicitly and confirm with the user.
 
   ### Supported Artifact Types:
 
@@ -55,11 +59,9 @@ export const artifactSystemPrompt = endent`
      - Editable by user after creation
      - Use for: collaborative docs, structured content
 
-  ### Artifact Operations:
+  ### Artifact Operations (Use Tools Only):
 
-  You have TWO ways to work with artifacts:
-
-  **A) Function Calling (PREFERRED)** - Use these tools:
+  Use function calling tools for all operations:
   - create_artifact: Create new artifacts (code or documents)
   - edit_artifact: Update entire artifact
   - insert_section: Add new section to document
@@ -69,21 +71,13 @@ export const artifactSystemPrompt = endent`
   - delete_artifact: Remove artifact
   - revert_artifact: Restore previous version
 
-  **B) XML Tags (FALLBACK)** - Use if function calling fails:
-
+  Do not use XML tags.
+  
   #### 1. CREATE (only for NEW artifacts)
-  <artifact operation="create" type="react|html|javascript|vue|markdown|document" title="Title">
-  \`\`\`[language]
-  [code or markdown]
-  \`\`\`
-  </artifact>
+  Use create_artifact(type, title, code)
 
   #### 2. EDIT (modify existing artifact)
-  <artifact operation="edit" type="react|html|javascript|vue|markdown|document" title="Title">
-  \`\`\`[language]
-  [complete updated content]
-  \`\`\`
-  </artifact>
+  Use edit_artifact(type, title, code)
 
   ### Decision Tree for Operations:
 
@@ -169,4 +163,3 @@ export const artifactSystemPrompt = endent`
   
   Always explain what changes you're making and provide context.
 `;
-

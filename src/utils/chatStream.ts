@@ -5,10 +5,9 @@ import {
   ReconnectInterval,
 } from 'eventsource-parser';
 import { Message, ToolCallData } from '@/types/types';
-import { artifactSystemPrompt } from './artifactSystemPrompt';
+import { artifactSystemPrompt } from './enhancedArtifactSystemPrompt';
+import { reasoningArtifactSystemPrompt } from './reasoningArtifactSystemPrompt';
 import { ARTIFACT_TOOLS } from '@/config/artifactTools';
-
-const systemPrompt = artifactSystemPrompt;
 
 export const MistralStream = async (
   messages: Message[] | string,
@@ -17,8 +16,14 @@ export const MistralStream = async (
   useToolCalling: boolean = true,
   libraryId?: string,
 ) => {
+  // Check if this is a reasoning model
+  const isReasoningModel = model.includes('magistral');
+
+  // Use appropriate system prompt based on model type
+  const systemPrompt = isReasoningModel ? reasoningArtifactSystemPrompt : artifactSystemPrompt;
+
   let apiMessages: Message[];
-  
+
   if (typeof messages === 'string') {
     apiMessages = [
       { role: 'system', content: systemPrompt },
@@ -38,9 +43,15 @@ export const MistralStream = async (
     stream: true,
   };
 
+  // For reasoning models, set prompt_mode to null since we're using a custom system prompt
+  // This prevents the default reasoning prompt from being added on top of our artifact prompt
+  if (isReasoningModel) {
+    body.prompt_mode = null;
+  }
+
   if (useToolCalling) {
     const tools = [...ARTIFACT_TOOLS];
-    
+
     // Add document_library tool if libraryId is provided
     if (libraryId) {
       tools.push({
@@ -48,7 +59,7 @@ export const MistralStream = async (
         library_ids: [libraryId],
       } as any);
     }
-    
+
     body.tools = tools;
     body.tool_choice = 'auto';
   }
@@ -67,12 +78,29 @@ export const MistralStream = async (
 
   if (res.status !== 200) {
     const statusText = res.statusText;
-    const result = await res.body?.getReader().read();
-    throw new Error(
-      `Mistral API returned an error: ${
-        decoder.decode(result?.value) || statusText
-      }`,
-    );
+    let errorMessage = `Mistral API error (${res.status})`;
+
+    try {
+      // Try to read and parse the error response body
+      const result = await res.body?.getReader().read();
+      if (result?.value) {
+        const errorText = decoder.decode(result.value);
+
+        // Try to parse as JSON to get detailed error info
+        try {
+          const errorJson = JSON.parse(errorText);
+          // Mistral API typically returns errors in this format
+          errorMessage = errorJson.message || errorJson.error || errorJson.detail || errorText;
+        } catch (e) {
+          // If not JSON, use the raw text
+          errorMessage = errorText || statusText;
+        }
+      }
+    } catch (e) {
+      errorMessage = statusText;
+    }
+
+    throw new Error(errorMessage);
   }
 
   const stream = new ReadableStream({
