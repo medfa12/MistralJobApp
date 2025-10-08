@@ -24,6 +24,12 @@ interface UseMessageSubmitOptions {
   processAttachments: () => Promise<{ contentArray: any[]; uploadedAttachments: any[] }>;
   processArtifactResponse: (response: string, toolCalls?: ToolCallData[]) => Promise<{ artifactData?: ArtifactData; toolCallData?: any; cleanContent: string }>;
   clearAttachments: () => void;
+  // State setters from context
+  setLoading: (loading: boolean) => void;
+  setStreamingMessage: (message: string) => void;
+  setIsGeneratingArtifact: (generating: boolean) => void;
+  setArtifactLoadingInfo: (info: { operation: string; title?: string; type?: string } | null) => void;
+  setStreamingArtifactCode: (code: string) => void;
 }
 
 interface SubmitMessageOptions {
@@ -48,18 +54,27 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     processAttachments,
     processArtifactResponse,
     clearAttachments,
+    setLoading,
+    setStreamingMessage,
+    setIsGeneratingArtifact,
+    setArtifactLoadingInfo,
+    setStreamingArtifactCode,
   } = options;
 
   const toast = useToast();
-  const [loading, setLoading] = useState(false);
-  const [streamingMessage, setStreamingMessage] = useState('');
-  const [isGeneratingArtifact, setIsGeneratingArtifact] = useState(false);
-  const [artifactLoadingInfo, setArtifactLoadingInfo] = useState<{ operation: string; title?: string; type?: string } | null>(null);
-  const [streamingArtifactCode, setStreamingArtifactCode] = useState<string>('');
 
   const { validateApiKey, validateModel, validateInput, validateTokens } = useValidation();
   const { buildUserMessageContent, buildApiMessages } = useMessageBuilder();
-  const { sendMessage, abortRequest } = useChatAPI();
+  const { sendMessage, abortRequest: abortStream } = useChatAPI();
+
+  const abortRequest = useCallback(() => {
+    abortStream();
+    setLoading(false);
+    setStreamingMessage('');
+    setIsGeneratingArtifact(false);
+    setArtifactLoadingInfo(null);
+    setStreamingArtifactCode('');
+  }, [abortStream, setArtifactLoadingInfo, setIsGeneratingArtifact, setLoading, setStreamingArtifactCode, setStreamingMessage]);
 
   const submitMessage = useCallback(async (submitOptions: SubmitMessageOptions) => {
     const {
@@ -100,6 +115,8 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
         });
         return;
       }
+      // Note: createNewConversation already calls setCurrentConversationId
+      // The parent component should sync artifact conversation ID via useEffect
     }
 
     try {
@@ -237,11 +254,6 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
 
   return {
     submitMessage,
-    loading,
-    streamingMessage,
-    isGeneratingArtifact,
-    artifactLoadingInfo,
-    streamingArtifactCode,
     abortRequest,
   };
 }

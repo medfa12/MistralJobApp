@@ -6,7 +6,6 @@ import theme from '@/theme/theme';
 import routes from '@/routes';
 import Sidebar from '@/components/sidebar/Sidebar';
 import MobileSidebarButton from '@/components/sidebar/MobileSidebarButton';
-import Footer from '@/components/footer/FooterAdmin';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import '@/styles/App.scss';
@@ -65,9 +64,6 @@ function LayoutContent({ children }: { children: ReactNode }) {
               pt="50px"
             >
               {children}
-            </Box>
-            <Box>
-              <Footer />
             </Box>
           </Box>
         </Box>

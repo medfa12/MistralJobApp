@@ -27,24 +27,30 @@ import ToolCallBox from '@/components/ToolCallBox';
 import CodeSnippet from '@/components/CodeSnippet';
 import { processLatex } from '@/utils/latexProcessor';
 import { ArtifactToggleButton } from '@/components/artifact';
+import { useChatState } from '@/contexts/ChatStateContext';
 
-export default function MessageBox(props: { 
-  output: string; 
-  attachments?: Attachment[]; 
+export default function MessageBox(props: {
+  output: string;
+  attachments?: Attachment[];
   toolCall?: ToolCall;
   artifact?: ArtifactData;
   inspectedCodeAttachment?: InspectedCodeAttachment;
   onArtifactClick?: () => void;
   isArtifactOpen?: boolean;
+  messageIndex?: number;
 }) {
-  const { output, attachments, toolCall, artifact, inspectedCodeAttachment, onArtifactClick, isArtifactOpen } = props
+  const { output, attachments, toolCall, artifact, inspectedCodeAttachment, onArtifactClick, isArtifactOpen, messageIndex } = props
   const textColor = useColorModeValue('navy.700', 'white')
-  const thinkingBg = useColorModeValue('gray.50', 'whiteAlpha.100')
-  const thinkingBorder = useColorModeValue('purple.200', 'purple.600')
+  const thinkingBg = useColorModeValue('orange.50', 'whiteAlpha.100')
+  const thinkingBorder = useColorModeValue('orange.200', 'orange.500')
   const inspectedCodeBg = useColorModeValue('purple.50', 'purple.900')
   const inspectedCodeBorder = useColorModeValue('purple.300', 'purple.600')
   const [thinking, setThinking] = useState<string>('')
   const [answer, setAnswer] = useState<string>('')
+
+  // Use centralized thinking accordion state
+  const { thinkingExpanded, toggleThinking } = useChatState()
+  const isExpanded = messageIndex !== undefined ? thinkingExpanded[messageIndex] : false
 
   const extractCodeSnippets = (text: string): { text: string; snippets: Array<{ language: string; code: string; index: number }> } => {
     const snippets: Array<{ language: string; code: string; index: number }> = [];
@@ -95,11 +101,11 @@ export default function MessageBox(props: {
 
   return (
     <Card
-      display={(output || inspectedCodeAttachment) ? 'flex' : 'none'}
+      display={(output || inspectedCodeAttachment || thinking) ? 'flex' : 'none'}
       px="22px !important"
       pl="22px !important"
       color={textColor}
-      minH={output ? "450px" : "auto"}
+      minH="auto"
       fontSize={{ base: 'sm', md: 'md' }}
       lineHeight={{ base: '24px', md: '26px' }}
       fontWeight="500"
@@ -223,50 +229,14 @@ export default function MessageBox(props: {
           />
         </Box>
       )}
-      
-      {(() => {
-        const { text: processedText, snippets } = extractCodeSnippets(answer);
-        let renderedText = processedText;
-        
-        return (
-          <>
-            {snippets.map((snippet, idx) => {
-              const placeholder = `__CODE_SNIPPET_${idx}__`;
-              const parts = renderedText.split(placeholder);
-              if (parts.length > 1) {
-                renderedText = parts.slice(1).join(placeholder);
-                return (
-                  <Fragment key={idx}>
-                    <ReactMarkdown 
-                      className="font-medium"
-                      remarkPlugins={[remarkMath]}
-                      rehypePlugins={[rehypeKatex]}
-                    >
-                      {parts[0]}
-                    </ReactMarkdown>
-                    <CodeSnippet 
-                      code={snippet.code}
-                      language={snippet.language}
-                      title={`${snippet.language.charAt(0).toUpperCase() + snippet.language.slice(1)} Code`}
-                    />
-                  </Fragment>
-                );
-              }
-              return null;
-            })}
-            <ReactMarkdown 
-              className="font-medium"
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-            >
-              {renderedText}
-            </ReactMarkdown>
-          </>
-        );
-      })()}
-      
+
       {thinking && (
-        <Accordion allowToggle mb="20px">
+        <Accordion
+          allowToggle
+          mb="20px"
+          index={isExpanded ? [0] : []}
+          onChange={() => messageIndex !== undefined && toggleThinking(messageIndex)}
+        >
           <AccordionItem
             border="1px solid"
             borderColor={thinkingBorder}
@@ -283,18 +253,14 @@ export default function MessageBox(props: {
                     fontWeight="700"
                     fontSize="md"
                     color={textColor}
-                    bgGradient="linear(to-r, purple.400, pink.400, purple.400)"
+                    bgGradient="linear(to-r, orange.500, orange.400, orange.500)"
                     bgClip="text"
                     bgSize="200% auto"
                     animation="shimmer 3s linear infinite"
                     sx={{
                       '@keyframes shimmer': {
-                        '0%': {
-                          backgroundPosition: '0% center',
-                        },
-                        '100%': {
-                        backgroundPosition: '200% center',
-                        },
+                        '0%': { backgroundPosition: '0% center' },
+                        '100%': { backgroundPosition: '200% center' },
                       },
                     }}
                   >
@@ -319,6 +285,47 @@ export default function MessageBox(props: {
           </AccordionItem>
         </Accordion>
       )}
+
+      {(() => {
+        const { text: processedText, snippets } = extractCodeSnippets(answer);
+        let renderedText = processedText;
+
+        return (
+          <>
+            {snippets.map((snippet, idx) => {
+              const placeholder = `__CODE_SNIPPET_${idx}__`;
+              const parts = renderedText.split(placeholder);
+              if (parts.length > 1) {
+                renderedText = parts.slice(1).join(placeholder);
+                return (
+                  <Fragment key={idx}>
+                    <ReactMarkdown
+                      className="font-medium"
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
+                    >
+                      {parts[0]}
+                    </ReactMarkdown>
+                    <CodeSnippet
+                      code={snippet.code}
+                      language={snippet.language}
+                      title={`${snippet.language.charAt(0).toUpperCase() + snippet.language.slice(1)} Code`}
+                    />
+                  </Fragment>
+                );
+              }
+              return null;
+            })}
+            <ReactMarkdown
+              className="font-medium"
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+            >
+              {renderedText}
+            </ReactMarkdown>
+          </>
+        );
+      })()}
     </Card>
   )
 }

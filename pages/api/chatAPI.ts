@@ -20,8 +20,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const messagesOrInput = messages || inputCode || '';
     const stream = await MistralStream(
-      messagesOrInput, 
-      model, 
+      messagesOrInput,
+      model,
       apiKeyFinal,
       useToolCalling,
       libraryId
@@ -29,8 +29,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(stream);
   } catch (error) {
-    console.error(error);
-    return new Response('Error', { status: 500 });
+    console.error('Chat API Error:', error);
+
+    // Extract error message
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+
+    // Return detailed error response
+    return new Response(
+      JSON.stringify({
+        error: errorMessage,
+        message: errorMessage
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+    );
   }
 };
 

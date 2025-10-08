@@ -64,38 +64,7 @@ export function detectArtifactInStream(
     }
   }
 
-  const hasArtifactTag = /<artifact[^>]*>/i.test(accumulatedResponse);
-
-  if (hasArtifactTag) {
-    const artifactMatch = accumulatedResponse.match(
-      /<artifact\s+operation="([^"]+)"(?:\s+type="([^"]+)")?(?:\s+title="([^"]+)")?/i
-    );
-
-    // Extract streaming code from artifact tags
-    let streamingCode = '';
-    const codeMatch = accumulatedResponse.match(/<artifact[^>]*>\s*```[a-z]*\s*([\s\S]*?)(?:```\s*<\/artifact>|$)/i);
-    if (codeMatch) {
-      streamingCode = codeMatch[1];
-    }
-
-    if (artifactMatch && !currentState.isGeneratingArtifact) {
-      return {
-        isGeneratingArtifact: true,
-        artifactLoadingInfo: {
-          operation: artifactMatch[1],
-          type: artifactMatch[2] || undefined,
-          title: artifactMatch[3] || undefined,
-        },
-        streamingArtifactCode: streamingCode,
-      };
-    }
-
-    return {
-      isGeneratingArtifact: true,
-      artifactLoadingInfo: currentState.artifactLoadingInfo,
-      streamingArtifactCode: streamingCode,
-    };
-  }
+  // Deprecated: ignore XML artifact tags in stream
 
   return {
     isGeneratingArtifact: false,
@@ -103,4 +72,3 @@ export function detectArtifactInStream(
     streamingArtifactCode: undefined,
   };
 }
-

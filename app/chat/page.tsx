@@ -22,6 +22,7 @@ import { useAttachments } from '@/hooks/useAttachments';
 import { useArtifactOperations } from '@/hooks/useArtifactOperations';
 import { useMessageSubmit } from '@/hooks/useMessageSubmit';
 import { useResizable } from '@/hooks/useResizable';
+import { ChatStateProvider, useChatState } from '@/contexts/ChatStateContext';
 import {
   ModelSelector,
   ChatMessages,
@@ -48,9 +49,25 @@ function ChatContent() {
     documentCount?: number;
     mistralLibraryId: string;
   } | null>(null);
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const lastLoadedConversationIdRef = useRef<string | null>(null);
+
+  // Use centralized chat state
+  const {
+    loading,
+    setLoading,
+    streamingMessage,
+    setStreamingMessage,
+    isGeneratingArtifact,
+    setIsGeneratingArtifact,
+    artifactLoadingInfo,
+    setArtifactLoadingInfo,
+    streamingArtifactCode,
+    setStreamingArtifactCode,
+    resetChatState,
+  } = useChatState();
 
   const { size: splitSize, isDragging, containerRef, handleMouseDown } = useResizable({
     defaultSize: 60,
@@ -93,11 +110,6 @@ function ChatContent() {
 
   const {
     submitMessage,
-    loading,
-    streamingMessage,
-    isGeneratingArtifact,
-    artifactLoadingInfo,
-    streamingArtifactCode,
     abortRequest,
   } = useMessageSubmit({
     messages,
@@ -111,18 +123,79 @@ function ChatContent() {
     processAttachments,
     processArtifactResponse,
     clearAttachments,
+    setLoading,
+    setStreamingMessage,
+    setIsGeneratingArtifact,
+    setArtifactLoadingInfo,
+    setStreamingArtifactCode,
   });
 
   const currentTokens = useMemo(() => {
-    let total = estimateTokens('You are Mistral AI...');
+    let total = 0;
+
+    // System prompt tokens (varies by model)
+    const isReasoningModel = model.includes('magistral');
+    if (isReasoningModel) {
+      // Reasoning system prompt: ~9,759 chars = ~2,500 tokens
+      total += 2500;
+    } else {
+      // Standard artifact system prompt: ~15,836 chars = ~4,000 tokens
+      total += 4000;
+    }
+
+    // Tool definitions: ~4,221 chars = ~1,000 tokens
+    total += 1000;
+
+    // Message history
     messages.forEach(msg => {
       total += estimateTokens(getMessageText(msg.content));
+
+      // Count attachments if present
+      if (msg.attachments && msg.attachments.length > 0) {
+        msg.attachments.forEach(att => {
+          if (att.type === 'image') {
+            // Images: ~85-170 tokens per image (Mistral docs)
+            total += 170;
+          } else if (att.type === 'document') {
+            // Documents: estimate based on content
+            total += 500; // Conservative estimate
+          }
+        });
+      }
     });
+
+    // Current input
     total += estimateTokens(inputCode);
+
+    // Inspected code attachment
+    if (inspectedCodeAttachment) {
+      total += estimateTokens(inspectedCodeAttachment.code || '');
+    }
+
+    // Regular attachments
+    attachments.forEach(att => {
+      if (att.type === 'image') {
+        total += 170;
+      } else if (att.type === 'document') {
+        total += 500;
+      }
+    });
+
+    // Current artifact context (when editing)
+    if (currentArtifact) {
+      total += estimateTokens(currentArtifact.code || '');
+      total += estimateTokens(currentArtifact.title || '');
+    }
+
     return total;
-  }, [messages, inputCode]);
+  }, [messages, inputCode, model, inspectedCodeAttachment, attachments, currentArtifact]);
 
   const modelInfo = getModelInfo(model);
+
+  // Sync artifact conversation ID whenever the main conversation ID changes
+  useEffect(() => {
+    setArtifactConversationId(currentConversationId);
+  }, [currentConversationId, setArtifactConversationId]);
 
   useEffect(() => {
     if (chatContainerRef.current && !isLoadingHistory) {
@@ -131,37 +204,47 @@ function ChatContent() {
   }, [messages.length, streamingMessage, isLoadingHistory]);
 
   useEffect(() => {
-    if (conversationId) {
-      loadConversation(conversationId).then((loadedMessages) => {
-        if (loadedMessages) {
-          setMessages(loadedMessages);
-
-          // Restore all artifacts from messages
-          const messagesWithArtifacts = loadedMessages
-            .filter(msg => msg.artifact)
-            .map(msg => msg.artifact as ArtifactData);
-
-          if (messagesWithArtifacts.length > 0) {
-            // Restore all artifacts (newest first)
-            messagesWithArtifacts.reverse().forEach(artifact => {
-              restoreArtifact(artifact);
-            });
-          } else {
-            resetArtifacts();
-          }
-        }
-      });
-      setCurrentConversationId(conversationId);
-      setArtifactConversationId(conversationId); // Set conversation ID for artifact persistence
-    } else {
+    if (!conversationId) {
+      resetChatState();
       setMessages([]);
       setCurrentConversationId(null);
       setArtifactConversationId(null);
       resetArtifacts();
       setInputCode('');
       clearAttachments();
+      lastLoadedConversationIdRef.current = null;
+      return;
     }
-  }, [conversationId, loadConversation, clearAttachments, setCurrentConversationId, setArtifactConversationId, resetArtifacts, restoreArtifact]);
+
+    if (lastLoadedConversationIdRef.current === conversationId) {
+      return;
+    }
+
+    lastLoadedConversationIdRef.current = conversationId;
+
+    resetChatState();
+
+    loadConversation(conversationId).then((loadedMessages) => {
+      if (loadedMessages) {
+        setMessages(loadedMessages);
+
+        const messagesWithArtifacts = loadedMessages
+          .filter(msg => msg.artifact)
+          .map(msg => msg.artifact as ArtifactData);
+
+        if (messagesWithArtifacts.length > 0) {
+          messagesWithArtifacts.forEach(artifact => {
+            restoreArtifact(artifact);
+          });
+        } else {
+          resetArtifacts();
+        }
+      }
+    });
+
+    setCurrentConversationId(conversationId);
+    setArtifactConversationId(conversationId);
+  }, [conversationId, loadConversation, clearAttachments, setCurrentConversationId, setArtifactConversationId, resetArtifacts, restoreArtifact, resetChatState]);
 
   useEffect(() => {
     return () => {
@@ -339,6 +422,7 @@ function ChatContent() {
             attachmentCount={attachments.length}
             onImageAttach={(file, preview) => addAttachment('image', file, preview)}
             onDocumentAttach={(file) => addAttachment('document', file)}
+            onAbort={abortRequest}
           />
         </Flex>
 
@@ -428,8 +512,10 @@ function ChatContent() {
 
 export default function Chat() {
   return (
-    <Suspense fallback={<Flex w="100%" h="100vh" align="center" justify="center"><Text>Loading...</Text></Flex>}>
-      <ChatContent />
-    </Suspense>
+    <ChatStateProvider>
+      <Suspense fallback={<Flex w="100%" h="100vh" align="center" justify="center"><Text>Loading...</Text></Flex>}>
+        <ChatContent />
+      </Suspense>
+    </ChatStateProvider>
   );
 }

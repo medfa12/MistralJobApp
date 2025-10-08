@@ -19,6 +19,7 @@ export function useChatAPI() {
   const abortRequest = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
   }, []);
 
@@ -137,10 +138,12 @@ export function useChatAPI() {
       }
 
       onComplete(accumulatedResponse, accumulatedToolCalls);
+      abortControllerRef.current = null;
       
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('Request aborted');
+        abortControllerRef.current = null;
         return;
       }
       
@@ -156,6 +159,7 @@ export function useChatAPI() {
       });
       
       onError(error as Error);
+      abortControllerRef.current = null;
     }
   }, [toast]);
 
@@ -164,4 +168,3 @@ export function useChatAPI() {
     abortRequest,
   };
 }
-

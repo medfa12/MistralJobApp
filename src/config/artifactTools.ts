@@ -47,6 +47,10 @@ export const ARTIFACT_TOOLS = [
       parameters: {
         type: "object",
         properties: {
+          identifier: {
+            type: "string",
+            description: "Optional: the identifier or title of the target artifact to edit. If omitted, edits apply to the currently focused artifact."
+          },
           type: {
             type: "string",
             enum: ["react", "html", "javascript", "vue", "markdown", "document"],
@@ -197,5 +201,4 @@ export const ARTIFACT_TOOLS = [
     }
   }
 ];
-
 

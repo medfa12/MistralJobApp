@@ -22,13 +22,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   if (req.method === 'GET') {
     try {
-      const { conversationId, limit, offset } = req.query;
+      const { conversationId, identifier, limit, offset } = req.query;
       const take = limit ? parseInt(limit as string) : 50;
       const skip = offset ? parseInt(offset as string) : 0;
 
       const where: any = { userId: user.id };
       if (conversationId) {
         where.conversationId = conversationId as string;
+      }
+      if (identifier) {
+        where.identifier = identifier as string;
       }
 
       const artifacts = await db.artifact.findMany({
