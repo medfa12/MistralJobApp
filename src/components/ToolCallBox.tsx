@@ -30,25 +30,10 @@ const operationConfig: Record<string, { icon: any; label: string; colorScheme: s
     label: 'Revert Artifact',
     colorScheme: 'purple',
   },
-  insert_section: {
-    icon: MdAdd,
-    label: 'Add Section',
-    colorScheme: 'green',
-  },
-  update_section: {
+  update_content: {
     icon: MdEdit,
-    label: 'Update Section',
+    label: 'Update Content',
     colorScheme: 'blue',
-  },
-  delete_section: {
-    icon: MdDelete,
-    label: 'Remove Section',
-    colorScheme: 'red',
-  },
-  apply_formatting: {
-    icon: MdEdit,
-    label: 'Format Text',
-    colorScheme: 'orange',
   },
 };
 

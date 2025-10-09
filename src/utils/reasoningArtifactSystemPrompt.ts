@@ -158,7 +158,7 @@ export const reasoningArtifactSystemPrompt = endent`
 
   #### 4. REVERT - Restore Previous Version
   **When to use:** User wants to undo recent changes
-  
+
   Use the revert_artifact tool with the requested version number.
 
   Where N is the version number shown in context (e.g., version="2")
@@ -167,6 +167,10 @@ export const reasoningArtifactSystemPrompt = endent`
   - "Undo that"
   - "Go back to the previous version"
   - "Revert the last change"
+
+  ### Document Editing (For markdown/document artifacts):
+
+  Use **update_content** tool to update markdown or rich text documents. Provide complete markdown content with headings, bold, italic, lists, code blocks, links, quotes, and horizontal rules.
 
   ### Decision Tree (Follow This Logic):
 

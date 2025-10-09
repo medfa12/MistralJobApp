@@ -1,12 +1,10 @@
-import endent from 'endent';
 import {
   createParser,
   ParsedEvent,
   ReconnectInterval,
 } from 'eventsource-parser';
 import { Message, ToolCallData } from '@/types/types';
-import { artifactSystemPrompt } from './enhancedArtifactSystemPrompt';
-import { reasoningArtifactSystemPrompt } from './reasoningArtifactSystemPrompt';
+import { getSystemPromptForModel } from './systemPrompt';
 import { ARTIFACT_TOOLS } from '@/config/artifactTools';
 
 export const MistralStream = async (
@@ -20,20 +18,34 @@ export const MistralStream = async (
   const isReasoningModel = model.includes('magistral');
 
   // Use appropriate system prompt based on model type
-  const systemPrompt = isReasoningModel ? reasoningArtifactSystemPrompt : artifactSystemPrompt;
+  const systemPromptWithIdentity = getSystemPromptForModel(model);
 
   let apiMessages: Message[];
 
   if (typeof messages === 'string') {
     apiMessages = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: systemPromptWithIdentity },
       { role: 'user', content: messages },
     ];
   } else {
-    apiMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messages,
-    ];
+    let messagesArray = messages as Message[];
+    const hasSystemMessage = messagesArray.length > 0 && messagesArray[0].role === 'system';
+
+    if (hasSystemMessage) {
+      const firstContent = messagesArray[0].content;
+      if (typeof firstContent === 'string' && !firstContent.includes('[Model Identity]')) {
+        messagesArray = [
+          { ...messagesArray[0], content: `${firstContent}\n\n[Model Identity] ${model}` },
+          ...messagesArray.slice(1),
+        ];
+      }
+      apiMessages = messagesArray;
+    } else {
+      apiMessages = [
+        { role: 'system', content: systemPromptWithIdentity },
+        ...messagesArray,
+      ];
+    }
   }
 
   const body: any = {

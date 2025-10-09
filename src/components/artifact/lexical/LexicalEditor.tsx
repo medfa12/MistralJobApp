@@ -12,9 +12,8 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { $convertFromMarkdownString, $convertToMarkdownString, TRANSFORMERS } from '@lexical/markdown';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { Box, useColorModeValue } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import { EditorState } from 'lexical';
-// Lexical nodes required for Markdown transformers
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { CodeNode } from '@lexical/code';
@@ -22,6 +21,7 @@ import { LinkNode, AutoLinkNode } from '@lexical/link';
 import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
 import { MISTRAL_LEXICAL_THEME } from './MistralLexicalTheme';
 import { ToolbarPlugin } from './ToolbarPlugin';
+import './lexical-editor.css';
 
 interface LexicalEditorProps {
   initialMarkdown: string;
@@ -49,9 +49,6 @@ function MarkdownImportPlugin({ initialMarkdown }: { initialMarkdown: string }) 
 }
 
 export function LexicalEditor({ initialMarkdown, onContentChange, readOnly = false }: LexicalEditorProps) {
-  const editorBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-
   const initialConfig = {
     namespace: 'MistralDocumentEditor',
     theme: MISTRAL_LEXICAL_THEME,
@@ -75,7 +72,6 @@ export function LexicalEditor({ initialMarkdown, onContentChange, readOnly = fal
     if (readOnly || !onContentChange) return;
 
     try {
-      // Debounce conversions to avoid save storms
       if (debounceRef.current) {
         window.clearTimeout(debounceRef.current);
       }
@@ -95,12 +91,12 @@ export function LexicalEditor({ initialMarkdown, onContentChange, readOnly = fal
   };
 
   return (
-    <Box 
-      borderRadius="xl" 
+    <Box
+      borderRadius="xl"
       overflow="hidden"
       border="1px solid"
-      borderColor={borderColor}
-      bg={editorBg}
+      borderColor="#E5E7EB"
+      bg="white"
       boxShadow="lg"
     >
       <LexicalComposer initialConfig={initialConfig}>
@@ -136,10 +132,10 @@ export function LexicalEditor({ initialMarkdown, onContentChange, readOnly = fal
               />
             }
             placeholder={
-              <Box 
-                color="gray.400" 
-                position="absolute" 
-                top="6" 
+              <Box
+                color="#9CA3AF"
+                position="absolute"
+                top="6"
                 left="6"
                 pointerEvents="none"
               >

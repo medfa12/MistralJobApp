@@ -128,7 +128,7 @@ export const artifactSystemPrompt = endent`
 
   #### 1. CREATE - For New Artifacts Only
   **When to use:** User explicitly requests NEW component AND no artifact exists
-  
+
   Use the create_artifact tool with a supported type and complete code/markdown.
 
   **Examples of CREATE requests:**
@@ -138,7 +138,7 @@ export const artifactSystemPrompt = endent`
 
   #### 2. EDIT - Modify Existing Artifact
   **When to use:** Artifact exists AND user wants changes/improvements/fixes. Edits apply to the currently focused artifact unless an explicit identifier/title is provided.
-  
+
   Use the edit_artifact tool. Provide COMPLETE updated content for the targeted artifact.
 
   **Examples of EDIT requests:**
@@ -159,7 +159,7 @@ export const artifactSystemPrompt = endent`
 
   #### 3. DELETE - Remove Artifact (explicit only)
   **When to use:** User explicitly asks to remove (e.g., "delete", "remove it")
-  
+
   Use the delete_artifact tool only when the user explicitly asks to delete/remove.
 
   **Examples of DELETE requests:**
@@ -169,7 +169,7 @@ export const artifactSystemPrompt = endent`
 
   #### 4. REVERT - Restore Previous Version
   **When to use:** User wants to undo recent changes
-  
+
   Use the revert_artifact tool with the requested version number.
 
   Where N is the version number shown in context (e.g., version="2")
@@ -178,6 +178,10 @@ export const artifactSystemPrompt = endent`
   - "Undo that"
   - "Go back to the previous version"
   - "Revert the last change"
+
+  ### Document Editing (For markdown/document artifacts):
+
+  Use **update_content** tool to update markdown or rich text documents. Provide complete markdown content with headings, bold, italic, lists, code blocks, links, quotes, and horizontal rules.
 
   ### Decision Tree (Follow This Logic):
 

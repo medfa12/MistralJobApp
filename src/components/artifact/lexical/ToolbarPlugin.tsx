@@ -19,9 +19,12 @@ import {
   REMOVE_LIST_COMMAND,
   ListNode,
 } from '@lexical/list';
-import { $isHeadingNode, $createHeadingNode, HeadingTagType } from '@lexical/rich-text';
+import { $isHeadingNode, $createHeadingNode, $createQuoteNode, HeadingTagType, QuoteNode } from '@lexical/rich-text';
 import { $setBlocksType } from '@lexical/selection';
 import { $getNearestNodeOfType, mergeRegister } from '@lexical/utils';
+import { TOGGLE_LINK_COMMAND } from '@lexical/link';
+import { INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
+import { $createCodeNode } from '@lexical/code';
 import {
   Box,
   Flex,
@@ -30,6 +33,18 @@ import {
   Select,
   Tooltip,
   useColorModeValue,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  Button,
+  Input,
+  FormControl,
+  FormLabel,
+  useDisclosure,
 } from '@chakra-ui/react';
 import {
   MdFormatBold,
@@ -46,7 +61,9 @@ import {
   MdUndo,
   MdRedo,
   MdLink,
+  MdLinkOff,
   MdFormatQuote,
+  MdHorizontalRule,
 } from 'react-icons/md';
 
 const LowPriority = 1;
@@ -59,12 +76,14 @@ export function ToolbarPlugin() {
   const [isStrikethrough, setIsStrikethrough] = useState(false);
   const [isCode, setIsCode] = useState(false);
   const [blockType, setBlockType] = useState('paragraph');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkText, setLinkText] = useState('');
+  const { isOpen: isLinkModalOpen, onOpen: onLinkModalOpen, onClose: onLinkModalClose } = useDisclosure();
 
   const toolbarBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const activeColor = 'orange.500';
   const hoverBg = useColorModeValue('gray.100', 'gray.700');
-  // Hoisted color mode values used conditionally in JSX
   const activeBg = useColorModeValue('orange.50', 'orange.900');
 
   const updateToolbar = useCallback(() => {
@@ -153,6 +172,49 @@ export function ToolbarPlugin() {
     } else {
       editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
     }
+  };
+
+  const formatQuote = () => {
+    if (blockType !== 'quote') {
+      editor.update(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          $setBlocksType(selection, () => $createQuoteNode());
+        }
+      });
+    } else {
+      formatParagraph();
+    }
+  };
+
+  const formatCodeBlock = () => {
+    if (blockType !== 'code') {
+      editor.update(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          $setBlocksType(selection, () => $createCodeNode());
+        }
+      });
+    } else {
+      formatParagraph();
+    }
+  };
+
+  const insertHorizontalRule = () => {
+    editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined);
+  };
+
+  const handleInsertLink = () => {
+    if (linkUrl) {
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkUrl);
+      setLinkUrl('');
+      setLinkText('');
+      onLinkModalClose();
+    }
+  };
+
+  const removeLink = () => {
+    editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
   };
 
   return (
@@ -306,6 +368,108 @@ export function ToolbarPlugin() {
           _hover={{ bg: hoverBg }}
         />
       </Tooltip>
+
+      <Divider orientation="vertical" h="24px" mx={1} />
+
+      <Tooltip label="Quote">
+        <IconButton
+          aria-label="Quote"
+          icon={<MdFormatQuote />}
+          size="sm"
+          variant="ghost"
+          color={blockType === 'quote' ? activeColor : undefined}
+          bg={blockType === 'quote' ? activeBg : undefined}
+          onClick={formatQuote}
+          _hover={{ bg: hoverBg }}
+        />
+      </Tooltip>
+
+      <Tooltip label="Code Block">
+        <IconButton
+          aria-label="Code Block"
+          icon={<MdCode />}
+          size="sm"
+          variant="ghost"
+          color={blockType === 'code' ? activeColor : undefined}
+          bg={blockType === 'code' ? activeBg : undefined}
+          onClick={formatCodeBlock}
+          _hover={{ bg: hoverBg }}
+        />
+      </Tooltip>
+
+      <Divider orientation="vertical" h="24px" mx={1} />
+
+      <Tooltip label="Insert Link">
+        <IconButton
+          aria-label="Insert Link"
+          icon={<MdLink />}
+          size="sm"
+          variant="ghost"
+          onClick={onLinkModalOpen}
+          _hover={{ bg: hoverBg }}
+        />
+      </Tooltip>
+
+      <Tooltip label="Remove Link">
+        <IconButton
+          aria-label="Remove Link"
+          icon={<MdLinkOff />}
+          size="sm"
+          variant="ghost"
+          onClick={removeLink}
+          _hover={{ bg: hoverBg }}
+        />
+      </Tooltip>
+
+      <Tooltip label="Horizontal Rule">
+        <IconButton
+          aria-label="Horizontal Rule"
+          icon={<MdHorizontalRule />}
+          size="sm"
+          variant="ghost"
+          onClick={insertHorizontalRule}
+          _hover={{ bg: hoverBg }}
+        />
+      </Tooltip>
+
+      <Modal isOpen={isLinkModalOpen} onClose={onLinkModalClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Insert Link</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <FormControl mb={4}>
+              <FormLabel>URL</FormLabel>
+              <Input
+                placeholder="https://example.com"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleInsertLink();
+                  }
+                }}
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Link Text (optional)</FormLabel>
+              <Input
+                placeholder="Link text"
+                value={linkText}
+                onChange={(e) => setLinkText(e.target.value)}
+              />
+            </FormControl>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onLinkModalClose}>
+              Cancel
+            </Button>
+            <Button colorScheme="orange" onClick={handleInsertLink}>
+              Insert
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Flex>
   );
 }

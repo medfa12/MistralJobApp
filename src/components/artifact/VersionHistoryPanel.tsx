@@ -22,14 +22,16 @@ interface Props {
   artifact: ArtifactData;
   onVersionSelect: (version: number) => void;
   currentVersion?: number;
+  previewMode?: boolean;
 }
 
 const MotionBox = motion(Box);
 
-export const VersionHistoryPanel: FC<Props> = ({ 
-  artifact, 
+export const VersionHistoryPanel: FC<Props> = ({
+  artifact,
   onVersionSelect,
-  currentVersion 
+  currentVersion,
+  previewMode = false
 }) => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
@@ -152,9 +154,9 @@ export const VersionHistoryPanel: FC<Props> = ({
                     </HStack>
 
                     {!version.isCurrent && (
-                      <Tooltip label="Revert to this version">
+                      <Tooltip label={previewMode ? 'Preview this version' : 'Restore this version'}>
                         <IconButton
-                          aria-label="Revert to version"
+                          aria-label={previewMode ? 'Preview version' : 'Restore version'}
                           icon={<Icon as={MdRestore} />}
                           size="sm"
                           variant="ghost"

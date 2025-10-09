@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
-import { Message as MessageType, InspectedCodeAttachment, ArtifactData, ToolCall } from '@/types/types';
+import { Message as MessageType, InspectedCodeAttachment, ArtifactData, ToolCall, MistralModel } from '@/types/types';
 import { buildArtifactContext, getToolSuggestion } from '@/utils/artifactHelpers';
-import { artifactSystemPrompt } from '@/utils/enhancedArtifactSystemPrompt';
+import { getSystemPromptForModel } from '@/utils/systemPrompt';
 
 interface BuildMessageOptions {
   currentInput: string;
@@ -15,6 +15,7 @@ interface BuildApiMessagesOptions {
   userMessageContent: any;
   currentArtifact: ArtifactData | null;
   inspectedCodeAttachment?: InspectedCodeAttachment | null;
+  model: MistralModel;
 }
 
 export function useMessageBuilder() {
@@ -34,7 +35,9 @@ export function useMessageBuilder() {
   const buildApiMessages = useCallback((
     options: BuildApiMessagesOptions
   ): any[] => {
-    const { messages, userMessageContent, currentArtifact, inspectedCodeAttachment } = options;
+    const { messages, userMessageContent, currentArtifact, inspectedCodeAttachment, model } = options;
+
+    const basePrompt = getSystemPromptForModel(model);
 
     // Decide whether to append tool suggestions and artifact context
     const lastAssistantWithTool = [...messages].reverse().find((m) => m.role === 'assistant' && !!m.toolCall) as (MessageType | undefined);
@@ -55,7 +58,7 @@ export function useMessageBuilder() {
 
     const artifactContext = shouldAppendArtifactContext ? buildArtifactContext(currentArtifact) : '';
     const toolSuggestion = shouldAppendToolSuggestion ? getToolSuggestion(!!currentArtifact) : '';
-    const systemPromptWithToolContext = artifactSystemPrompt + toolSuggestion;
+    const systemPromptWithToolContext = basePrompt + toolSuggestion;
 
     let inspectedCodeContext = '';
     if (inspectedCodeAttachment) {
