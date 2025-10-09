@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, useColorModeValue } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -12,15 +12,12 @@ interface MarkdownViewProps {
 }
 
 export function MarkdownView({ markdown }: MarkdownViewProps) {
-  const bg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-
   return (
     <Box
-      bg={bg}
+      bg="white"
       borderRadius="xl"
       border="1px solid"
-      borderColor={borderColor}
+      borderColor="#E5E7EB"
       p={8}
       maxW="900px"
       mx="auto"
@@ -29,57 +26,51 @@ export function MarkdownView({ markdown }: MarkdownViewProps) {
         '& h1': {
           fontSize: '2.25rem',
           fontWeight: 'bold',
-          color: 'gray.900',
-          _dark: { color: 'white' },
+          color: '#111827',
           mb: 6,
           pb: 3,
           borderBottom: '2px solid',
-          borderColor: 'orange.500',
+          borderColor: '#FF9559',
         },
         '& h2': {
           fontSize: '1.875rem',
           fontWeight: '600',
-          color: 'gray.800',
-          _dark: { color: 'gray.100' },
+          color: '#1F2937',
           mb: 4,
           pb: 2,
           borderLeft: '4px solid',
-          borderColor: 'orange.400',
+          borderColor: '#FF9559',
           pl: 4,
         },
         '& h3': {
           fontSize: '1.5rem',
           fontWeight: '600',
-          color: 'gray.800',
-          _dark: { color: 'gray.100' },
+          color: '#1F2937',
           mb: 3,
           borderLeft: '2px solid',
-          borderColor: 'orange.300',
+          borderColor: '#FFB380',
           pl: 3,
         },
         '& h4, & h5, & h6': {
           fontWeight: '500',
-          color: 'gray.700',
-          _dark: { color: 'gray.200' },
+          color: '#374151',
           mb: 2,
         },
         '& p': {
-          color: 'gray.700',
-          _dark: { color: 'gray.300' },
+          color: '#374151',
           mb: 4,
           lineHeight: 1.7,
         },
         '& strong': {
           fontWeight: '600',
-          color: 'gray.900',
-          _dark: { color: 'white' },
+          color: '#111827',
         },
         '& em': {
           fontStyle: 'italic',
         },
         '& code': {
-          bg: 'orange.50',
-          color: 'orange.600',
+          bg: '#FFF5EE',
+          color: '#E06020',
           px: 1.5,
           py: 0.5,
           borderRadius: 'md',
@@ -87,15 +78,15 @@ export function MarkdownView({ markdown }: MarkdownViewProps) {
           fontFamily: 'mono',
         },
         '& pre': {
-          bg: 'gray.900',
-          color: 'gray.100',
+          bg: '#1F2937',
+          color: '#F3F4F6',
           p: 4,
           borderRadius: 'lg',
           fontSize: '0.875rem',
           overflowX: 'auto',
           my: 4,
           borderLeft: '4px solid',
-          borderColor: 'orange.500',
+          borderColor: '#FF9559',
         },
         '& pre code': {
           bg: 'transparent',
@@ -103,28 +94,28 @@ export function MarkdownView({ markdown }: MarkdownViewProps) {
           p: 0,
         },
         '& a': {
-          color: 'orange.500',
+          color: '#FF9559',
           textDecoration: 'underline',
           '&:hover': {
-            color: 'orange.600',
+            color: '#E06020',
           },
         },
         '& ul, & ol': {
           ml: 4,
           mb: 4,
-          color: 'gray.700',
+          color: '#374151',
         },
         '& li': {
           mb: 1,
         },
         '& blockquote': {
           borderLeft: '4px solid',
-          borderColor: 'orange.400',
+          borderColor: '#FF9559',
           pl: 4,
           fontStyle: 'italic',
-          color: 'gray.600',
+          color: '#4B5563',
           my: 4,
-          bg: 'orange.50',
+          bg: '#FFF5EE',
           py: 3,
           pr: 3,
           borderRadius: '0 8px 8px 0',
@@ -138,22 +129,22 @@ export function MarkdownView({ markdown }: MarkdownViewProps) {
           boxShadow: 'sm',
         },
         '& th': {
-          bg: 'orange.500',
+          bg: '#FF9559',
           color: 'white',
           fontWeight: '600',
           px: 4,
           py: 2,
           textAlign: 'left',
           border: '1px solid',
-          borderColor: 'orange.600',
+          borderColor: '#E06020',
         },
         '& td': {
           px: 4,
           py: 2,
           textAlign: 'left',
           border: '1px solid',
-          borderColor: 'gray.300',
-          color: 'gray.700',
+          borderColor: '#E5E7EB',
+          color: '#374151',
         },
         '& img': {
           maxW: '100%',
@@ -163,7 +154,7 @@ export function MarkdownView({ markdown }: MarkdownViewProps) {
         },
         '& hr': {
           my: 6,
-          borderColor: 'orange.200',
+          borderColor: '#FFD5BD',
         },
       }}
     >

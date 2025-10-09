@@ -22,19 +22,13 @@ import {
   ModalCloseButton,
   ModalBody,
   useDisclosure,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanels,
-  TabPanel,
   Button,
 } from '@chakra-ui/react';
-import { MdClose, MdCode, MdChevronLeft, MdChevronRight, MdMoreVert, MdHistory, MdCompare, MdRestore, MdDescription, MdAdd, MdViewModule, MdCheck, MdSave } from 'react-icons/md';
+import { MdClose, MdCode, MdChevronLeft, MdChevronRight, MdMoreVert, MdHistory, MdCompare, MdRestore, MdDescription, MdViewModule, MdCheck, MdSave } from 'react-icons/md';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
 import { ArtifactRenderer, ArtifactRendererRef } from './ArtifactRenderer';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { VersionComparison } from './VersionComparison';
-import { motion } from 'framer-motion';
 
 interface Props {
   artifact: ArtifactData | null;
@@ -54,15 +48,12 @@ export interface ArtifactWorkspaceRef {
   clearInspection: () => void;
 }
 
-const MotionBox = motion(Box);
-
-export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({ 
+export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
   artifact,
   artifacts = [],
   onClose,
   onCodeAttach,
   onClearInspection,
-  onVersionChange,
   onRevertToVersion,
   onArtifactSwitch,
   onArtifactDelete,
@@ -95,6 +86,7 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
   const { isOpen: isHistoryOpen, onOpen: onHistoryOpen, onClose: onHistoryClose } = useDisclosure();
   const { isOpen: isCompareOpen, onOpen: onCompareOpen, onClose: onCompareClose } = useDisclosure();
   const [compareVersions, setCompareVersions] = useState<[number, number]>([1, 2]);
+  const [previewVersion, setPreviewVersion] = useState<number | null>(null);
 
   const badgeColor = artifact ? getArtifactBadgeColor(artifact.type) : 'gray';
 
@@ -130,10 +122,23 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
   };
 
   const navigateVersion = (version: number) => {
-    if (onRevertToVersion && version >= 1 && version <= totalVersions) {
-      onRevertToVersion(version);
+    if (version >= 1 && version <= totalVersions) {
+      setPreviewVersion(version);
     }
   };
+
+  const confirmVersionRestore = () => {
+    if (previewVersion && onRevertToVersion) {
+      onRevertToVersion(previewVersion);
+      setPreviewVersion(null);
+    }
+  };
+
+  const cancelVersionPreview = () => {
+    setPreviewVersion(null);
+  };
+
+  const displayVersion = previewVersion || currentVersion;
 
   const handleCompareVersions = () => {
     if (totalVersions >= 2) {
@@ -192,14 +197,21 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
                 icon={<Icon as={MdChevronLeft} />}
                 size="sm"
                 variant="ghost"
-                isDisabled={currentVersion === 1}
-                onClick={() => navigateVersion(currentVersion - 1)}
+                isDisabled={displayVersion === 1}
+                onClick={() => navigateVersion(displayVersion - 1)}
               />
             </Tooltip>
 
-            <Text fontSize="sm" fontFamily="mono" minW="60px" textAlign="center">
-              {currentVersion} / {totalVersions}
-            </Text>
+            <Badge
+              colorScheme={previewVersion ? 'purple' : 'orange'}
+              fontSize="sm"
+              px={3}
+              py={1}
+              minW="80px"
+              textAlign="center"
+            >
+              {previewVersion ? `Preview ${displayVersion}` : `v${displayVersion}`} / {totalVersions}
+            </Badge>
 
             <Tooltip label="Next Version">
               <IconButton
@@ -207,10 +219,34 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
                 icon={<Icon as={MdChevronRight} />}
                 size="sm"
                 variant="ghost"
-                isDisabled={currentVersion === totalVersions}
-                onClick={() => navigateVersion(currentVersion + 1)}
+                isDisabled={displayVersion === totalVersions}
+                onClick={() => navigateVersion(displayVersion + 1)}
               />
             </Tooltip>
+
+            {previewVersion && (
+              <>
+                <Tooltip label="Restore this version">
+                  <IconButton
+                    aria-label="Restore version"
+                    icon={<Icon as={MdRestore} />}
+                    size="sm"
+                    variant="solid"
+                    colorScheme="orange"
+                    onClick={confirmVersionRestore}
+                  />
+                </Tooltip>
+                <Tooltip label="Cancel preview">
+                  <IconButton
+                    aria-label="Cancel preview"
+                    icon={<Icon as={MdClose} />}
+                    size="sm"
+                    variant="ghost"
+                    onClick={cancelVersionPreview}
+                  />
+                </Tooltip>
+              </>
+            )}
 
             <Menu id={versionMenuId}>
               <MenuButton
@@ -222,21 +258,14 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
               />
               <MenuList>
                 <MenuItem icon={<MdHistory />} onClick={onHistoryOpen}>
-                  View Full History
+                  History
                 </MenuItem>
-                <MenuItem 
-                  icon={<MdCompare />} 
+                <MenuItem
+                  icon={<MdCompare />}
                   onClick={handleCompareVersions}
                   isDisabled={!hasVersionHistory}
                 >
-                  Compare Versions
-                </MenuItem>
-                <MenuItem 
-                  icon={<MdRestore />} 
-                  isDisabled={currentVersion === totalVersions}
-                  onClick={() => onRevertToVersion && onRevertToVersion(currentVersion)}
-                >
-                  Revert to This Version
+                  Compare
                 </MenuItem>
               </MenuList>
             </Menu>
@@ -327,15 +356,12 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
                 return (
                   <MenuItem
                     key={art.identifier}
-                    onClick={() => onArtifactSwitch?.(art.identifier)}
                     borderRadius="lg"
                     mb={2}
-                    p={3}
+                    p={0}
                     bg={isActive ? itemActiveBg : 'transparent'}
                     _hover={{
                       bg: isActive ? itemActiveHoverBg : itemInactiveHoverBg,
-                      transform: 'translateX(4px)',
-                      opacity: 1,
                     }}
                     position="relative"
                     opacity={opacity}
@@ -343,47 +369,62 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
                     transform={isActive ? 'scale(1.02)' : 'scale(1)'}
                     boxShadow={isActive ? '0 4px 12px rgba(251, 146, 60, 0.3)' : 'none'}
                   >
-                    <Flex align="center" gap={3} w="100%">
-                      <Icon
-                        as={artIcon}
-                        boxSize={5}
-                        color={isActive ? 'orange.500' : 'gray.500'}
-                      />
-                      <Box flex={1} minW={0}>
-                        <Text
-                          fontSize="sm"
-                          fontWeight={isActive ? '600' : '500'}
-                          color={isActive ? 'orange.500' : textColor}
-                          noOfLines={1}
-                        >
-                          {art.title}
-                        </Text>
-                        <Flex gap={2} mt={1}>
-                          <Badge colorScheme={isActive ? 'orange' : 'gray'} fontSize="xs">
-                            {art.type}
-                          </Badge>
-                          {art.currentVersion && (
-                            <Badge colorScheme="purple" fontSize="xs">
-                              v{art.currentVersion}
+                    <Flex align="center" gap={3} w="100%" p={3}>
+                      <Box
+                        flex={1}
+                        display="flex"
+                        alignItems="center"
+                        gap={3}
+                        cursor="pointer"
+                        onClick={() => onArtifactSwitch?.(art.identifier)}
+                        _hover={{
+                          transform: 'translateX(4px)',
+                        }}
+                        transition="transform 0.2s"
+                      >
+                        <Icon
+                          as={artIcon}
+                          boxSize={5}
+                          color={isActive ? 'orange.500' : 'gray.500'}
+                        />
+                        <Box flex={1} minW={0}>
+                          <Text
+                            fontSize="sm"
+                            fontWeight={isActive ? '600' : '500'}
+                            color={isActive ? 'orange.500' : textColor}
+                            noOfLines={1}
+                          >
+                            {art.title}
+                          </Text>
+                          <Flex gap={2} mt={1}>
+                            <Badge colorScheme={isActive ? 'orange' : 'gray'} fontSize="xs">
+                              {art.type}
                             </Badge>
-                          )}
-                        </Flex>
+                            {art.currentVersion && (
+                              <Badge colorScheme="purple" fontSize="xs">
+                                v{art.currentVersion}
+                              </Badge>
+                            )}
+                          </Flex>
+                        </Box>
+                        {isActive && (
+                          <Icon as={MdCheck} boxSize={5} color="orange.500" />
+                        )}
                       </Box>
-                      {isActive && (
-                        <Icon as={MdCheck} boxSize={5} color="orange.500" />
-                      )}
-                      <IconButton
-                        aria-label="Delete artifact"
-                        icon={<Icon as={MdClose} />}
-                        size="xs"
-                        variant="ghost"
-                        colorScheme="red"
-                        onClick={(e) => {
+                      <MenuItem 
+                        as="div"
+                        icon={<Icon as={MdClose} boxSize={4} color="red.500" />}
+                        onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
                           if (confirm(`Delete "${art.title}"?`)) {
                             onArtifactDelete?.(art.identifier);
                           }
                         }}
+                        p={1}
+                        borderRadius="md"
+                        _hover={{ bg: 'red.50' }}
+                        minH="auto"
+                        minW="auto"
                       />
                     </Flex>
                   </MenuItem>

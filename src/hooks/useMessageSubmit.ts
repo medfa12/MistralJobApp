@@ -168,6 +168,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
         userMessageContent,
         currentArtifact,
         inspectedCodeAttachment,
+        model,
       });
       await sendMessage({
         apiMessages,

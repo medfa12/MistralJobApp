@@ -1,0 +1,62 @@
+.lexical-content-editable {
+  color: #374151;
+}
+
+.lexical-content-editable h1 {
+  color: #111827;
+}
+
+.lexical-content-editable h2,
+.lexical-content-editable h3 {
+  color: #1F2937;
+}
+
+.lexical-content-editable h4,
+.lexical-content-editable h5,
+.lexical-content-editable h6 {
+  color: #374151;
+}
+
+.lexical-content-editable p {
+  color: #374151;
+}
+
+.lexical-content-editable strong {
+  color: #111827;
+}
+
+.lexical-content-editable blockquote {
+  color: #4B5563;
+}
+
+.lexical-content-editable ul,
+.lexical-content-editable ol {
+  color: #374151;
+}
+
+.lexical-content-editable li {
+  color: #374151;
+}
+
+.lexical-content-editable a {
+  color: #FF9559;
+}
+
+.lexical-content-editable a:hover {
+  color: #E06020;
+}
+
+.lexical-content-editable code {
+  background-color: #FFF5EE;
+  color: #E06020;
+}
+
+.lexical-content-editable pre {
+  background-color: #1F2937;
+  color: #F3F4F6;
+}
+
+.lexical-content-editable td {
+  color: #374151;
+}
+

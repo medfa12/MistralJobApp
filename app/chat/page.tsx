@@ -14,7 +14,6 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { useEffect, useState, useRef, Suspense, useCallback, useMemo } from 'react';
-import Bg from '../../public/img/chat/bg-image.png';
 import { useSearchParams } from 'next/navigation';
 import { getModelInfo } from '@/config/models';
 import { useChatConversation } from '@/hooks/useChatConversation';
@@ -336,16 +335,7 @@ function ChatContent() {
           position="relative"
           transition="width 0.3s ease"
         >
-          <Img
-            src={Bg.src}
-            position="absolute"
-            w="350px"
-            left="50%"
-            top="50%"
-            transform="translate(-50%, -50%)"
-            opacity={messages.length === 0 ? 1 : 0.3}
-            pointerEvents="none"
-          />
+          
           <Flex
             direction="column"
             w="100%"

@@ -402,20 +402,13 @@ export function useArtifactOperations() {
             }
             break;
           case 'edit':
+          case 'update_content':
             if (artifactData) {
               artifactData = await handleEdit(artifactData) || undefined;
             }
             break;
           case 'revert':
             artifactData = await handleRevert(toolCallData.revertToVersion) || undefined;
-            break;
-          case 'insert_section':
-          case 'update_section':
-          case 'delete_section':
-          case 'apply_formatting':
-            if (artifactData) {
-              artifactData = await handleEdit(artifactData) || undefined;
-            }
             break;
         }
       }
@@ -529,6 +522,27 @@ export function useArtifactOperations() {
 
     return updated;
   }, [currentArtifact, isArtifactPanelOpen, updateArtifactInDatabase, toast]);
+
+  const peekVersion = useCallback((version: number): ArtifactData | null => {
+    if (!currentArtifact) return null;
+
+    const versions = currentArtifact.versions || [];
+    const totalVersions = versions.length + 1;
+
+    if (version < 1 || version > totalVersions) return null;
+
+    if (version === totalVersions) {
+      return currentArtifact;
+    }
+
+    const versionData = versions[version - 1];
+    return {
+      ...currentArtifact,
+      code: versionData.code,
+      language: versionData.language || currentArtifact.language,
+      currentVersion: version,
+    };
+  }, [currentArtifact]);
   return {
     currentArtifact,
     artifacts,
@@ -543,5 +557,6 @@ export function useArtifactOperations() {
     revertToVersion: handleRevert,
     updateCurrentDocument,
     saveCurrentArtifactVersion,
+    peekVersion,
   };
 }
