@@ -16,10 +16,12 @@ export const DOCUMENT_PROCESSING = {
 
 export const EMBEDDING = {
   MODEL: 'mistral-embed',
-  BATCH_SIZE: 32,
+  BATCH_SIZE: 16, // Reduced from 32 to prevent "batch size too large" errors
+  MAX_BATCH_TOKENS: 8000, // Maximum tokens per batch (~32KB of text)
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY_MS: 1000,
   DIMENSIONS: 1024,
+  MIN_BATCH_SIZE: 1, // Minimum batch size for retry fallback
 } as const;
 
 export const VECTOR_SEARCH = {

@@ -103,6 +103,47 @@ export function chunkText(text: string, chunkSize = DOCUMENT_PROCESSING.CHUNK_SI
   for (const para of paragraphs) {
     const paraLength = para.length;
     
+    // If a single paragraph is larger than chunkSize, split it by sentences
+    if (paraLength > chunkSize) {
+      // Push current chunk if it exists
+      if (currentChunk) {
+        const finalChunk = previousChunk 
+          ? previousChunk.slice(-overlap) + '\n\n' + currentChunk 
+          : currentChunk;
+        chunks.push(finalChunk.trim());
+        previousChunk = currentChunk;
+        currentChunk = '';
+      }
+      
+      // Split large paragraph into sentences
+      const sentences = para.match(/[^.!?]+[.!?]+/g) || [para];
+      for (const sentence of sentences) {
+        if (currentChunk.length + sentence.length > chunkSize) {
+          if (currentChunk) {
+            chunks.push(currentChunk.trim());
+            previousChunk = currentChunk;
+            currentChunk = sentence;
+          } else {
+            // If even a single sentence is too large, forcefully chunk it
+            const words = sentence.split(/\s+/);
+            let wordChunk = '';
+            for (const word of words) {
+              if (wordChunk.length + word.length + 1 > chunkSize) {
+                if (wordChunk) chunks.push(wordChunk.trim());
+                wordChunk = word;
+              } else {
+                wordChunk += (wordChunk ? ' ' : '') + word;
+              }
+            }
+            if (wordChunk) currentChunk = wordChunk;
+          }
+        } else {
+          currentChunk += (currentChunk ? ' ' : '') + sentence;
+        }
+      }
+      continue;
+    }
+    
     if (currentChunk.length + paraLength > chunkSize) {
       if (currentChunk) {
         const finalChunk = previousChunk 
@@ -124,7 +165,7 @@ export function chunkText(text: string, chunkSize = DOCUMENT_PROCESSING.CHUNK_SI
     chunks.push(finalChunk.trim());
   }
   
-  return chunks.filter(chunk => chunk.length > 50);
+  return chunks.filter(chunk => chunk.length > DOCUMENT_PROCESSING.MIN_CHUNK_LENGTH);
 }
 
 export function estimateTokenCount(text: string): number {
