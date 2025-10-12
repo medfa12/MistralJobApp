@@ -13,7 +13,7 @@ export default async function handler(
 
   try {
     const session = await getServerSession(req, res, authOptions);
-    
+
     if (!session?.user?.email) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -32,7 +32,6 @@ export default async function handler(
       return res.status(400).json({ error: 'Project ID is required' });
     }
 
-    // Get project with documents
     const project = await prisma.project.findUnique({
       where: { 
         id: projectId,
@@ -40,6 +39,7 @@ export default async function handler(
       },
       include: {
         documents: {
+          where: { isActive: true },
           orderBy: { uploadedAt: 'desc' },
         },
       },
@@ -56,11 +56,8 @@ export default async function handler(
         name: project.name,
         description: project.description,
         emoji: project.emoji,
-        mistralLibraryId: project.mistralLibraryId,
-        generatedName: project.generatedName,
-        generatedDescription: project.generatedDescription,
-        documentCount: project.documentCount,
-        totalSize: project.totalSize,
+        documentCount: project.documents.length,
+        totalSize: project.documents.reduce((sum, d) => sum + d.size, 0),
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         documents: project.documents,
@@ -74,4 +71,3 @@ export default async function handler(
     });
   }
 }
-

@@ -45,7 +45,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
   const textColor = useColorModeValue('navy.700', 'white');
   const attachmentBg = useColorModeValue('gray.50', 'whiteAlpha.100');
   const gray = useColorModeValue('gray.500', 'white');
-  
+
   const inspectedCodeBg = useColorModeValue('purple.50', 'purple.900');
   const inspectedCodeBorder = useColorModeValue('purple.300', 'purple.600');
   const inspectedCodeBoxBg = useColorModeValue('gray.900', 'gray.800');
@@ -296,4 +296,3 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
     </>
   );
 };
-

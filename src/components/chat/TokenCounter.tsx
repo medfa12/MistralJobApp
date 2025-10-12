@@ -16,7 +16,7 @@ export const TokenCounter: React.FC<TokenCounterProps> = ({
 }) => {
   const textColor = useColorModeValue('navy.700', 'white');
   const gray = useColorModeValue('gray.500', 'white');
-  
+
   if (!modelInfo || messagesCount === 0) return null;
 
   const tokenPercentage = (currentTokens / modelInfo.contextWindow) * 100;
@@ -41,4 +41,3 @@ export const TokenCounter: React.FC<TokenCounterProps> = ({
     </Flex>
   );
 };
-

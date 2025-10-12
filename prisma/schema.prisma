@@ -1,6 +1,3 @@
-// Prisma schema for MongoDB
-// Learn more: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -17,27 +14,23 @@ model User {
   lastName               String?   @map(name: "last_name")
   email                  String    @unique
   password               String
-  avatar                 String?   // URL or path to avatar image
-  bio                    String?   // About me section
-  job                    String?   // Job title
-  role                   String    @default("member") // "admin" or "member"
-  
-  // Stripe subscription fields
+  avatar                 String?
+  bio                    String?
+  job                    String?
+  role                   String    @default("member")
   isStripeActivated      Boolean   @default(false) @map(name: "is_stripe_activated")
   stripeCustomerId       String?   @map(name: "stripe_customer_id")
   stripeSubscriptionId   String?   @map(name: "stripe_subscription_id")
   stripePriceId          String?   @map(name: "stripe_price_id")
   stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
-  
-  // Timestamps
   createdAt              DateTime  @default(now()) @map(name: "created_at")
   updatedAt              DateTime  @updatedAt @map(name: "updated_at")
 
-  // Relations
   conversations          ChatConversation[]
   usageLogs              UsageLog[]
   artifacts              Artifact[]
   projects               Project[]
+  projectConversations   ProjectConversation[]
 
   @@map(name: "users")
 }
@@ -45,12 +38,11 @@ model User {
 model ChatConversation {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String   @db.ObjectId
-  title     String   // Title/summary of the conversation
-  model     String   // Mistral model used
+  title     String
+  model     String
   createdAt DateTime @default(now()) @map(name: "created_at")
   updatedAt DateTime @updatedAt @map(name: "updated_at")
   
-  // Relations
   user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  ChatMessage[]
   artifacts Artifact[]
@@ -111,17 +103,16 @@ model Artifact {
   id              String    @id @default(auto()) @map("_id") @db.ObjectId
   userId          String    @db.ObjectId
   conversationId  String?   @db.ObjectId
-  identifier      String    // Unique identifier for the artifact
-  type            String    // Type: react, html, javascript, vue
-  title           String    // Display title
-  code            String    // The actual code (current version)
-  language        String?   // Code language for syntax highlighting
-  versions        Json?     // Version history array
-  currentVersion  Int?      @map(name: "current_version") // Current version number
+  identifier      String
+  type            String
+  title           String
+  code            String
+  language        String?
+  versions        Json?
+  currentVersion  Int?      @map(name: "current_version")
   createdAt       DateTime  @default(now()) @map(name: "created_at")
   updatedAt       DateTime  @updatedAt @map(name: "updated_at")
   
-  // Relations
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation    ChatConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
@@ -131,47 +122,97 @@ model Artifact {
 }
 
 model Project {
-  id                    String          @id @default(auto()) @map("_id") @db.ObjectId
-  userId                String          @db.ObjectId
-  name                  String          // Project name
-  description           String?         // Project description
-  mistralLibraryId      String          @unique @map(name: "mistral_library_id") // Mistral Document Library ID
-  emoji                 String?         // Optional emoji for the project
-  generatedName         String?         @map(name: "generated_name") // Auto-generated name from Mistral
-  generatedDescription  String?         @map(name: "generated_description") // Auto-generated description
-  totalSize             Int?            @default(0) @map(name: "total_size") // Total size of documents in bytes
-  documentCount         Int?            @default(0) @map(name: "document_count") // Number of documents
-  createdAt             DateTime        @default(now()) @map(name: "created_at")
-  updatedAt             DateTime        @updatedAt @map(name: "updated_at")
+  id            String                @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String                @db.ObjectId
+  name          String
+  description   String?
+  emoji         String?
+  totalSize     Int                   @default(0) @map(name: "total_size")
+  documentCount Int                   @default(0) @map(name: "document_count")
+  createdAt     DateTime              @default(now()) @map(name: "created_at")
+  updatedAt     DateTime              @updatedAt @map(name: "updated_at")
   
-  // Relations
-  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documents             ProjectDocument[]
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents     ProjectDocument[]
+  chunks        DocumentChunk[]
+  conversations ProjectConversation[]
 
   @@map(name: "projects")
   @@index([userId, createdAt])
 }
 
 model ProjectDocument {
-  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
-  projectId             String    @db.ObjectId
-  mistralDocumentId     String    @map(name: "mistral_document_id") // Mistral Document ID
-  name                  String    // Document name
-  extension             String    // File extension (pdf, txt, etc.)
-  mimeType              String    @map(name: "mime_type") // MIME type
-  size                  Int       // File size in bytes
-  numberOfPages         Int?      @map(name: "number_of_pages") // Number of pages (for PDFs)
-  summary               String?   // Auto-generated summary from Mistral
-  processingStatus      String    @map(name: "processing_status") // Running, Completed, Failed
-  hash                  String?   // Document hash for deduplication
-  uploadedAt            DateTime  @default(now()) @map(name: "uploaded_at")
-  lastProcessedAt       DateTime? @map(name: "last_processed_at")
+  id                 String          @id @default(auto()) @map("_id") @db.ObjectId
+  projectId          String          @db.ObjectId
+  name               String
+  extension          String
+  mimeType           String          @map(name: "mime_type")
+  size               Int
+  numberOfPages      Int?            @map(name: "number_of_pages")
+  cloudinaryUrl      String          @map(name: "cloudinary_url")
+  cloudinaryPublicId String          @map(name: "cloudinary_public_id")
+  processingStatus   String          @default("pending") @map(name: "processing_status")
+  chunkCount         Int             @default(0) @map(name: "chunk_count")
+  errorMessage       String?         @map(name: "error_message")
+  isActive           Boolean         @default(true) @map(name: "is_active")
+  deletedAt          DateTime?       @map(name: "deleted_at")
+  uploadedAt         DateTime        @default(now()) @map(name: "uploaded_at")
+  processedAt        DateTime?       @map(name: "processed_at")
   
-  // Relations
-  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project            Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chunks             DocumentChunk[]
 
   @@map(name: "project_documents")
-  @@index([projectId])
-  @@index([mistralDocumentId])
+  @@index([projectId, isActive])
 }
 
+model DocumentChunk {
+  id         String          @id @default(auto()) @map("_id") @db.ObjectId
+  projectId  String          @db.ObjectId
+  documentId String          @db.ObjectId
+  chunkIndex Int             @map(name: "chunk_index")
+  content    String
+  tokenCount Int             @map(name: "token_count")
+  embedding  Float[]
+  metadata   Json?
+  createdAt  DateTime        @default(now()) @map(name: "created_at")
+  
+  project    Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  document   ProjectDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map(name: "document_chunks")
+  @@index([projectId])
+  @@index([documentId])
+  @@index([projectId, documentId, chunkIndex])
+}
+
+model ProjectConversation {
+  id                      String                    @id @default(auto()) @map("_id") @db.ObjectId
+  projectId               String                    @db.ObjectId
+  userId                  String                    @db.ObjectId
+  title                   String
+  messagesCount           Int                       @default(0) @map(name: "messages_count")
+  createdAt               DateTime                  @default(now()) @map(name: "created_at")
+  updatedAt               DateTime                  @updatedAt @map(name: "updated_at")
+  
+  project                 Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user                    User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages                ProjectConversationMessage[]
+
+  @@map(name: "project_conversations")
+  @@index([projectId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model ProjectConversationMessage {
+  id              String              @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId  String              @db.ObjectId
+  role            String
+  content         String
+  createdAt       DateTime            @default(now()) @map(name: "created_at")
+  
+  conversation    ProjectConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map(name: "project_conversation_messages")
+  @@index([conversationId, createdAt])
+}

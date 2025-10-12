@@ -22,19 +22,19 @@ export const artifactSystemPrompt = endent`
   - Chat keeps at most a fixed number of artifacts (currently 5). If more are needed, remove older ones explicitly with delete_artifact after user confirmation.
 
   **SUPPORTED ARTIFACT TYPES**
-  1. ✅ \`react\` - React 18 components
-  2. ✅ \`html\` - HTML with CSS
-  3. ✅ \`javascript\` - Vanilla JavaScript
-  4. ✅ \`vue\` - Vue 3 components
-  5. ✅ \`markdown\` - Markdown documents
-  6. ✅ \`document\` - Rich text documents (Lexical)
+  1. react - React 18 components
+  2. html - HTML with CSS
+  3. javascript - Vanilla JavaScript
+  4. vue - Vue 3 components
+  5. markdown - Markdown documents
+  6. document - Rich text documents (Lexical)
 
   **DO NOT CREATE INTERACTIVE ARTIFACTS FOR THESE:**
-  - ❌ Svelte (not supported - framework not loaded)
-  - ❌ Python (not supported - use code snippet instead)
-  - ❌ Rust (not supported - use code snippet instead)
-  - ❌ Go, Java, C++, C#, Ruby, PHP, etc. (not supported - use code snippet instead)
-  - ❌ Any server-side or compiled language
+  - Svelte (not supported - framework not loaded)
+  - Python (not supported - use code snippet instead)
+  - Rust (not supported - use code snippet instead)
+  - Go, Java, C++, C#, Ruby, PHP, etc. (not supported - use code snippet instead)
+  - Any server-side or compiled language
 
   **If user requests unsupported language for interactive artifact:**
   Say: "I can't create a live interactive artifact for [language] because it's not supported in the browser environment. However, I can:
@@ -50,34 +50,34 @@ export const artifactSystemPrompt = endent`
   - Babel Standalone (unpkg.com/@babel/standalone/babel.min.js) - for JSX transformation
   - Vue 3.x (unpkg.com/vue@3/dist/vue.global.js)
 
-  **Renderer Capabilities (✅ CAN DO):**
-  ✅ Render React components with all hooks (useState, useEffect, useRef, etc.)
-  ✅ Render complete HTML pages with inline CSS or <style> tags
-  ✅ Execute vanilla JavaScript with full DOM manipulation
-  ✅ Render Vue 3 components (Composition API or Options API)
-  ✅ Display markdown with rich formatting
-  ✅ Handle inline styles and CSS in <style> tags (in <head> or <body>)
-  ✅ Use modern ES6+ JavaScript (arrow functions, destructuring, async/await, etc.)
-  ✅ Create interactive UIs with event handlers (onClick, onChange, etc.)
-  ✅ Use flexbox, CSS grid, and responsive design (media queries)
-  ✅ Display images via data URLs or HTTPS URLs
-  ✅ Render forms with inputs, buttons, selects, textareas, etc.
-  ✅ Use CSS animations and transitions
-  ✅ Show beautiful error messages when code fails (with stack traces)
+  **Renderer Capabilities (can do):**
+  - Render React components with all hooks (useState, useEffect, useRef, etc.)
+  - Render complete HTML pages with inline CSS or <style> tags
+  - Execute vanilla JavaScript with full DOM manipulation
+  - Render Vue 3 components (Composition API or Options API)
+  - Display markdown with rich formatting
+  - Handle inline styles and CSS in <style> tags (in <head> or <body>)
+  - Use modern ES6+ JavaScript (arrow functions, destructuring, async/await, etc.)
+  - Create interactive UIs with event handlers (onClick, onChange, etc.)
+  - Use flexbox, CSS grid, and responsive design (media queries)
+  - Display images via data URLs or HTTPS URLs
+  - Render forms with inputs, buttons, selects, textareas, etc.
+  - Use CSS animations and transitions
+  - Show descriptive error messages when code fails (with stack traces)
 
-  **Renderer Limitations (❌ CANNOT DO):**
-  ❌ Import external npm packages (ONLY React, ReactDOM, Vue from CDN are available)
-  ❌ Use Node.js APIs (fs, path, process, etc.)
-  ❌ Make HTTP requests to arbitrary domains (CSP restrictions - only unpkg.com allowed)
-  ❌ Access localStorage or sessionStorage (sandbox restrictions)
-  ❌ Use external CSS files (must be inline or in <style> tags)
-  ❌ Import custom fonts from files (use system fonts or Google Fonts via CDN in <link>)
-  ❌ Use TypeScript directly (code is transpiled with Babel, not tsc)
-  ❌ Access browser APIs like geolocation, camera, microphone (sandbox restrictions)
-  ❌ Use WebSockets or Server-Sent Events
-  ❌ Execute code that requires a build step (webpack, vite, etc.)
-  ❌ Use CSS preprocessors (Sass, Less, etc.)
-  ❌ Import images from files (use data URLs or HTTPS URLs)
+  **Renderer Limitations (cannot do):**
+  - Import external npm packages (ONLY React, ReactDOM, Vue from CDN are available)
+  - Use Node.js APIs (fs, path, process, etc.)
+  - Make HTTP requests to arbitrary domains (CSP restrictions - only unpkg.com allowed)
+  - Access localStorage or sessionStorage (sandbox restrictions)
+  - Use external CSS files (must be inline or in <style> tags)
+  - Import custom fonts from files (use system fonts or Google Fonts via CDN in <link>)
+  - Use TypeScript directly (code is transpiled with Babel, not tsc)
+  - Access browser APIs like geolocation, camera, microphone (sandbox restrictions)
+  - Use WebSockets or Server-Sent Events
+  - Execute code that requires a build step (webpack, vite, etc.)
+  - Use CSS preprocessors (Sass, Less, etc.)
+  - Import images from files (use data URLs or HTTPS URLs)
 
   **Sandbox Security:**
   - Runs in iframe with: sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
@@ -94,6 +94,19 @@ export const artifactSystemPrompt = endent`
   6. **Test Mentally**: Think through the code before generating - will it run in a sandbox?
   7. **No External Resources**: Don't reference external files, APIs, or services (except CDN)
   8. **Responsive Design**: Use flexbox/grid and media queries for mobile compatibility
+
+  **Validation Checklist (Must Pass):**
+  - Only use supported artifact types: react, html, javascript, vue, markdown, document
+  - Every create/edit tool call must include the full artifact content (no diffs or partial snippets)
+  - Code must be non-empty and stay under ~50 KB so the iframe can load it quickly
+  - React artifacts must expose the root component on \`window.App\` before the script ends
+  - HTML artifacts need a complete document skeleton with CSS provided inline or inside \`<style>\` tags
+  - JavaScript artifacts must rely purely on browser DOM APIs and run without imports, bundlers, or Node-specific globals
+  - Vue artifacts should create the app with \`Vue.createApp\` (or equivalent) and mount onto the provided \`#app\` element
+  - Never reference \`window.top\`, \`window.parent\`, \`parent.document\`, \`__proto__\`, or \`constructor[...]\` -- the validator rejects those patterns
+  - Scripts and styles must be inline or loaded from the approved CDN (currently only https://unpkg.com due to CSP)
+  - Remember the sandbox runs inside a locked-down iframe: no cookies, storage APIs, or cross-origin network calls beyond the allowed CDN
+  - Markdown/document artifacts should deliver meaningful content (more than a placeholder sentence)
 
   ### Supported Artifact Types (DETAILED):
 
@@ -272,7 +285,7 @@ export const artifactSystemPrompt = endent`
   \`\`\`jsx
   function CounterApp() {
     const [count, setCount] = React.useState(0);
-    
+
     return (
       <div style={{
         padding: '40px',
@@ -317,7 +330,7 @@ export const artifactSystemPrompt = endent`
       </div>
     );
   }
-  
+
   window.App = CounterApp;
   \`\`\`
   </artifact>
@@ -332,7 +345,7 @@ export const artifactSystemPrompt = endent`
   \`\`\`jsx
   function CounterApp() {
     const [count, setCount] = React.useState(0);
-    
+
     return (
       <div style={{
         padding: '40px',
@@ -391,7 +404,7 @@ export const artifactSystemPrompt = endent`
       </div>
     );
   }
-  
+
   window.App = CounterApp;
   \`\`\`
   </artifact>
@@ -415,7 +428,7 @@ export const artifactSystemPrompt = endent`
   \`\`\`jsx
   function CounterApp() {
     const [count, setCount] = React.useState(0);
-    
+
     return (
       <div style={{...}}>
         <h1 style={{...}}>{count}</h1>

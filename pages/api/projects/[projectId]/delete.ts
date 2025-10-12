@@ -2,22 +2,29 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { v2 as cloudinary } from 'cloudinary';
+import { apiError, apiSuccess } from '@/lib/api-helpers';
+import { logger } from '@/lib/logger';
+import { cache, getCacheKey } from '@/lib/cache';
 
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   if (req.method !== 'DELETE') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiError(res, 405, 'Method not allowed');
   }
 
   try {
     const session = await getServerSession(req, res, authOptions);
-    
     if (!session?.user?.email) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiError(res, 401, 'Unauthorized');
     }
 
     const user = await prisma.user.findUnique({
@@ -25,64 +32,86 @@ export default async function handler(
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return apiError(res, 404, 'User not found');
     }
 
     const { projectId } = req.query;
 
     if (!projectId || typeof projectId !== 'string') {
-      return res.status(400).json({ error: 'Project ID is required' });
+      return apiError(res, 400, 'Project ID is required');
     }
 
-    // Get project to verify ownership and get Mistral library ID
-    const project = await prisma.project.findUnique({
-      where: { 
+    const project = await prisma.project.findFirst({
+      where: {
         id: projectId,
         userId: user.id,
+      },
+      include: {
+        documents: {
+          select: {
+            cloudinaryPublicId: true,
+          },
+        },
       },
     });
 
     if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+      return apiError(res, 404, 'Project not found or access denied');
     }
 
-    // Delete library from Mistral
-    try {
-      const mistralResponse = await fetch(
-        `https://api.mistral.ai/v1/libraries/${project.mistralLibraryId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${MISTRAL_API_KEY}`,
-          },
-        }
-      );
+    await prisma.documentChunk.deleteMany({
+      where: { projectId: projectId },
+    });
 
-      if (!mistralResponse.ok) {
-        console.error('Failed to delete Mistral library:', await mistralResponse.text());
-        // Continue with database deletion even if Mistral deletion fails
+    await prisma.projectConversationMessage.deleteMany({
+      where: {
+        conversation: {
+          projectId: projectId,
+        },
+      },
+    });
+
+    await prisma.projectConversation.deleteMany({
+      where: { projectId: projectId },
+    });
+
+    await prisma.projectDocument.deleteMany({
+      where: { projectId: projectId },
+    });
+
+    for (const doc of project.documents) {
+      try {
+        await cloudinary.uploader.destroy(doc.cloudinaryPublicId, {
+          resource_type: 'raw',
+        });
+      } catch (cloudinaryError) {
+        logger.error('Failed to delete document from Cloudinary', {
+          publicId: doc.cloudinaryPublicId,
+          error: cloudinaryError,
+        });
       }
-    } catch (error) {
-      console.error('Error deleting Mistral library:', error);
-      // Continue with database deletion
     }
 
-    // Delete project from database (cascade will delete documents)
     await prisma.project.delete({
       where: { id: projectId },
     });
 
-    return res.status(200).json({
-      success: true,
+    const cacheKey = getCacheKey('chunks', projectId);
+    cache.delete(cacheKey);
+
+    logger.info('Project deleted', {
+      projectId,
+      userId: user.id,
+      documentCount: project.documents.length,
+    });
+
+    return apiSuccess(res, {
       message: 'Project deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting project:', error);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    logger.error('Error deleting project', { error });
+    return apiError(res, 500, 'Internal server error',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
   }
 }
-

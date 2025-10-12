@@ -42,7 +42,7 @@ export default async function handler(
 
     const fileBuffer = fs.readFileSync(audioFile.filepath);
     const blob = new Blob([fileBuffer], { type: audioFile.mimetype || 'audio/webm' });
-    
+
     const formData = new FormData();
     formData.append('file', blob, audioFile.originalFilename || 'audio.webm');
     formData.append('model', 'voxtral-mini-latest');
@@ -76,4 +76,3 @@ export default async function handler(
     });
   }
 }
-

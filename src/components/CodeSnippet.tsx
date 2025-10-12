@@ -114,7 +114,7 @@ export const CodeSnippet: FC<CodeSnippetProps> = ({ code, language, title }) => 
       boxShadow="md"
       my={3}
     >
-      {/* Header */}
+      {}
       <Flex
         bg={headerBg}
         p={3}
@@ -147,7 +147,7 @@ export const CodeSnippet: FC<CodeSnippetProps> = ({ code, language, title }) => 
         </MotionButton>
       </Flex>
 
-      {/* Code */}
+      {}
       <Box position="relative">
         <CodeMirror
           value={code}
@@ -181,5 +181,3 @@ export const CodeSnippet: FC<CodeSnippetProps> = ({ code, language, title }) => 
 };
 
 export default CodeSnippet;
-
-

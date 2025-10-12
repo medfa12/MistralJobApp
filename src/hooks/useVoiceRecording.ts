@@ -51,9 +51,9 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
       return stream;
     } catch (err: any) {
       console.error('Microphone access error:', err);
-      
+
       let errorMessage = 'Could not access microphone';
-      
+
       if (err.name === 'NotFoundError' || err.message === 'Requested device not found') {
         errorMessage = 'No microphone found. Please connect a microphone and try again.';
         setPermission('denied');
@@ -72,7 +72,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
       } else {
         setPermission('denied');
       }
-      
+
       setError(errorMessage);
       return null;
     }
@@ -124,7 +124,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
     try {
       setAudioStream(stream);
       audioChunksRef.current = [];
-      
+
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
           ? 'audio/webm;codecs=opus'
@@ -154,7 +154,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
         }
 
         const duration = Date.now() - startTimeRef.current;
-        
+
         if (autoSend && onRecordingComplete) {
           onRecordingComplete(blob, duration);
         }
@@ -194,7 +194,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.pause();
       setIsPaused(true);
-      
+
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -206,7 +206,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
     if (mediaRecorderRef.current && isPaused) {
       mediaRecorderRef.current.resume();
       setIsPaused(false);
-      
+
       timerRef.current = setInterval(() => {
         setElapsedTime((prev) => prev + 1);
         checkSilence();
@@ -260,4 +260,3 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
     reset,
   };
 }
-

@@ -66,7 +66,7 @@ export default function ToolCallBox({ operation, artifactType, artifactTitle, re
       >
         <Icon as={config.icon} color="white" boxSize="20px" />
       </Flex>
-      
+
       <Box flex="1" minW="0">
         <Flex align="center" gap="8px" mb="4px">
           <Text fontSize="sm" fontWeight="600" color={textColor}>
@@ -76,19 +76,19 @@ export default function ToolCallBox({ operation, artifactType, artifactTitle, re
             {operation}
           </Badge>
         </Flex>
-        
+
         {artifactTitle && (
           <Text fontSize="xs" color={subtextColor} noOfLines={1}>
             {artifactTitle}
           </Text>
         )}
-        
+
         {artifactType && operation !== 'delete' && operation !== 'revert' && (
           <Text fontSize="xs" color={subtextColor}>
             Type: {artifactType}
           </Text>
         )}
-        
+
         {operation === 'revert' && revertToVersion !== undefined && (
           <Text fontSize="xs" color={subtextColor}>
             Reverting to version {revertToVersion}
@@ -98,4 +98,3 @@ export default function ToolCallBox({ operation, artifactType, artifactTitle, re
     </Flex>
   );
 }
-

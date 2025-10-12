@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Box, Flex, Text, VStack, Spinner, Button, Alert, AlertIcon, useColorModeValue } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useSubscription } from '../../hooks/useSubscription';
@@ -6,10 +7,12 @@ import { PriceDisplay } from '../atoms/PriceDisplay';
 import { SubscriptionActions } from '../molecules/SubscriptionActions';
 import { formatDate, calculateDaysRemaining } from '../../utils/formatters';
 import Card from '@/components/card/Card';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 export function SubscriptionDashboard() {
   const router = useRouter();
   const { data, loading, actionLoading, cancel, reactivate, openPortal } = useSubscription();
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   
   const cardBg = useColorModeValue('white', 'navy.800');
   const textColor = useColorModeValue('navy.700', 'white');
@@ -47,8 +50,12 @@ export function SubscriptionDashboard() {
     : 0;
 
   const handleCancel = async () => {
-    if (confirm('Cancel subscription? It will remain active until the end of your billing period.')) {
+    if (actionLoading) return;
+    try {
       await cancel();
+      setCancelDialogOpen(false);
+    } catch (error) {
+      setCancelDialogOpen(false);
     }
   };
 
@@ -119,12 +126,27 @@ export function SubscriptionDashboard() {
         <SubscriptionActions
           isCanceling={subscription?.cancelAtPeriodEnd || false}
           isLoading={actionLoading}
-          onCancel={handleCancel}
+          onCancel={() => setCancelDialogOpen(true)}
           onReactivate={reactivate}
           onManage={openPortal}
         />
       </VStack>
+
+      <ConfirmDialog
+        isOpen={cancelDialogOpen}
+        onClose={() => {
+          if (!actionLoading) {
+            setCancelDialogOpen(false);
+          }
+        }}
+        onConfirm={handleCancel}
+        title="Cancel subscription"
+        description="Your subscription will remain active until the end of this billing period."
+        confirmLabel="Cancel Subscription"
+        cancelLabel="Keep Subscription"
+        isLoading={actionLoading}
+        colorScheme="orange"
+      />
     </Card>
   );
 }
-

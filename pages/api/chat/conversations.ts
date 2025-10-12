@@ -13,7 +13,6 @@ export default async function handler(
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // Get user from database
   const user = await db.user.findUnique({
     where: { email: session.user.email },
   });
@@ -28,10 +27,8 @@ export default async function handler(
       const take = limit ? parseInt(limit as string) : 20;
       const skip = offset ? parseInt(offset as string) : 0;
 
-      // Build where clause
       const where: any = { userId: user.id };
-      
-      // Add search functionality
+
       if (search && typeof search === 'string') {
         where.title = {
           contains: search,
@@ -73,7 +70,6 @@ export default async function handler(
       return res.status(500).json({ error: 'Failed to fetch conversations' });
     }
   } else if (req.method === 'POST') {
-    // Create a new conversation
     try {
       const { title, model } = req.body;
 
@@ -95,7 +91,6 @@ export default async function handler(
       return res.status(500).json({ error: 'Failed to create conversation' });
     }
   } else if (req.method === 'DELETE') {
-    // Delete a conversation
     try {
       const { conversationId } = req.body;
 
@@ -103,7 +98,6 @@ export default async function handler(
         return res.status(400).json({ error: 'Conversation ID is required' });
       }
 
-      // Verify the conversation belongs to the user
       const conversation = await db.chatConversation.findFirst({
         where: {
           id: conversationId,
@@ -128,4 +122,3 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 }
-

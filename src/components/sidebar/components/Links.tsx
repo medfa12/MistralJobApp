@@ -1,7 +1,5 @@
 'use client';
-/* eslint-disable */
 
-// chakra imports
 import {
   Accordion,
   AccordionButton,
@@ -42,6 +40,7 @@ import { IRoute } from '@/types/navigation';
 import { PropsWithChildren, useCallback, useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { MdMessage, MdMoreVert, MdEdit, MdDelete } from 'react-icons/md';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface SidebarLinksProps extends PropsWithChildren {
   routes: IRoute[];
@@ -53,7 +52,7 @@ export function SidebarLinks(props: SidebarLinksProps) {
   const router = useRouter();
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  
+
   const getCurrentConversationId = () => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -61,8 +60,7 @@ export function SidebarLinks(props: SidebarLinksProps) {
     }
     return null;
   };
-  
-  // Call all useColorModeValue hooks at the top level
+
   const activeColor = useColorModeValue('navy.700', 'white');
   const inactiveColor = useColorModeValue('gray.500', 'gray.500');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
@@ -84,6 +82,8 @@ export function SidebarLinks(props: SidebarLinksProps) {
   const [loading, setLoading] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [newTitle, setNewTitle] = useState('');
+  const [conversationToDelete, setConversationToDelete] = useState<any | null>(null);
+  const [deletingConversation, setDeletingConversation] = useState(false);
 
   const fetchConversations = useCallback(async (showLoading = false) => {
     try {
@@ -115,23 +115,23 @@ export function SidebarLinks(props: SidebarLinksProps) {
     const handleFocus = () => {
       fetchConversations(false);
     };
-    
+
     window.addEventListener('focus', handleFocus);
-    
+
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         fetchConversations(false);
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     const handleConversationUpdate = () => {
       fetchConversations(false);
     };
-    
+
     window.addEventListener('conversationUpdated', handleConversationUpdate);
-    
+
     return () => {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -166,7 +166,7 @@ export function SidebarLinks(props: SidebarLinksProps) {
           position: 'top',
         });
         onClose();
-        
+
         window.dispatchEvent(new CustomEvent('conversationUpdated'));
       } else {
         throw new Error('Failed to rename');
@@ -182,18 +182,18 @@ export function SidebarLinks(props: SidebarLinksProps) {
     }
   };
 
-  const handleDelete = async (conversationId: string, e: React.MouseEvent) => {
+  const handleDeleteClick = (conversation: any, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!confirm('Are you sure you want to delete this conversation?')) {
-      return;
-    }
+    setConversationToDelete(conversation);
+  };
 
+  const handleDelete = async (conversationId: string) => {
     const currentConversationId = getCurrentConversationId();
     const isCurrentConversation = currentConversationId === conversationId;
 
     try {
+      setDeletingConversation(true);
       const response = await fetch(`/api/chat/conversations/${conversationId}`, {
         method: 'DELETE',
       });
@@ -206,11 +206,12 @@ export function SidebarLinks(props: SidebarLinksProps) {
           isClosable: true,
           position: 'top',
         });
-        
+
         if (isCurrentConversation) {
           router.push('/chat');
         }
-        
+
+        setConversationToDelete(null);
         window.dispatchEvent(new CustomEvent('conversationUpdated'));
       } else {
         throw new Error('Failed to delete');
@@ -223,10 +224,11 @@ export function SidebarLinks(props: SidebarLinksProps) {
         isClosable: true,
         position: 'top',
       });
+    } finally {
+      setDeletingConversation(false);
     }
   };
 
-  // verifies if routeName is the one active (in browser input)
   const activeRoute = useCallback(
     (routeName: string) => {
       return pathname?.includes(routeName);
@@ -234,7 +236,6 @@ export function SidebarLinks(props: SidebarLinksProps) {
     [pathname],
   );
 
-  // this function creates the links and collapses that appear in the sidebar (left menu)
   const createLinks = (routes: IRoute[]) => {
     return routes.map((route, key) => {
       if (route.collapse && !route.invisible && !isCollapsed) {
@@ -332,10 +333,10 @@ export function SidebarLinks(props: SidebarLinksProps) {
                 <List>
                   {
                     route.icon && route.items
-                      ? createLinks(route.items) // for bullet accordion links
+                      ? createLinks(route.items)
                       : route.items
                       ? createAccordionLinks(route.items)
-                      : '' // for non-bullet accordion links
+                      : ''
                   }
                 </List>
               </AccordionPanel>
@@ -347,7 +348,6 @@ export function SidebarLinks(props: SidebarLinksProps) {
           <div key={key}>
             {route.icon ? (
               isCollapsed ? (
-                // Collapsed view - icon only with tooltip
                 <Flex
                   align="center"
                   justifyContent="center"
@@ -387,7 +387,6 @@ export function SidebarLinks(props: SidebarLinksProps) {
                   </Tooltip>
                 </Flex>
               ) : (
-                // Expanded view - icon and text
                 <Flex
                   align="center"
                   justifyContent="space-between"
@@ -406,7 +405,6 @@ export function SidebarLinks(props: SidebarLinksProps) {
                   >
                     <NavLink
                       href={route.layout ? route.layout + route.path : route.path}
-                      // key={key}
                       styles={{ width: '100%' }}
                     >
                       <Flex w="100%" alignItems="center" justifyContent="center">
@@ -472,7 +470,6 @@ export function SidebarLinks(props: SidebarLinksProps) {
                 <Flex ps="32px" alignItems="center" mb="8px">
                   <NavLink
                     href={route.layout ? route.layout + route.path : route.path}
-                    // key={key}
                   >
                     <Text
                       color={
@@ -494,7 +491,6 @@ export function SidebarLinks(props: SidebarLinksProps) {
       }
     });
   };
-  // this function creates the links from the secondary accordions (for example auth -> sign-in -> default)
   const createAccordionLinks = (routes: IRoute[]) => {
     return routes.map((route: IRoute, key: number) => {
       return (
@@ -526,7 +522,6 @@ export function SidebarLinks(props: SidebarLinksProps) {
     });
   };
 
-  // Render chat history
   const renderChatHistory = () => {
     return (
       <Box mt="20px" mb="10px" pt="20px" borderTop="1px solid" borderColor={borderColor}>
@@ -622,7 +617,7 @@ export function SidebarLinks(props: SidebarLinksProps) {
                     </MenuItem>
                     <MenuItem
                       icon={<Icon as={MdDelete} />}
-                      onClick={(e) => handleDelete(conversation.id, e)}
+                      onClick={(e) => handleDeleteClick(conversation, e)}
                       color="red.500"
                     >
                       Delete
@@ -642,7 +637,31 @@ export function SidebarLinks(props: SidebarLinksProps) {
     <>
       {createLinks(routes)}
       {!isCollapsed && renderChatHistory()}
-      
+
+      <ConfirmDialog
+        isOpen={Boolean(conversationToDelete)}
+        onClose={() => {
+          if (!deletingConversation) {
+            setConversationToDelete(null);
+          }
+        }}
+        onConfirm={() => {
+          if (conversationToDelete && !deletingConversation) {
+            handleDelete(conversationToDelete.id);
+          }
+        }}
+        title="Delete conversation"
+        description={
+          conversationToDelete
+            ? `This will permanently delete "${conversationToDelete.title}" and its messages.`
+            : ''
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={deletingConversation}
+        colorScheme="red"
+      />
+
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
         <ModalContent

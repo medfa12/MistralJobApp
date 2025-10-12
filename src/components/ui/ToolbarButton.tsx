@@ -34,4 +34,3 @@ export const ToolbarButton: FC<ToolbarButtonProps> = ({
     </Tooltip>
   );
 };
-

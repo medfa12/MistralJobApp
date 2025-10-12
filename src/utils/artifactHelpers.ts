@@ -2,7 +2,7 @@ import { ArtifactData } from '@/types/types';
 
 export function buildArtifactContext(artifact: ArtifactData | null): string {
   if (!artifact) return '';
-  
+
   return `\n\n---
 **CURRENT ARTIFACT CONTEXT**
 Title: "${artifact.title}"
@@ -18,7 +18,7 @@ ${artifact.code}
 Available Operations:
 - EDIT: Modify the artifact (provide complete updated code)
 ${artifact.versions && artifact.versions.length > 0 ? `- REVERT: Go back to version 1-${artifact.versions.length}` : ''}
-${'' /* Intentionally omit DELETE from the visible operations to reduce accidental deletions */}
+${'' }
 - CREATE: You may also create additional artifacts; do not delete existing ones unless the user explicitly asks.
 ---`;
 }

@@ -29,7 +29,6 @@ import {
   TokenCounter,
   AttachmentPreview,
   InspectedCodePreview,
-  ProjectSelector,
 } from '@/components/chat';
 
 function ChatContent() {
@@ -41,19 +40,11 @@ function ChatContent() {
   const [messages, setMessages] = useState<MessageType[]>([]);
   const [model, setModel] = useState<MistralModel>('mistral-small-latest');
   const [inspectedCodeAttachment, setInspectedCodeAttachment] = useState<InspectedCodeAttachment | null>(null);
-  const [selectedProject, setSelectedProject] = useState<{
-    id: string;
-    name: string;
-    emoji?: string;
-    documentCount?: number;
-    mistralLibraryId: string;
-  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const lastLoadedConversationIdRef = useRef<string | null>(null);
 
-  // Use centralized chat state
   const {
     loading,
     setLoading,
@@ -116,7 +107,7 @@ function ChatContent() {
     model,
     currentConversationId,
     currentArtifact,
-    libraryId: selectedProject?.mistralLibraryId,
+    libraryId: undefined,
     createNewConversation,
     saveMessage,
     processAttachments,
@@ -132,46 +123,35 @@ function ChatContent() {
   const currentTokens = useMemo(() => {
     let total = 0;
 
-    // System prompt tokens (varies by model)
     const isReasoningModel = model.includes('magistral');
     if (isReasoningModel) {
-      // Reasoning system prompt: ~9,759 chars = ~2,500 tokens
       total += 2500;
     } else {
-      // Standard artifact system prompt: ~15,836 chars = ~4,000 tokens
       total += 4000;
     }
 
-    // Tool definitions: ~4,221 chars = ~1,000 tokens
     total += 1000;
 
-    // Message history
     messages.forEach(msg => {
       total += estimateTokens(getMessageText(msg.content));
 
-      // Count attachments if present
       if (msg.attachments && msg.attachments.length > 0) {
         msg.attachments.forEach(att => {
           if (att.type === 'image') {
-            // Images: ~85-170 tokens per image (Mistral docs)
             total += 170;
           } else if (att.type === 'document') {
-            // Documents: estimate based on content
-            total += 500; // Conservative estimate
+            total += 500;
           }
         });
       }
     });
 
-    // Current input
     total += estimateTokens(inputCode);
 
-    // Inspected code attachment
     if (inspectedCodeAttachment) {
       total += estimateTokens(inspectedCodeAttachment.code || '');
     }
 
-    // Regular attachments
     attachments.forEach(att => {
       if (att.type === 'image') {
         total += 170;
@@ -180,7 +160,6 @@ function ChatContent() {
       }
     });
 
-    // Current artifact context (when editing)
     if (currentArtifact) {
       total += estimateTokens(currentArtifact.code || '');
       total += estimateTokens(currentArtifact.title || '');
@@ -191,7 +170,6 @@ function ChatContent() {
 
   const modelInfo = getModelInfo(model);
 
-  // Sync artifact conversation ID whenever the main conversation ID changes
   useEffect(() => {
     setArtifactConversationId(currentConversationId);
   }, [currentConversationId, setArtifactConversationId]);
@@ -325,7 +303,7 @@ function ChatContent() {
         position="relative"
         overflow="hidden"
       >
-        {/* Chat Pane */}
+        {}
         <Flex
           direction="column"
           w={showArtifactPane ? { base: '100%', lg: `${splitSize}%` } : '100%'}
@@ -335,7 +313,7 @@ function ChatContent() {
           position="relative"
           transition="width 0.3s ease"
         >
-          
+
           <Flex
             direction="column"
             w="100%"
@@ -353,10 +331,6 @@ function ChatContent() {
           <ModelSelector
             selectedModel={model}
             onModelChange={setModel}
-          />
-          <ProjectSelector
-            selectedProject={selectedProject}
-            onProjectSelect={setSelectedProject}
           />
         </Flex>
 
@@ -441,7 +415,7 @@ function ChatContent() {
           </Flex>
         </Flex>
 
-        {/* Resizable Divider */}
+        {}
         {showArtifactPane && (
           <Box
             display={{ base: 'none', lg: 'block' }}
@@ -465,7 +439,7 @@ function ChatContent() {
           </Box>
         )}
 
-        {/* Artifact Workspace Pane */}
+        {}
         {showArtifactPane && (
           <Box
             w={{ base: '100%', lg: `${100 - splitSize}%` }}

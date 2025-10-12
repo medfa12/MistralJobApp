@@ -2,20 +2,20 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { apiError } from '@/lib/api-helpers';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== 'PUT' && req.method !== 'PATCH') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'PUT') {
+    return apiError(res, 405, 'Method not allowed');
   }
 
   try {
     const session = await getServerSession(req, res, authOptions);
-    
     if (!session?.user?.email) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiError(res, 401, 'Unauthorized');
     }
 
     const user = await prisma.user.findUnique({
@@ -23,58 +23,56 @@ export default async function handler(
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return apiError(res, 404, 'User not found');
     }
 
     const { projectId } = req.query;
-    const { name, description, emoji } = req.body;
 
     if (!projectId || typeof projectId !== 'string') {
-      return res.status(400).json({ error: 'Project ID is required' });
+      return apiError(res, 400, 'Project ID is required');
     }
 
-    // Verify project ownership
-    const existingProject = await prisma.project.findUnique({
-      where: { 
+    const project = await prisma.project.findFirst({
+      where: {
         id: projectId,
         userId: user.id,
       },
     });
 
-    if (!existingProject) {
-      return res.status(404).json({ error: 'Project not found' });
+    if (!project) {
+      return apiError(res, 404, 'Project not found or access denied');
     }
 
-    // Update project in database
-    const project = await prisma.project.update({
+    const { name, description, emoji } = req.body;
+
+    if (!name || !name.trim()) {
+      return apiError(res, 400, 'Project name is required');
+    }
+
+    const updatedProject = await prisma.project.update({
       where: { id: projectId },
       data: {
-        ...(name && { name }),
-        ...(description !== undefined && { description }),
-        ...(emoji !== undefined && { emoji }),
+        name: name.trim(),
+        description: description?.trim() || null,
+        emoji: emoji?.trim() || null,
       },
     });
 
     return res.status(200).json({
       success: true,
       project: {
-        id: project.id,
-        name: project.name,
-        description: project.description,
-        emoji: project.emoji,
-        mistralLibraryId: project.mistralLibraryId,
-        documentCount: project.documentCount,
-        totalSize: project.totalSize,
-        createdAt: project.createdAt,
-        updatedAt: project.updatedAt,
+        id: updatedProject.id,
+        name: updatedProject.name,
+        description: updatedProject.description,
+        emoji: updatedProject.emoji,
+        createdAt: updatedProject.createdAt,
+        updatedAt: updatedProject.updatedAt,
       },
     });
   } catch (error) {
     console.error('Error updating project:', error);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    return apiError(res, 500, 'Internal server error',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
   }
 }
-

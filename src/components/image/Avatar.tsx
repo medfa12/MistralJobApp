@@ -24,26 +24,26 @@ export function NextAvatar({
   ...props
 }: AvatarImageProps) {
   const { colorMode } = useColorMode();
-  
+
   if (!src || src === '') {
     return null;
   }
-  
+
   const getBorderStyle = () => {
     if (!showBorder) return {};
-    
+
     if (planTier || stripePriceId) {
       const planColor = planTier 
         ? getPlanColor(planTier, true)
         : getPlanColor(stripePriceId, isSubscriptionActive);
-      
+
       return {
         border: '3px solid',
         borderColor: planColor.border,
         boxShadow: `0 0 12px ${planColor.border}40`,
       };
     }
-    
+
     return {
       border: '2px',
       borderColor: colorMode === 'dark' ? 'navy.700' : 'white',

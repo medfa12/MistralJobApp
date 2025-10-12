@@ -19,7 +19,6 @@ export default async function handler(
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Get user from database
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
     });
@@ -28,7 +27,6 @@ export default async function handler(
       return res.status(404).json({ error: "No active subscription found" });
     }
 
-    // Cancel the subscription at period end
     const subscription = await stripe.subscriptions.update(
       user.stripeSubscriptionId,
       {
@@ -52,4 +50,3 @@ export default async function handler(
     });
   }
 }
-

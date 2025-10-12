@@ -1,5 +1,4 @@
 'use client';
-// Chakra imports
 import {
   Flex,
   FormLabel,
@@ -16,7 +15,6 @@ export default function Default(props: {
   [x: string]: any;
 }) {
   const { mb, id, label, extra, placeholder, ...rest } = props;
-  // Chakra Color Mode
   const textColorPrimary = useColorModeValue('navy.700', 'white');
   const bgPrimary = useColorModeValue('transparent', 'navy.800');
   const borderPrimary = useColorModeValue(

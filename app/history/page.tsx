@@ -29,6 +29,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import Card from '@/components/card/Card';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { MdSearch, MdMessage, MdMoreVert, MdEdit, MdDelete, MdVisibility, MdAttachFile, MdViewModule, MdViewList, MdDeleteSweep } from 'react-icons/md';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -77,6 +78,8 @@ export default function History() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
+  const [deletingConversation, setDeletingConversation] = useState(false);
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     limit: 20,
@@ -105,7 +108,7 @@ export default function History() {
       const response = await fetch(url.toString());
       if (response.ok) {
         const data = await response.json();
-        
+
         if (reset) {
           setConversations(data.conversations);
           setFilteredConversations(data.conversations);
@@ -114,7 +117,7 @@ export default function History() {
           setConversations(updatedConversations);
           setFilteredConversations(updatedConversations);
         }
-        
+
         setPagination(data.pagination);
       }
     } catch (error) {
@@ -143,11 +146,10 @@ export default function History() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Trigger search when search query changes
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchConversations(true);
-    }, 500); // Debounce search
+    }, 500);
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,7 +186,6 @@ export default function History() {
         fetchConversations();
         onClose();
 
-        // Notify sidebar to refresh
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('conversationUpdated'));
         }
@@ -201,11 +202,8 @@ export default function History() {
   };
 
   const handleDelete = async (conversationId: string) => {
-    if (!confirm('Are you sure you want to delete this conversation?')) {
-      return;
-    }
-
     try {
+      setDeletingConversation(true);
       const response = await fetch(`/api/chat/conversations/${conversationId}`, {
         method: 'DELETE',
       });
@@ -219,11 +217,19 @@ export default function History() {
           position: 'top',
         });
         fetchConversations();
+        setConversationToDelete(null);
 
-        // Notify sidebar to refresh
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('conversationUpdated'));
         }
+      } else {
+        toast({
+          title: 'Failed to delete conversation',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+          position: 'top',
+        });
       }
     } catch (error) {
       toast({
@@ -233,6 +239,8 @@ export default function History() {
         isClosable: true,
         position: 'top',
       });
+    } finally {
+      setDeletingConversation(false);
     }
   };
 
@@ -256,7 +264,6 @@ export default function History() {
         onDeleteAllClose();
         fetchConversations();
 
-        // Notify sidebar to refresh
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('conversationUpdated'));
         }
@@ -312,7 +319,7 @@ export default function History() {
             />
           </InputGroup>
 
-          {/* View Mode Toggle */}
+          {}
           <Flex borderRadius="md" border="1px solid" borderColor={borderColor} overflow="hidden">
             <IconButton
               aria-label="Grid view"
@@ -338,7 +345,7 @@ export default function History() {
             />
           </Flex>
 
-          {/* Delete All Button */}
+          {}
           {filteredConversations.length > 0 && (
             <Button
               leftIcon={<Icon as={MdDeleteSweep} />}
@@ -382,7 +389,6 @@ export default function History() {
           )}
         </Card>
       ) : viewMode === 'list' ? (
-        // List View
         <Flex direction="column" gap="10px">
           {filteredConversations.map((conversation) => (
             <Card
@@ -452,7 +458,7 @@ export default function History() {
                       </MenuItem>
                       <MenuItem
                         icon={<Icon as={MdDelete} />}
-                        onClick={() => handleDelete(conversation.id)}
+                        onClick={() => setConversationToDelete(conversation)}
                         color="red.500"
                       >
                         Delete
@@ -465,7 +471,6 @@ export default function History() {
           ))}
         </Flex>
       ) : (
-        // Grid View
         <SimpleGrid columns={{ base: 1, md: 2, xl: 3 }} gap="20px">
           {filteredConversations.map((conversation) => (
             <Card
@@ -515,7 +520,7 @@ export default function History() {
                     </MenuItem>
                     <MenuItem
                       icon={<Icon as={MdDelete} />}
-                      onClick={() => handleDelete(conversation.id)}
+                      onClick={() => setConversationToDelete(conversation)}
                       color="red.500"
                     >
                       Delete
@@ -556,7 +561,7 @@ export default function History() {
         </SimpleGrid>
       )}
 
-      {/* Load More Button */}
+      {}
       {!loading && pagination.hasMore && (
         <Flex justify="center" mt="20px">
           <Button
@@ -573,7 +578,7 @@ export default function History() {
         </Flex>
       )}
 
-      {/* Pagination Info */}
+      {}
       {!loading && filteredConversations.length > 0 && (
         <Flex justify="center" mt="10px">
           <Text fontSize="sm" color={secondaryText}>
@@ -582,7 +587,32 @@ export default function History() {
         </Flex>
       )}
 
-      {/* Rename Modal */}
+      {}
+      <ConfirmDialog
+        isOpen={Boolean(conversationToDelete)}
+        onClose={() => {
+          if (!deletingConversation) {
+            setConversationToDelete(null);
+          }
+        }}
+        onConfirm={() => {
+          if (conversationToDelete && !deletingConversation) {
+            handleDelete(conversationToDelete.id);
+          }
+        }}
+        title="Delete conversation"
+        description={
+          conversationToDelete
+            ? `This will permanently remove "${conversationToDelete.title}" and its messages.`
+            : ''
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={deletingConversation}
+        colorScheme="red"
+      />
+
+      {}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
         <ModalContent
@@ -631,7 +661,7 @@ export default function History() {
         </ModalContent>
       </Modal>
 
-      {/* Delete All Confirmation Modal */}
+      {}
       <Modal isOpen={isDeleteAllOpen} onClose={onDeleteAllClose}>
         <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
         <ModalContent

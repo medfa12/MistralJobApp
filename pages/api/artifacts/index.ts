@@ -88,7 +88,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         });
       }
 
-      // Verify conversation belongs to user if provided
       if (conversationId) {
         const conversation = await db.chatConversation.findFirst({
           where: {
@@ -126,6 +125,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
-// Apply rate limiting: 60 requests per minute
 export default apiRateLimit(handler);
-

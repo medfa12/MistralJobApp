@@ -112,7 +112,7 @@ export const selectedHighlightVariants: Variants = {
     transition: {
       scale: {
         duration: 0.3,
-        ease: [0.34, 1.56, 0.64, 1] // Spring-like easing
+        ease: [0.34, 1.56, 0.64, 1]
       },
       boxShadow: {
         duration: 2,
@@ -139,4 +139,3 @@ export const tooltipVariants: Variants = {
     }
   }
 };
-

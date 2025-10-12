@@ -77,14 +77,14 @@ export const ArtifactTabs: FC<Props> = ({
       <AnimatePresence mode="popLayout">
         {artifacts.map((instance) => {
           const isActive = instance.artifact.identifier === activeId;
-          
+
           return (
             <MotionBox
               key={instance.artifact.identifier}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              // @ts-ignore - Framer Motion transition prop conflicts with Chakra
+              // @ts-ignore
               transition={{ duration: 0.2 }}
             >
               <Flex
@@ -103,7 +103,7 @@ export const ArtifactTabs: FC<Props> = ({
                 maxW="250px"
                 position="relative"
               >
-                {/* Artifact Icon */}
+                {}
                 <Icon 
                   as={MdCode} 
                   boxSize={4} 
@@ -111,7 +111,7 @@ export const ArtifactTabs: FC<Props> = ({
                   flexShrink={0}
                 />
 
-                {/* Artifact Info */}
+                {}
                 <Box flex={1} minW={0}>
                   <Text
                     fontSize="sm"
@@ -137,7 +137,7 @@ export const ArtifactTabs: FC<Props> = ({
                   </HStack>
                 </Box>
 
-                {/* Pin Button */}
+                {}
                 <Tooltip label={instance.isPinned ? 'Unpin' : 'Pin'}>
                   <IconButton
                     aria-label={instance.isPinned ? 'Unpin artifact' : 'Pin artifact'}
@@ -153,7 +153,7 @@ export const ArtifactTabs: FC<Props> = ({
                   />
                 </Tooltip>
 
-                {/* Close Button */}
+                {}
                 <Tooltip label="Close">
                   <IconButton
                     aria-label="Close artifact"
@@ -168,7 +168,7 @@ export const ArtifactTabs: FC<Props> = ({
                   />
                 </Tooltip>
 
-                {/* Active Indicator */}
+                {}
                 {isActive && (
                   <Box
                     position="absolute"
@@ -187,4 +187,3 @@ export const ArtifactTabs: FC<Props> = ({
     </Flex>
   );
 };
-

@@ -1,7 +1,6 @@
 'use client';
 import React, { PropsWithChildren, useContext } from 'react';
 
-// chakra imports
 import {
   Box,
   Flex,
@@ -37,21 +36,18 @@ export interface SidebarProps extends PropsWithChildren {
 function Sidebar(props: SidebarProps) {
   const { routes, setApiKey } = props;
   const { isCollapsed, setIsCollapsed } = useContext(SidebarContext);
-  
-  // this is for the rest of the collapses
+
   let variantChange = '0.2s linear';
   let shadow = useColorModeValue(
     '14px 17px 40px 4px rgba(112, 144, 176, 0.08)',
     'unset',
   );
-  // Chakra Color Mode
   let sidebarBg = useColorModeValue('white', 'navy.800');
   let sidebarRadius = '14px';
   let sidebarMargins = '0px';
   let iconColor = useColorModeValue('navy.700', 'white');
   let borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
-  
-  // SIDEBAR
+
   return (
     <Box display={{ base: 'none', xl: 'block' }} position="fixed" minH="100%">
       <Box
@@ -104,11 +100,9 @@ function Sidebar(props: SidebarProps) {
   );
 }
 
-// FUNCTIONS
 export function SidebarResponsive(props: { routes: IRoute[] }) {
   let sidebarBackgroundColor = useColorModeValue('white', 'navy.800');
   let menuColor = useColorModeValue('gray.400', 'white');
-  // // SIDEBAR
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const { routes } = props;
@@ -168,6 +162,5 @@ export function SidebarResponsive(props: { routes: IRoute[] }) {
     </Flex>
   );
 }
-// PROPS
 
 export default Sidebar;

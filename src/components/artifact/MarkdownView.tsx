@@ -167,4 +167,3 @@ export function MarkdownView({ markdown }: MarkdownViewProps) {
     </Box>
   );
 }
-

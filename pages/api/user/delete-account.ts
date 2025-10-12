@@ -12,14 +12,12 @@ export default async function handler(
   }
 
   try {
-    // Get the current session
     const session = await getServerSession(req, res, authOptions);
 
     if (!session?.user?.email) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Find the user
     const user = await db.user.findUnique({
       where: { email: session.user.email },
     });
@@ -28,7 +26,6 @@ export default async function handler(
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Delete the user account
     await db.user.delete({
       where: { email: session.user.email },
     });
@@ -39,4 +36,3 @@ export default async function handler(
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-

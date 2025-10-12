@@ -188,7 +188,6 @@ export const Logo = createIcon({
 
 const Navbar = async () => {
 
-
   return ( 
     <div className="flex items-center p-4">
      heerer

@@ -105,4 +105,3 @@ export const CodeView: FC<Props> = ({ artifact }) => {
     </Box>
   );
 };
-

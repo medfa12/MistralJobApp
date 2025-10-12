@@ -9,7 +9,7 @@ export function useChatConversation() {
 
   const loadConversation = useCallback(async (convId: string) => {
     setIsLoadingHistory(true);
-    
+
     try {
       const response = await fetch(`/api/chat/messages?conversationId=${convId}`);
       if (response.ok) {
@@ -24,7 +24,7 @@ export function useChatConversation() {
 
             if (msg.attachments && msg.attachments.length > 0) {
               const content: any[] = [{ type: 'text', text: msg.content }];
-              
+
               const attachmentPromises = msg.attachments.map(async (att: any) => {
                 const fileResponse = await fetch(att.cloudinaryUrl);
                 const blob = await fileResponse.blob();
@@ -40,7 +40,7 @@ export function useChatConversation() {
               });
 
               const attachmentResults = await Promise.all(attachmentPromises);
-              
+
               attachmentResults.forEach(({ att, base64 }) => {
                 if (att.type === 'image') {
                   content.push({
@@ -166,7 +166,7 @@ export function useChatConversation() {
           inspectedCodeAttachment
         }),
       });
-      
+
       if (!response.ok) {
         console.error('Failed to save message:', await response.text());
       }
@@ -184,4 +184,3 @@ export function useChatConversation() {
     saveMessage,
   };
 }
-

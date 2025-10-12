@@ -60,4 +60,3 @@ export const InspectedCodePreview: React.FC<InspectedCodePreviewProps> = ({
     </Flex>
   );
 };
-

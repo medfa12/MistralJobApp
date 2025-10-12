@@ -1,10 +1,8 @@
 'use client';
 
-// Chakra imports
 import { Flex, Text, useColorModeValue } from '@chakra-ui/react';
 import Link from '@/components/link/Link';
 import { Image } from '@/components/image/Image';
-// Assets
 import error from '/public/img/others/error.png';
 
 function NotFound() {

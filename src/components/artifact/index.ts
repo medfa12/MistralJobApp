@@ -9,4 +9,3 @@ export { ArtifactWorkspace } from './ArtifactWorkspace';
 export { VersionHistoryPanel } from './VersionHistoryPanel';
 export { VersionComparison } from './VersionComparison';
 export { ArtifactTabs } from './ArtifactTabs';
-

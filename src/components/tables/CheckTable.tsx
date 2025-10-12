@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable */
 
 import {
   Badge,
@@ -227,6 +226,7 @@ export default function SearchTableOrders(props: { tableData: RowObj[] }) {
         table.setSorting([{ id: 'fullName', desc: false }]);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table.getState().columnFilters[0]?.id]);
 
   return (
@@ -325,7 +325,7 @@ export default function SearchTableOrders(props: { tableData: RowObj[] }) {
         </Table>
       </Flex>
       <Flex w="100%" justify="space-between" px="20px" pt="10px" pb="5px">
-        {/* SET ROW NUMBER */}
+        {}
         <Text
           fontSize="sm"
           color="gray.500"
@@ -338,7 +338,7 @@ export default function SearchTableOrders(props: { tableData: RowObj[] }) {
             : tableData.length}{' '}
           of {tableData.length} entries
         </Text>
-        {/* PAGINATION BUTTONS */}
+        {}
         <div className="flex items-center gap-2">
           <Stack direction="row" alignSelf="flex-end" spacing="4px" ms="auto">
             <Button
@@ -432,7 +432,6 @@ export default function SearchTableOrders(props: { tableData: RowObj[] }) {
     </Card>
   );
 }
-// A debounced input react component
 function DebouncedInput({
   value: initialValue,
   onChange,
@@ -455,6 +454,7 @@ function DebouncedInput({
     }, debounce);
 
     return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   return (

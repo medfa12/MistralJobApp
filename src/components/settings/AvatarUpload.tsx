@@ -24,12 +24,10 @@ export default function AvatarUpload({ currentAvatar, onUploadSuccess }: AvatarU
   const toast = useToast();
 
   const validateFile = (file: File): string | null => {
-    // Check file type
     if (!file.type.startsWith('image/')) {
       return 'Please upload an image file (JPG, PNG, GIF, etc.)';
     }
 
-    // Check file size (5MB limit)
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       return 'File size must be less than 5MB';
@@ -42,7 +40,6 @@ export default function AvatarUpload({ currentAvatar, onUploadSuccess }: AvatarU
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file
     const validationError = validateFile(file);
     if (validationError) {
       toast({
@@ -52,7 +49,6 @@ export default function AvatarUpload({ currentAvatar, onUploadSuccess }: AvatarU
         duration: 4000,
         isClosable: true,
       });
-      // Reset input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -70,7 +66,6 @@ export default function AvatarUpload({ currentAvatar, onUploadSuccess }: AvatarU
     formData.append('avatar', file);
 
     try {
-      // Simulate progress (since we can't track real upload progress easily)
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 90) {
@@ -100,7 +95,6 @@ export default function AvatarUpload({ currentAvatar, onUploadSuccess }: AvatarU
           isClosable: true,
         });
 
-        // Call success callback to update avatar state
         if (onUploadSuccess && data.avatar) {
           onUploadSuccess(data.avatar);
         }
@@ -118,7 +112,6 @@ export default function AvatarUpload({ currentAvatar, onUploadSuccess }: AvatarU
     } finally {
       setUploading(false);
       setUploadProgress(0);
-      // Reset input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }

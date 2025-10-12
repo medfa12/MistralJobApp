@@ -57,7 +57,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
     const bufferLength = analyserRef.current.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-    
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -81,7 +81,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       for (let i = 0; i < barCount; i++) {
         const dataIndex = Math.floor((i / barCount) * bufferLength);
         const value = dataArray[dataIndex] / 255;
-        
+
         const barHeight = Math.max(4, value * canvas.height * 0.8);
         const x = i * (barWidth + barSpacing);
         const y = centerY - barHeight / 2;
@@ -223,4 +223,3 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     </Flex>
   );
 };
-

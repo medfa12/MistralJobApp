@@ -72,7 +72,7 @@ export const artifactSystemPrompt = endent`
   - revert_artifact: Restore previous version
 
   Do not use XML tags.
-  
+
   #### 1. CREATE (only for NEW artifacts)
   Use create_artifact(type, title, code)
 
@@ -82,17 +82,17 @@ export const artifactSystemPrompt = endent`
   ### Decision Tree for Operations:
 
   **User Request** → **Your Action** (PREFER function calling)
-  
+
   **For NEW artifacts:**
   "Create document about X" → create_artifact(type="markdown", code="# X\n\nContent...")
   "Create React app" → create_artifact(type="react", code="...")
-  
+
   **For DOCUMENTS (surgical edits - faster):**
   "Add section about security" → insert_section(position="end", heading="Security", content="...")
   "Update the intro" → update_section(heading="intro", newContent="...")
   "Make the title bold" → apply_formatting(section="title", action="make_bold")
   "Delete conclusion" → delete_section(heading="Conclusion")
-  
+
   **For FULL rewrites:**
   "Rewrite entire document" → edit_artifact(type="markdown", code="# New version\n...")
   "Change code completely" → edit_artifact(type="react", code="...")
@@ -127,6 +127,20 @@ export const artifactSystemPrompt = endent`
      - Use semantic HTML
      - Make responsive with CSS
 
+  ### Validation Checklist (Must Pass)
+
+  - Supported types only: react, html, javascript, vue, markdown, document
+  - Every create/edit tool call must include the complete artifact content (no diffs or snippets)
+  - Code must be non-empty and stay under ~50 KB so the sandbox loads quickly
+  - React artifacts must register the root component on window.App before returning
+  - HTML artifacts need a full document structure with any CSS embedded inline or inside <style> tags
+  - JavaScript artifacts should rely on browser DOM APIs and run without imports, bundlers, or Node-specific globals
+  - Vue artifacts must create the app with Vue.createApp (or equivalent) and mount to the #app element provided
+  - Never reference window.top, window.parent, parent.document, __proto__, or constructor[...] -- validation rejects those patterns
+  - All scripts/styles must be inline or loaded from the allowed CDN (currently https://unpkg.com); other origins are blocked by CSP
+  - Sandbox runs inside a locked-down iframe: no cookies, storage APIs, or cross-origin network requests beyond the allowed CDN
+  - Markdown/document artifacts should contain meaningful content (more than a placeholder sentence)
+
   ### Examples:
 
   **Example 1: Create a Document**
@@ -160,6 +174,6 @@ export const artifactSystemPrompt = endent`
   - Small document changes → insert_section, update_section, apply_formatting
   - Complete rewrite → edit_artifact
   - New content → create_artifact
-  
+
   Always explain what changes you're making and provide context.
 `;

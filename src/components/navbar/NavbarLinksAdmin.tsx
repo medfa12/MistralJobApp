@@ -37,8 +37,7 @@ export default function HeaderLinks(props: {
   const userMenuId = useId();
   const { colorMode, toggleColorMode } = useColorMode();
   const { fullName, initials, avatar, loading, stripePriceId, isSubscriptionActive } = useUserData();
-  
-  // Chakra Color Mode
+
   const navbarIcon = useColorModeValue('gray.500', 'white');
   let menuBg = useColorModeValue('white', 'navy.800');
   const textColor = useColorModeValue('navy.700', 'white');
@@ -108,7 +107,7 @@ export default function HeaderLinks(props: {
           minW={{ base: 'unset' }}
           maxW={{ base: '360px', md: 'unset' }}
         >
-          {/* <Flex bgImage={navImage} borderRadius="16px" mb="28px" alt="" /> */}
+          {}
           <Flex flexDirection="column">
             <Link
               w="100%"

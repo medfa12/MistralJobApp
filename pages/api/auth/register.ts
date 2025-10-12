@@ -19,13 +19,11 @@ async function handler(
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    // ✅ Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ message: "Invalid email format" });
     }
 
-    // ✅ Validate password strength
     const passwordValidation = validatePasswordWithContext(password, {
       email,
       username,
@@ -41,7 +39,6 @@ async function handler(
       });
     }
 
-    // Check if user already exists
     const existingUser = await db.user.findUnique({
       where: {
         email: email,
@@ -52,7 +49,6 @@ async function handler(
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Check if username is taken (if provided)
     if (username) {
       const existingUsername = await db.user.findUnique({
         where: {
@@ -65,10 +61,8 @@ async function handler(
       }
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
     const user = await db.user.create({
       data: {
         firstName: firstName || null,
@@ -84,7 +78,6 @@ async function handler(
       .filter(Boolean)
       .join(' ') || user.username || 'User';
 
-    // ✅ Don't expose internal user ID
     return res.status(201).json({
       success: true,
       message: "Registration successful",
@@ -99,5 +92,4 @@ async function handler(
   }
 }
 
-// Apply strict rate limiting: 3 registrations per hour
 export default strictAuthRateLimit(handler);

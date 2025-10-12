@@ -20,7 +20,7 @@ export function useValidation() {
 
   const validateApiKey = useCallback((): ValidationResult => {
     const apiKey = localStorage.getItem('apiKey');
-    
+
     if (!apiKey) {
       toast({
         title: 'API Key Required',
@@ -38,7 +38,7 @@ export function useValidation() {
 
   const validateModel = useCallback((model: MistralModel): ValidationResult => {
     const modelInfo = getModelInfo(model);
-    
+
     if (!modelInfo) {
       toast({
         title: 'Invalid Model',
@@ -56,7 +56,7 @@ export function useValidation() {
 
   const validateInput = useCallback((input: string): ValidationResult => {
     const trimmedInput = input.trim();
-    
+
     if (!trimmedInput) {
       toast({
         title: 'Message Required',
@@ -78,7 +78,7 @@ export function useValidation() {
     model: MistralModel
   ): TokenValidationResult => {
     const modelInfo = getModelInfo(model);
-    
+
     if (!modelInfo) {
       return { isValid: false, error: 'Invalid model' };
     }
@@ -90,7 +90,7 @@ export function useValidation() {
     totalTokens += estimateTokens(currentInput);
 
     const maxInputTokens = Math.floor(modelInfo.contextWindow * TOKEN_LIMIT_PERCENTAGE);
-    
+
     if (totalTokens > maxInputTokens) {
       toast({
         title: 'Context Window Exceeded',
@@ -105,7 +105,7 @@ export function useValidation() {
 
     const warningThreshold = Math.floor(modelInfo.contextWindow * TOKEN_WARNING_PERCENTAGE);
     const showWarning = totalTokens > warningThreshold && totalTokens <= maxInputTokens;
-    
+
     if (showWarning) {
       toast({
         title: 'Approaching Context Limit',
@@ -127,4 +127,3 @@ export function useValidation() {
     validateTokens,
   };
 }
-

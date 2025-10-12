@@ -1,5 +1,4 @@
 import { StreamLanguage } from '@codemirror/language';
-//@ts-ignore
 import { go } from '@codemirror/legacy-modes/mode/go';
 import { tokyoNight } from '@uiw/codemirror-theme-tokyo-night';
 import CodeMirror from '@uiw/react-codemirror';

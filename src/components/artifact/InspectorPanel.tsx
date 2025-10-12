@@ -50,7 +50,7 @@ export const InspectorPanel: FC<Props> = ({ element, isVisible }) => {
           exit="hidden"
         >
           <VStack align="stretch" spacing={4}>
-            {/* Element Tag */}
+            {}
             <Box>
               <Text fontSize="xs" color={labelColor} mb={1}>
                 Selected Element
@@ -68,7 +68,7 @@ export const InspectorPanel: FC<Props> = ({ element, isVisible }) => {
 
             <Divider />
 
-            {/* Element ID */}
+            {}
             {element.id && (
               <Box>
                 <Text fontSize="xs" color={labelColor} mb={1}>
@@ -80,7 +80,7 @@ export const InspectorPanel: FC<Props> = ({ element, isVisible }) => {
               </Box>
             )}
 
-            {/* Classes */}
+            {}
             {element.className && (
               <Box>
                 <Text fontSize="xs" color={labelColor} mb={2}>
@@ -107,7 +107,7 @@ export const InspectorPanel: FC<Props> = ({ element, isVisible }) => {
 
             <Divider />
 
-            {/* Dimensions */}
+            {}
             {element.dimensions && (
               <Box>
                 <Text fontSize="xs" color={labelColor} mb={2}>
@@ -134,7 +134,7 @@ export const InspectorPanel: FC<Props> = ({ element, isVisible }) => {
               </Box>
             )}
 
-            {/* Position */}
+            {}
             {element.position && (
               <Box>
                 <Text fontSize="xs" color={labelColor} mb={2}>
@@ -163,7 +163,7 @@ export const InspectorPanel: FC<Props> = ({ element, isVisible }) => {
 
             <Divider />
 
-            {/* Styles */}
+            {}
             {element.styles && (
               <Box>
                 <Text fontSize="xs" color={labelColor} mb={2}>
@@ -193,7 +193,7 @@ export const InspectorPanel: FC<Props> = ({ element, isVisible }) => {
               </Box>
             )}
 
-            {/* Element Path */}
+            {}
             {element.path && element.path.length > 0 && (
               <Box>
                 <Text fontSize="xs" color={labelColor} mb={2}>
@@ -210,4 +210,3 @@ export const InspectorPanel: FC<Props> = ({ element, isVisible }) => {
     </AnimatePresence>
   );
 };
-

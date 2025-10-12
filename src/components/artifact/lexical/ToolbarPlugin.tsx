@@ -89,14 +89,12 @@ export function ToolbarPlugin() {
   const updateToolbar = useCallback(() => {
     const selection = $getSelection();
     if ($isRangeSelection(selection)) {
-      // Update text format
       setIsBold(selection.hasFormat('bold'));
       setIsItalic(selection.hasFormat('italic'));
       setIsUnderline(selection.hasFormat('underline'));
       setIsStrikethrough(selection.hasFormat('strikethrough'));
       setIsCode(selection.hasFormat('code'));
 
-      // Update block type
       const anchorNode = selection.anchor.getNode();
       const element =
         anchorNode.getKey() === 'root'
@@ -230,7 +228,7 @@ export function ToolbarPlugin() {
       top={0}
       zIndex={10}
     >
-      {/* Undo/Redo */}
+      {}
       <Tooltip label="Undo">
         <IconButton
           aria-label="Undo"
@@ -254,7 +252,7 @@ export function ToolbarPlugin() {
 
       <Divider orientation="vertical" h="24px" mx={1} />
 
-      {/* Block Type Selector */}
+      {}
       <Select
         size="sm"
         w="140px"
@@ -279,7 +277,7 @@ export function ToolbarPlugin() {
 
       <Divider orientation="vertical" h="24px" mx={1} />
 
-      {/* Text Formatting */}
+      {}
       <Tooltip label="Bold">
         <IconButton
           aria-label="Format Bold"
@@ -343,7 +341,7 @@ export function ToolbarPlugin() {
 
       <Divider orientation="vertical" h="24px" mx={1} />
 
-      {/* Lists */}
+      {}
       <Tooltip label="Bullet List">
         <IconButton
           aria-label="Bullet List"

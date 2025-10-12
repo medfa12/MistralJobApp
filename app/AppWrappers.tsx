@@ -8,23 +8,16 @@ import '@/styles/MiniCalendar.scss';
 import { ChakraProvider } from '@chakra-ui/react';
 import { SessionProvider } from 'next-auth/react';
 
-// import dynamic from 'next/dynamic';
 import theme from '@/theme/theme';
 
 const _NoSSR = ({ children }: any) => (
   <React.Fragment>{children}</React.Fragment>
 );
 
-// const NoSSR = dynamic(() => Promise.resolve(_NoSSR), {
-//   ssr: false,
-// });
-
 export default function AppWrappers({ children }: { children: ReactNode }) {
   return (
-    // <NoSSR>
     <SessionProvider>
       <ChakraProvider theme={theme}>{children}</ChakraProvider>
     </SessionProvider>
-    // </NoSSR>
   );
 }

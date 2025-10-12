@@ -7,15 +7,12 @@ import SettingsClient from './SettingsClient';
 export const dynamic = 'force-dynamic';
 
 export default async function Settings() {
-  // Get the current session
   const session = await getServerSession(authOptions);
 
-  // Redirect to login if not authenticated
   if (!session?.user?.email) {
     redirect('/auth/login');
   }
 
-  // Fetch user data from database
   const user = await db.user.findUnique({
     where: {
       email: session.user.email,
@@ -38,6 +35,5 @@ export default async function Settings() {
     redirect('/auth/login');
   }
 
-  // Pass user data to client component
   return <SettingsClient user={user} />;
 }

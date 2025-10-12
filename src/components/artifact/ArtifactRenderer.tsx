@@ -45,7 +45,7 @@ export const ArtifactRenderer = forwardRef<ArtifactRendererRef, Props>(({ artifa
   const activeIconColor = useColorModeValue('orange.500', 'orange.300');
 
   const isDocument = artifact.type === 'markdown' || artifact.type === 'document';
-  
+
   const tabs: { id: ArtifactTab; icon: any; label: string }[] = isDocument
     ? [{ id: 'preview', icon: MdVisibility, label: artifact.type === 'document' ? 'Edit' : 'Preview' }]
     : [

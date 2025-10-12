@@ -30,7 +30,6 @@ export default async function handler(
 
   if (req.method === 'DELETE') {
     try {
-      // Get all conversations for the user
       const conversations = await db.chatConversation.findMany({
         where: { userId: user.id },
         include: {
@@ -49,12 +48,10 @@ export default async function handler(
         });
       }
 
-      // Collect all attachments from all conversations
       const allAttachments = conversations.flatMap(conv =>
         conv.messages.flatMap(msg => msg.attachments)
       );
 
-      // Delete all attachments from Cloudinary
       const attachmentPromises = allAttachments.map(att =>
         cloudinary.uploader.destroy(att.cloudinaryPublicId, {
           resource_type: att.type === 'image' ? 'image' : 'raw',
@@ -63,7 +60,6 @@ export default async function handler(
 
       await Promise.allSettled(attachmentPromises);
 
-      // Delete all conversations (cascade will handle messages, artifacts, etc.)
       const deleteResult = await db.chatConversation.deleteMany({
         where: { userId: user.id },
       });
@@ -80,4 +76,3 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 }
-

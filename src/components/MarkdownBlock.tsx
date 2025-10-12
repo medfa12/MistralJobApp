@@ -1,8 +1,5 @@
-//@ts-ignore
 import ReactMarkdown from 'react-markdown';
-//@ts-ignore
 import remarkMath from 'remark-math';
-//@ts-ignore
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { FC, useEffect, useState } from 'react';
@@ -22,12 +19,12 @@ export const MarkdownBlock: FC<Props> = ({
 
   const processLatex = (text: string) => {
     let processed = text;
-    
+
     processed = processed.replace(/\\begin\{(pmatrix|bmatrix|matrix|align|equation)\}[\s\S]*?\\end\{\1\}/g, (match) => {
       if (match.startsWith('$$') || match.startsWith('\\[')) return match;
       return `$$\n${match}\n$$`;
     });
-    
+
     processed = processed.replace(/^([^$\n]*\\(?:frac|sqrt|sum|prod|int|lim|binom|begin)\{[^}]*\}.*?)$/gm, (match) => {
       if (match.trim().startsWith('$') || match.trim().startsWith('\\(')) return match;
       const trimmed = match.trim();
@@ -36,7 +33,7 @@ export const MarkdownBlock: FC<Props> = ({
       }
       return `$${trimmed}$`;
     });
-    
+
     processed = processed.replace(/^([^$\n]*[a-zA-Z0-9]\^\{?[^}]*\}?.*?)$/gm, (match) => {
       if (match.trim().startsWith('$') || match.includes('```') || match.includes('http')) return match;
       const trimmed = match.trim();
@@ -45,7 +42,7 @@ export const MarkdownBlock: FC<Props> = ({
       }
       return match;
     });
-    
+
     return processed;
   };
 

@@ -39,7 +39,6 @@ export function useMessageBuilder() {
 
     const basePrompt = getSystemPromptForModel(model);
 
-    // Decide whether to append tool suggestions and artifact context
     const lastAssistantWithTool = [...messages].reverse().find((m) => m.role === 'assistant' && !!m.toolCall) as (MessageType | undefined);
     const lastToolOp = (lastAssistantWithTool?.toolCall as ToolCall | undefined)?.operation;
 

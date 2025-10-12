@@ -62,7 +62,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
     try {
       const apiKey = localStorage.getItem('apiKey');
-      
+
       if (!apiKey) {
         throw new Error('API key not found');
       }
@@ -133,9 +133,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleMicClick = useCallback(async () => {
     if (loading || isTranscribing) return;
-    
+
     const success = await startRecording();
-    
+
     if (success) {
       setIsVoiceMode(true);
     } else if (micError) {
@@ -271,7 +271,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onChange={(e) => onChange(e.target.value)}
           onKeyPress={onKeyPress}
         />
-        
+
         <Button
           minW="54px"
           w="54px"
@@ -362,4 +362,3 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     </Flex>
   );
 };
-

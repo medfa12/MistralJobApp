@@ -46,7 +46,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
   } else if (req.method === 'PATCH') {
     try {
-      // Verify artifact belongs to user
       const existingArtifact = await db.artifact.findFirst({
         where: {
           id,
@@ -79,7 +78,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
   } else if (req.method === 'DELETE') {
     try {
-      // Verify artifact belongs to user
       const existingArtifact = await db.artifact.findFirst({
         where: {
           id,
@@ -105,6 +103,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
-// Apply rate limiting: 60 requests per minute
 export default apiRateLimit(handler);
-

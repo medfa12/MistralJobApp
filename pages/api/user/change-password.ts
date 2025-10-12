@@ -15,7 +15,6 @@ async function handler(
   }
 
   try {
-    // Get the current session
     const session = await getServerSession(req, res, authOptions);
 
     if (!session?.user?.email) {
@@ -24,19 +23,16 @@ async function handler(
 
     const { oldPassword, newPassword } = req.body;
 
-    // Validate inputs
     if (!oldPassword || !newPassword) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // ✅ Check if new password is same as old password
     if (oldPassword === newPassword) {
       return res.status(400).json({ 
         error: 'New password must be different from current password' 
       });
     }
 
-    // Find the current user
     const user = await db.user.findUnique({
       where: { email: session.user.email },
     });
@@ -45,14 +41,12 @@ async function handler(
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Verify old password
     const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
 
     if (!isPasswordValid) {
       return res.status(400).json({ error: 'Current password is incorrect' });
     }
 
-    // ✅ Validate new password strength
     const passwordValidation = validatePasswordWithContext(newPassword, {
       email: user.email,
       username: user.username || undefined,
@@ -68,10 +62,8 @@ async function handler(
       });
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password
     await db.user.update({
       where: { email: session.user.email },
       data: {
@@ -86,6 +78,4 @@ async function handler(
   }
 }
 
-// Apply strict rate limiting: 3 password changes per hour
 export default strictAuthRateLimit(handler);
-

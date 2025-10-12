@@ -1,5 +1,4 @@
 'use client';
-// Chakra imports
 import { Box, Flex } from '@chakra-ui/react';
 import Footer from '@/components/footer/FooterAuthDefault';
 import FixedPlugin from '@/components/fixedPlugin/FixedPlugin';
@@ -12,7 +11,6 @@ interface DefaultAuthLayoutProps extends PropsWithChildren {
 
 export default function DefaultAuthLayout(props: DefaultAuthLayoutProps) {
   const { children, illustrationBackground } = props;
-  // Chakra color mode
   return (
     <Flex position="relative" h="max-content">
       <Flex

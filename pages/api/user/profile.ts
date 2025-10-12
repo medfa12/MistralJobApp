@@ -12,14 +12,12 @@ export default async function handler(
   }
 
   try {
-    // Get the current session
     const session = await getServerSession(req, res, authOptions);
 
     if (!session?.user?.email) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Fetch user data
     const user = await db.user.findUnique({
       where: { email: session.user.email },
       select: {
@@ -45,4 +43,3 @@ export default async function handler(
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-

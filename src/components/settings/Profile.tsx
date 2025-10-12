@@ -1,5 +1,4 @@
 'use client';
-// Chakra imports
 import { Flex, Text, useColorModeValue, Badge, Box } from '@chakra-ui/react';
 import Card from '@/components/card/Card';
 import { NextAvatar } from '@/components/image/Avatar';
@@ -15,17 +14,15 @@ export default function Profile(props: {
   onAvatarUpdate?: (newAvatarUrl: string) => void;
 }) {
   const { name, avatar, banner, role = 'member', onAvatarUpdate } = props;
-  // Chakra Color Mode
   const textColorPrimary = useColorModeValue('navy.700', 'white');
   const textColorSecondary = 'gray.500';
 
-  // Determine if avatar is a URL string or StaticImageData
   const isAvatarUrl = typeof avatar === 'string' && avatar !== '';
 
   return (
     <Card mb="20px" alignItems="center">
       <Flex bg={banner} w="100%" h="129px" borderRadius="16px" />
-      
+
       {isAvatarUrl ? (
         <Image
           src={avatar}
@@ -51,7 +48,7 @@ export default function Profile(props: {
           mb="15px"
         />
       ) : null}
-      
+
       <Text
         fontSize="2xl"
         textColor={textColorPrimary}
@@ -60,7 +57,7 @@ export default function Profile(props: {
       >
         {name}
       </Text>
-      
+
       <Flex align="center" mx="auto" px="14px" mb="20px">
         <Text
           color={textColorSecondary}
@@ -80,7 +77,7 @@ export default function Profile(props: {
         </Badge>
       </Flex>
 
-      {/* Avatar Upload */}
+      {}
       <Box px="20px" pb="20px" width="100%">
         <AvatarUpload 
           currentAvatar={typeof avatar === 'string' ? avatar : undefined}

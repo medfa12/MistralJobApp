@@ -145,4 +145,3 @@ function getArtifactBadgeColor(type: string): string {
   };
   return colorMap[type] || 'gray';
 }
-

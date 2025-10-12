@@ -45,7 +45,6 @@ export function handleToolCalls(
 
       case 'edit_artifact':
         artifactData = {
-          // Allow targeting by provided identifier; otherwise edit current
           identifier: (args.identifier && typeof args.identifier === 'string') ? args.identifier : (currentArtifact?.identifier || 'current-artifact'),
           type: args.type,
           title: args.title,

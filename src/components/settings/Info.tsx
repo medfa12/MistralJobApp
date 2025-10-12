@@ -1,5 +1,4 @@
 'use client';
-// Chakra imports
 import {
   Flex,
   FormControl,
@@ -25,8 +24,7 @@ type InfoProps = {
 
 export default function Info(props: InfoProps) {
   const { username, email, firstName, lastName, job, bio } = props;
-  
-  // State for form fields
+
   const [formData, setFormData] = useState({
     username,
     email,
@@ -38,8 +36,7 @@ export default function Info(props: InfoProps) {
 
   const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
-  
-  // Chakra Color Mode
+
   const textColorPrimary = useColorModeValue('navy.700', 'white');
   const textColorSecondary = 'gray.500';
 

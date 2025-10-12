@@ -34,7 +34,6 @@ export function ProjectSelector({ selectedProject, onProjectSelect }: ProjectSel
   const [loading, setLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Generate stable ID for SSR/client hydration
   const menuId = useId();
 
   useEffect(() => {
@@ -55,7 +54,7 @@ export function ProjectSelector({ selectedProject, onProjectSelect }: ProjectSel
       setLoading(true);
       const response = await fetch('/api/projects/list');
       const data = await response.json();
-      
+
       if (data.success) {
         setProjects(data.projects);
       }
@@ -66,7 +65,6 @@ export function ProjectSelector({ selectedProject, onProjectSelect }: ProjectSel
     }
   };
 
-  // Prevent hydration mismatch by only rendering Menu on client
   if (!isMounted) {
     return (
       <Flex align="center" gap="10px">
@@ -165,4 +163,3 @@ export function ProjectSelector({ selectedProject, onProjectSelect }: ProjectSel
     </Flex>
   );
 }
-

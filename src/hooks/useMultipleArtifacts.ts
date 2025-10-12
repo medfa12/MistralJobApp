@@ -15,16 +15,16 @@ export function useMultipleArtifacts() {
     setArtifacts((prev) => {
       const newMap = new Map(prev);
       const existing = newMap.get(artifact.identifier);
-      
+
       newMap.set(artifact.identifier, {
         artifact,
         isPinned: existing?.isPinned || false,
         lastAccessed: new Date(),
       });
-      
+
       return newMap;
     });
-    
+
     if (makeActive) {
       setActiveArtifactId(artifact.identifier);
     }
@@ -36,9 +36,8 @@ export function useMultipleArtifacts() {
       newMap.delete(identifier);
       return newMap;
     });
-    
+
     if (activeArtifactId === identifier) {
-      // Switch to another artifact if available
       const remaining = Array.from(artifacts.keys()).filter(id => id !== identifier);
       setActiveArtifactId(remaining.length > 0 ? remaining[0] : null);
     }
@@ -85,10 +84,8 @@ export function useMultipleArtifacts() {
 
   const getArtifactsList = useCallback((): ArtifactInstance[] => {
     return Array.from(artifacts.values()).sort((a, b) => {
-      // Pinned artifacts first
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      // Then by last accessed
       return b.lastAccessed.getTime() - a.lastAccessed.getTime();
     });
   }, [artifacts]);
@@ -104,16 +101,15 @@ export function useMultipleArtifacts() {
           addOrUpdateArtifact(artifactData, true);
         }
         break;
-      
+
       case 'delete':
         if (artifactData) {
           removeArtifact(artifactData.identifier);
         }
         break;
-      
+
       case 'revert':
         if (artifactData && toolCall.revertToVersion) {
-          // Handle version revert
           const version = artifactData.versions?.[toolCall.revertToVersion - 1];
           if (version) {
             const revertedArtifact: ArtifactData = {
@@ -142,4 +138,3 @@ export function useMultipleArtifacts() {
     processArtifactOperation,
   };
 }
-

@@ -87,7 +87,7 @@ export function useAttachments() {
     for (const attachment of attachments) {
       try {
         const uploadResult = await uploadToCloudinary(attachment.file, attachment.type);
-        
+
         uploadedAttachments.push({
           type: uploadResult.type,
           fileName: uploadResult.fileName,
@@ -135,4 +135,3 @@ export function useAttachments() {
     processAttachments,
   };
 }
-

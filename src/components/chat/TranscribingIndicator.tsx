@@ -64,4 +64,3 @@ export const TranscribingIndicator: React.FC<TranscribingIndicatorProps> = ({
     </Flex>
   );
 };
-

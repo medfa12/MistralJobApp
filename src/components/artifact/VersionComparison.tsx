@@ -57,7 +57,7 @@ export const VersionComparison: FC<Props> = ({ artifact, versionA, versionB }) =
     const linesA = versionAData.code.split('\n').length;
     const linesB = versionBData.code.split('\n').length;
     const sizeDiff = linesB - linesA;
-    
+
     return {
       lines: sizeDiff,
       added: sizeDiff > 0 ? sizeDiff : 0,
@@ -67,7 +67,7 @@ export const VersionComparison: FC<Props> = ({ artifact, versionA, versionB }) =
 
   return (
     <VStack spacing={4} align="stretch" h="100%">
-      {/* Header */}
+      {}
       <Flex
         p={4}
         borderBottom="1px solid"
@@ -80,7 +80,7 @@ export const VersionComparison: FC<Props> = ({ artifact, versionA, versionB }) =
         <Text fontWeight="bold" fontSize="lg" color={textColor}>
           Compare Versions
         </Text>
-        
+
         <Flex align="center" gap={2} ml="auto">
           <Badge colorScheme="blue" fontSize="md" px={3} py={1}>
             v{versionA}
@@ -92,7 +92,7 @@ export const VersionComparison: FC<Props> = ({ artifact, versionA, versionB }) =
         </Flex>
       </Flex>
 
-      {/* Stats */}
+      {}
       <Flex gap={4} px={4}>
         {diff.added > 0 && (
           <Badge colorScheme="green" fontSize="sm" px={3} py={2}>
@@ -111,7 +111,7 @@ export const VersionComparison: FC<Props> = ({ artifact, versionA, versionB }) =
         )}
       </Flex>
 
-      {/* Side-by-side code comparison */}
+      {}
       <Grid
         templateColumns="repeat(2, 1fr)"
         gap={4}
@@ -120,7 +120,7 @@ export const VersionComparison: FC<Props> = ({ artifact, versionA, versionB }) =
         px={4}
         pb={4}
       >
-        {/* Version A */}
+        {}
         <Box
           borderRadius="lg"
           border="1px solid"
@@ -165,7 +165,7 @@ export const VersionComparison: FC<Props> = ({ artifact, versionA, versionB }) =
           </Box>
         </Box>
 
-        {/* Version B */}
+        {}
         <Box
           borderRadius="lg"
           border="1px solid"
@@ -213,4 +213,3 @@ export const VersionComparison: FC<Props> = ({ artifact, versionA, versionB }) =
     </VStack>
   );
 };
-

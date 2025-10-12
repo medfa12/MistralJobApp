@@ -12,7 +12,6 @@ export default async function handler(
   }
 
   try {
-    // Get the current session
     const session = await getServerSession(req, res, authOptions);
 
     if (!session?.user?.email) {
@@ -21,7 +20,6 @@ export default async function handler(
 
     const { username, email, firstName, lastName, job, bio } = req.body;
 
-    // Find the current user
     const currentUser = await db.user.findUnique({
       where: { email: session.user.email },
     });
@@ -30,7 +28,6 @@ export default async function handler(
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Check if username is being changed and if it's already taken
     if (username && username !== currentUser.username) {
       const existingUser = await db.user.findUnique({
         where: { username },
@@ -41,7 +38,6 @@ export default async function handler(
       }
     }
 
-    // Check if email is being changed and if it's already taken
     if (email && email !== currentUser.email) {
       const existingUser = await db.user.findUnique({
         where: { email },
@@ -52,7 +48,6 @@ export default async function handler(
       }
     }
 
-    // Update user profile
     const updatedUser = await db.user.update({
       where: { email: session.user.email },
       data: {
@@ -82,4 +77,3 @@ export default async function handler(
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-

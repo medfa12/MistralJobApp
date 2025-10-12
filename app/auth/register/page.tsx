@@ -1,6 +1,5 @@
 'use client';
 
-// Chakra imports
 import {
   Box,
   Button,
@@ -27,7 +26,6 @@ import { signIn } from 'next-auth/react';
 function SignUp() {
   const router = useRouter();
   const toast = useToast();
-  // Chakra color mode
   const textColor = useColorModeValue('navy.700', 'white');
   const textColorSecondary = 'gray.500';
   const textColorDetails = useColorModeValue('navy.700', 'gray.500');
@@ -46,12 +44,12 @@ function SignUp() {
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
-  
+
   const handleClick = () => setShow(!show);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password || !confirmPassword) {
       toast({
         title: 'Error',
@@ -123,7 +121,6 @@ function SignUp() {
         isClosable: true,
       });
 
-      // Automatically sign in after registration
       const result = await signIn('credentials', {
         email,
         password,
@@ -299,7 +296,7 @@ function SignUp() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            {/* PASSWORD */}
+            {}
             <FormLabel
               cursor="pointer"
               ms="4px"
@@ -337,7 +334,7 @@ function SignUp() {
                 />
               </InputRightElement>
             </InputGroup>
-            {/* CONFIRM */}
+            {}
             <FormLabel
               cursor="pointer"
               htmlFor="confirm"
@@ -416,4 +413,3 @@ function SignUp() {
 }
 
 export default SignUp;
-

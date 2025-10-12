@@ -48,7 +48,6 @@ export default function MessageBox(props: {
   const [thinking, setThinking] = useState<string>('')
   const [answer, setAnswer] = useState<string>('')
 
-  // Use centralized thinking accordion state
   const { thinkingExpanded, toggleThinking } = useChatState()
   const isExpanded = messageIndex !== undefined ? thinkingExpanded[messageIndex] : false
 
@@ -62,7 +61,7 @@ export default function MessageBox(props: {
     while ((match = codeBlockRegex.exec(text)) !== null) {
       const [fullMatch, language, code] = match;
       const supportedLanguages = ['python', 'rust', 'svelte', 'go', 'java', 'c', 'cpp', 'ruby', 'php', 'sql', 'kotlin', 'swift'];
-      
+
       if (supportedLanguages.includes(language.toLowerCase())) {
         snippets.push({ language, code: code.trim(), index });
         processedText = processedText.replace(fullMatch, `__CODE_SNIPPET_${index}__`);
@@ -77,17 +76,17 @@ export default function MessageBox(props: {
     const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
     const artifactRegex = /<artifact[^>]*>[\s\S]*?<\/artifact>/g;
     let processedOutput = output;
-    
+
     processedOutput = processedOutput.replace(artifactRegex, '');
-    
+
     const matches = processedOutput.match(thinkRegex);
-    
+
     if (matches && matches.length > 0) {
       const thinkingContent = matches
         .map(match => match.replace(/<\/?think>/g, ''))
         .join('\n\n');
       setThinking(processLatex(thinkingContent));
-      
+
       const cleanAnswer = processedOutput.replace(thinkRegex, '').trim();
       setAnswer(processLatex(cleanAnswer));
     } else {
@@ -174,7 +173,7 @@ export default function MessageBox(props: {
           </SimpleGrid>
         </Box>
       )}
-      
+
       {inspectedCodeAttachment && (
         <Box mb="20px">
           <Flex
@@ -210,7 +209,7 @@ export default function MessageBox(props: {
           </Flex>
         </Box>
       )}
-      
+
       {toolCall && (
         <ToolCallBox 
           operation={toolCall.operation}
@@ -219,7 +218,7 @@ export default function MessageBox(props: {
           revertToVersion={toolCall.revertToVersion}
         />
       )}
-      
+
       {artifact && onArtifactClick && (
         <Box mb="10px">
           <ArtifactToggleButton

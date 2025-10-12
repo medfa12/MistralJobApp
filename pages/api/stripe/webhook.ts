@@ -165,7 +165,7 @@ export default async function handler(
 
           if (user) {
             const periodEnd = safeTimestampToDate(subscription.current_period_end);
-            
+
             await prisma.user.update({
               where: { id: user.id },
               data: {
@@ -248,4 +248,3 @@ export default async function handler(
     res.status(500).json({ error: `Webhook handler failed: ${error.message}` });
   }
 }
-

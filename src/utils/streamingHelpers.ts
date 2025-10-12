@@ -20,13 +20,13 @@ export function detectArtifactInStream(
       if (toolCalls && toolCalls.length > 0) {
         const firstCall = toolCalls[0];
         const functionName = firstCall.function?.name;
-        
+
         let operation = 'unknown';
         let title: string | undefined;
 
         try {
           const args = JSON.parse(firstCall.function?.arguments || '{}');
-          
+
           if (functionName === 'create_artifact') {
             operation = 'create';
             title = args.title;
@@ -63,8 +63,6 @@ export function detectArtifactInStream(
       console.warn('Failed to parse tool calls:', e);
     }
   }
-
-  // Deprecated: ignore XML artifact tags in stream
 
   return {
     isGeneratingArtifact: false,

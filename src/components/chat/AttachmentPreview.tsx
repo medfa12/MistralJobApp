@@ -65,4 +65,3 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
     </Flex>
   );
 };
-

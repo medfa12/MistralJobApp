@@ -56,7 +56,7 @@ class ArtifactErrorBoundary extends Component<Props, State> {
       error: null,
       errorInfo: null,
     });
-    
+
     if (this.props.onReset) {
       this.props.onReset();
     }
@@ -174,5 +174,3 @@ function ErrorFallback({ error, onReset }: { error: Error | null; onReset: () =>
 }
 
 export default ArtifactErrorBoundary;
-
-

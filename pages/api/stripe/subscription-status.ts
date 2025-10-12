@@ -19,7 +19,6 @@ export default async function handler(
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Get user from database
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       select: {
@@ -37,7 +36,6 @@ export default async function handler(
       return res.status(404).json({ error: "User not found" });
     }
 
-    // If user has no subscription
     if (!user.stripeSubscriptionId) {
       return res.status(200).json({
         hasSubscription: false,
@@ -48,12 +46,10 @@ export default async function handler(
       });
     }
 
-    // Get full subscription details from Stripe
     const subscription = await stripe.subscriptions.retrieve(
       user.stripeSubscriptionId
     );
 
-    // Get product details
     const price = await stripe.prices.retrieve(subscription.items.data[0].price.id, {
       expand: ["product"],
     });
@@ -92,4 +88,3 @@ export default async function handler(
     });
   }
 }
-

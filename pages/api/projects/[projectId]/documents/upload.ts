@@ -2,10 +2,23 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { v2 as cloudinary } from 'cloudinary';
 import formidable from 'formidable';
 import fs from 'fs';
+import FileType from 'file-type';
+import { DOCUMENT_PROCESSING, API } from '@/lib/constants';
+import { apiError, apiSuccess } from '@/lib/api-helpers';
+import { logger, logDocumentProcessing } from '@/lib/logger';
+import { cache, getCacheKey } from '@/lib/cache';
+import { extractTextFromDocument, chunkText, estimateTokenCount } from '@/lib/document-processing';
+import { createEmbeddings } from '@/lib/embedding';
+import { checkRateLimit } from '@/lib/rate-limiter';
 
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export const config = {
   api: {
@@ -18,14 +31,17 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return apiError(res, 405, 'Method not allowed');
   }
 
   try {
+    if (!checkRateLimit(req, res, API.RATE_LIMIT_UPLOAD, API.RATE_LIMIT_WINDOW_MS)) {
+      return apiError(res, 429, 'Too many requests. Please try again later.');
+    }
+
     const session = await getServerSession(req, res, authOptions);
-    
     if (!session?.user?.email) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return apiError(res, 401, 'Unauthorized');
     }
 
     const user = await prisma.user.findUnique({
@@ -33,16 +49,15 @@ export default async function handler(
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return apiError(res, 404, 'User not found');
     }
 
     const { projectId } = req.query;
 
     if (!projectId || typeof projectId !== 'string') {
-      return res.status(400).json({ error: 'Project ID is required' });
+      return apiError(res, 400, 'Project ID is required');
     }
 
-    // Verify project ownership
     const project = await prisma.project.findUnique({
       where: { 
         id: projectId,
@@ -51,12 +66,11 @@ export default async function handler(
     });
 
     if (!project) {
-      return res.status(404).json({ error: 'Project not found' });
+      return apiError(res, 404, 'Project not found');
     }
 
-    // Parse form data
     const form = formidable({
-      maxFileSize: 50 * 1024 * 1024, // 50MB limit
+      maxFileSize: DOCUMENT_PROCESSING.MAX_FILE_SIZE,
       keepExtensions: true,
     });
 
@@ -64,94 +78,171 @@ export default async function handler(
     const file = Array.isArray(files.file) ? files.file[0] : files.file;
 
     if (!file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return apiError(res, 400, 'No file uploaded');
     }
 
-    // Read file content
-    const fileContent = fs.readFileSync(file.filepath);
     const fileName = file.originalFilename || 'document';
+    const extension = fileName.split('.').pop()?.toLowerCase() || '';
 
-    // Create form data for Mistral
-    const formData = new FormData();
-    const blob = new Blob([fileContent], { type: file.mimetype || 'application/octet-stream' });
-    formData.append('file', blob, fileName);
-
-    // Upload to Mistral
-    const mistralResponse = await fetch(
-      `https://api.mistral.ai/v1/libraries/${project.mistralLibraryId}/documents`,
-      {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${MISTRAL_API_KEY}`,
-        },
-        body: formData,
-      }
-    );
-
-    if (!mistralResponse.ok) {
-      const errorData = await mistralResponse.json();
-      console.error('Mistral API error:', errorData);
-      return res.status(500).json({ 
-        error: 'Failed to upload document to Mistral',
-        details: errorData 
-      });
+    if (!DOCUMENT_PROCESSING.ALLOWED_EXTENSIONS.includes(extension as any)) {
+      return apiError(res, 400, 
+        `Unsupported file type: ${extension}. Allowed: ${DOCUMENT_PROCESSING.ALLOWED_EXTENSIONS.join(', ')}`
+      );
     }
 
-    const mistralDocument = await mistralResponse.json();
+    const fileBuffer = fs.readFileSync(file.filepath);
+    const detectedType = await FileType.fromBuffer(fileBuffer);
 
-    // Save document to database
+    if (detectedType && !DOCUMENT_PROCESSING.ALLOWED_MIME_TYPES.includes(detectedType.mime as any)) {
+      fs.unlinkSync(file.filepath);
+      return apiError(res, 400, 'File content does not match extension');
+    }
+
+    const cloudinaryResult = await cloudinary.uploader.upload(file.filepath, {
+      folder: `mistral/projects/${projectId}/documents`,
+      resource_type: 'raw',
+      public_id: `${Date.now()}_${fileName}`,
+      type: 'authenticated',
+    });
+
+    logger.info('Document uploaded to Cloudinary', {
+      publicId: cloudinaryResult.public_id,
+      secureUrl: cloudinaryResult.secure_url,
+      url: cloudinaryResult.url,
+    });
+
     const document = await prisma.projectDocument.create({
       data: {
         projectId: project.id,
-        mistralDocumentId: mistralDocument.id,
-        name: mistralDocument.name,
-        extension: mistralDocument.extension,
-        mimeType: mistralDocument.mime_type,
-        size: mistralDocument.size,
-        numberOfPages: mistralDocument.number_of_pages || null,
-        summary: mistralDocument.summary || null,
-        processingStatus: mistralDocument.processing_status,
-        hash: mistralDocument.hash || null,
-        lastProcessedAt: mistralDocument.last_processed_at 
-          ? new Date(mistralDocument.last_processed_at) 
-          : null,
+        name: fileName,
+        extension,
+        mimeType: file.mimetype || 'application/octet-stream',
+        size: file.size,
+        cloudinaryUrl: cloudinaryResult.secure_url,
+        cloudinaryPublicId: cloudinaryResult.public_id,
+        processingStatus: 'pending',
       },
     });
 
-    // Update project document count and total size
     await prisma.project.update({
       where: { id: project.id },
       data: {
         documentCount: { increment: 1 },
-        totalSize: { increment: document.size },
+        totalSize: { increment: file.size },
       },
     });
 
-    // Clean up temporary file
+    const cacheKey = getCacheKey('chunks', projectId);
+    cache.delete(cacheKey);
+
+    logDocumentProcessing('uploaded', document.id, {
+      projectId,
+      userId: user.id,
+      fileName,
+      size: file.size,
+    });
+
+    const documentBuffer = Buffer.from(fileBuffer);
     fs.unlinkSync(file.filepath);
 
-    return res.status(201).json({
-      success: true,
+    const userApiKey = req.headers['x-mistral-api-key'] as string || process.env.MISTRAL_API_KEY;
+
+    setImmediate(async () => {
+      try {
+        await prisma.projectDocument.update({
+          where: { id: document.id },
+          data: { processingStatus: 'processing' },
+        });
+
+        logger.info('Starting document processing', {
+          documentId: document.id,
+          extension: document.extension,
+        });
+
+        const { text, pageCount } = await extractTextFromDocument(documentBuffer, document.extension);
+
+        if (!text || text.trim().length === 0) {
+          throw new Error('No content found in document');
+        }
+
+        const chunks = chunkText(text);
+
+        if (chunks.length === 0) {
+          throw new Error('No valid chunks created from document');
+        }
+
+        const embeddings = await createEmbeddings(chunks, userApiKey!);
+
+        const chunkDocuments = chunks.map((content, index) => ({
+          projectId: document.projectId,
+          documentId: document.id,
+          chunkIndex: index,
+          content,
+          embedding: embeddings[index],
+          tokenCount: estimateTokenCount(content),
+          metadata: {},
+        }));
+
+        const BATCH_INSERT_SIZE = 100;
+        for (let i = 0; i < chunkDocuments.length; i += BATCH_INSERT_SIZE) {
+          const batch = chunkDocuments.slice(i, i + BATCH_INSERT_SIZE);
+          await prisma.documentChunk.createMany({
+            data: batch,
+          });
+        }
+
+        await prisma.projectDocument.update({
+          where: { id: document.id },
+          data: {
+            processingStatus: 'completed',
+            chunkCount: chunks.length,
+            numberOfPages: pageCount,
+            processedAt: new Date(),
+          },
+        });
+
+        cache.delete(cacheKey);
+
+        logger.info('Document processed successfully', {
+          documentId: document.id,
+          chunkCount: chunks.length,
+          pageCount,
+        });
+      } catch (error) {
+        logger.error('Error processing document in background', {
+          documentId: document.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        await prisma.documentChunk.deleteMany({
+          where: { documentId: document.id },
+        }).catch(() => {});
+
+        await prisma.projectDocument.update({
+          where: { id: document.id },
+          data: {
+            processingStatus: 'failed',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          },
+        }).catch(() => {});
+      }
+    });
+
+    return apiSuccess(res, {
       document: {
         id: document.id,
-        mistralDocumentId: document.mistralDocumentId,
         name: document.name,
         extension: document.extension,
-        mimeType: document.mimeType,
         size: document.size,
-        numberOfPages: document.numberOfPages,
-        summary: document.summary,
+        cloudinaryUrl: document.cloudinaryUrl,
         processingStatus: document.processingStatus,
         uploadedAt: document.uploadedAt,
       },
-    });
+    }, 201);
   } catch (error) {
-    console.error('Error uploading document:', error);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    logger.error('Error uploading document', { error });
+    return apiError(res, 500, 'Internal server error', 
+      error instanceof Error ? error.message : 'Unknown error'
+    );
   }
 }
-

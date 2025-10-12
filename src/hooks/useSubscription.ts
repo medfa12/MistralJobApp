@@ -36,7 +36,7 @@ export function useSubscription() {
     try {
       setLoading(true);
       const response = await fetch('/api/stripe/subscription-status');
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch subscription status');
       }
@@ -71,7 +71,7 @@ export function useSubscription() {
       }
 
       const data = await response.json();
-      
+
       toast({
         title: 'Subscription Canceled',
         description: 'Your subscription will be canceled at the end of the billing period',
@@ -80,9 +80,8 @@ export function useSubscription() {
         isClosable: true,
       });
 
-      // Refresh subscription data
       await fetchSubscriptionStatus();
-      
+
       return data;
     } catch (error: any) {
       console.error('Error canceling subscription:', error);
@@ -120,9 +119,8 @@ export function useSubscription() {
         isClosable: true,
       });
 
-      // Refresh subscription data
       await fetchSubscriptionStatus();
-      
+
       return data;
     } catch (error: any) {
       console.error('Error reactivating subscription:', error);
@@ -173,9 +171,9 @@ export function useSubscription() {
   ) => {
     try {
       setActionLoading(true);
-      
+
       const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-      
+
       if (!stripe) {
         throw new Error('Failed to load Stripe');
       }
@@ -197,9 +195,9 @@ export function useSubscription() {
       }
 
       const { sessionId } = await res.json();
-      
+
       const { error } = await stripe.redirectToCheckout({ sessionId });
-      
+
       if (error) {
         throw error;
       }
@@ -232,4 +230,3 @@ export function useSubscription() {
     subscribe,
   };
 }
-

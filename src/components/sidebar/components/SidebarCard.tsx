@@ -1,4 +1,3 @@
-// Chakra imports
 import { Box, Flex, Text, Progress } from '@chakra-ui/react';
 import BarChart from '@/components/charts/BarChart';
 import {
@@ -38,7 +37,7 @@ export default function SidebarDocs() {
           3264/100,000 credits used
         </Text>
       </Flex>
-      {/* @ts-ignore */}
+      {}
       <Box h="160px" w="100%" mt="-46px">
         <BarChart
           chartData={barChartDataSidebar}

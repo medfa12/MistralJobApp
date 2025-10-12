@@ -1,11 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { ArtifactData, ArtifactType, ToolCallData } from '@/types/types';
-// XML artifact parsing deprecated
 import { handleToolCalls } from '@/utils/toolCallHandler';
 
 const MAX_VERSION_HISTORY = 50;
-const MAX_ARTIFACTS = 5; // Hard limit on number of artifacts retained in a chat
+const MAX_ARTIFACTS = 5;
 
 interface ArtifactInput {
   identifier?: string;
@@ -38,7 +37,6 @@ export function useArtifactOperations() {
   const [isArtifactPanelOpen, setIsArtifactPanelOpen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
-  // Get current artifact from the list
   const currentArtifact = artifacts.find(a => a.identifier === currentArtifactId) || null;
 
   const pruneArtifacts = useCallback((list: ArtifactData[]): { list: ArtifactData[]; pruned: number } => {
@@ -118,7 +116,6 @@ export function useArtifactOperations() {
 
       let existingArtifact = data.artifacts?.find((a: { identifier: string }) => a.identifier === artifactData.identifier);
 
-      // If not found by conversationId, try searching without conversationId filter
       if (!existingArtifact) {
         console.log('[Artifact Update] Not found in conversation, searching globally by identifier');
         const globalSearchResponse = await fetch(`/api/artifacts?identifier=${artifactData.identifier}`);
@@ -168,7 +165,7 @@ export function useArtifactOperations() {
     }
   }, [currentConversationId]);
 
-  const handleCreate = async (artifact: ArtifactInput): Promise<ArtifactData | null> => {
+  const handleCreate = useCallback(async (artifact: ArtifactInput): Promise<ArtifactData | null> => {
     const artifactData: ArtifactData = {
       identifier: artifact.identifier || `artifact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: artifact.type,
@@ -210,7 +207,7 @@ export function useArtifactOperations() {
     });
 
     return artifactData;
-  };
+  }, [pruneArtifacts, saveArtifactToDatabase, currentConversationId, toast]);
 
   const handleEdit = useCallback(async (artifact: ArtifactInput): Promise<ArtifactData | null> => {
     const targetIdentifier = (artifact.identifier && artifact.identifier !== 'current-artifact')
@@ -259,7 +256,6 @@ export function useArtifactOperations() {
       currentVersion: limitedVersions.length,
     };
 
-    // Update in artifacts list
     setArtifacts(prev => prev.map(a => a.identifier === artifactData.identifier ? artifactData : a));
     if (!isArtifactPanelOpen) {
       setIsArtifactPanelOpen(true);
@@ -279,7 +275,8 @@ export function useArtifactOperations() {
     });
 
     return artifactData;
-  }, [artifacts, currentArtifactId, isArtifactPanelOpen, updateArtifactInDatabase, toast, saveArtifactToDatabase, currentConversationId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artifacts, currentArtifactId, isArtifactPanelOpen, updateArtifactInDatabase, toast, handleCreate]);
 
   const handleRevert = async (targetVersion: number | undefined): Promise<ArtifactData | null> => {
     if (!currentArtifact) {
@@ -331,7 +328,6 @@ export function useArtifactOperations() {
       currentVersion: targetVersion,
     };
 
-    // Update the reverted artifact in the list (setter removed)
     setArtifacts(prev => prev.map(a => a.identifier === artifactData.identifier ? artifactData : a));
     if (!isArtifactPanelOpen) {
       setIsArtifactPanelOpen(true);
@@ -359,7 +355,6 @@ export function useArtifactOperations() {
 
     setArtifacts(prev => prev.filter(a => a.identifier !== targetId));
 
-    // If deleting current artifact, switch to another or close panel
     if (targetId === currentArtifactId) {
       const remaining = artifacts.filter(a => a.identifier !== targetId);
       if (remaining.length > 0) {
@@ -424,7 +419,6 @@ export function useArtifactOperations() {
   }, []);
 
   const restoreArtifact = useCallback((artifactData: ArtifactData) => {
-    // Check if artifact already exists
     setArtifacts(prev => {
       const exists = prev.some(a => a.identifier === artifactData.identifier);
       const next = exists
@@ -454,7 +448,6 @@ export function useArtifactOperations() {
   const updateCurrentDocument = useCallback(async (markdown: string) => {
     if (!currentArtifact) return;
 
-    // Update code without creating a new version on every keystroke
     const updated: ArtifactData = {
       ...currentArtifact,
       code: markdown,

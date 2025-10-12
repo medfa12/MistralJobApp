@@ -38,7 +38,7 @@ export const ArtifactLoadingCard: FC<ArtifactLoadingCardProps> = ({
     <MotionBox
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      // @ts-ignore - framer-motion transition
+      // @ts-ignore
       transition={{ duration: 0.3 }}
       bg={bgColor}
       border="1px solid"
@@ -69,7 +69,7 @@ export const ArtifactLoadingCard: FC<ArtifactLoadingCardProps> = ({
             <Spinner size="xs" color="blue.500" thickness="2px" speed="0.8s" />
           </Box>
         </Flex>
-        
+
         <Box flex="1">
           <Text fontSize="sm" fontWeight="600" color={textColor} mb="2px">
             {getLoadingText()}
@@ -86,4 +86,3 @@ export const ArtifactLoadingCard: FC<ArtifactLoadingCardProps> = ({
 };
 
 export default ArtifactLoadingCard;
-

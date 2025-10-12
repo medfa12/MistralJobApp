@@ -24,7 +24,6 @@ interface UseMessageSubmitOptions {
   processAttachments: () => Promise<{ contentArray: any[]; uploadedAttachments: any[] }>;
   processArtifactResponse: (response: string, toolCalls?: ToolCallData[]) => Promise<{ artifactData?: ArtifactData; toolCallData?: any; cleanContent: string }>;
   clearAttachments: () => void;
-  // State setters from context
   setLoading: (loading: boolean) => void;
   setStreamingMessage: (message: string) => void;
   setIsGeneratingArtifact: (generating: boolean) => void;
@@ -87,7 +86,6 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
 
     const currentInput = inputCode.trim();
 
-    // Validation steps
     const apiKeyValidation = validateApiKey();
     if (!apiKeyValidation.isValid) return;
 
@@ -100,7 +98,6 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     const tokenValidation = validateTokens(messages, currentInput, model);
     if (!tokenValidation.isValid) return;
 
-    // Get or create conversation ID
     let convId = currentConversationId;
     if (!convId) {
       convId = await createNewConversation(currentInput, model);
@@ -115,15 +112,12 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
         });
         return;
       }
-      // Note: createNewConversation already calls setCurrentConversationId
-      // The parent component should sync artifact conversation ID via useEffect
     }
 
     try {
       let uploadedAttachments: any[] = [];
       let attachmentContent: any[] = [];
 
-      // Process attachments if any
       if (hasAttachments) {
         setLoading(true);
         const result = await processAttachments();
@@ -147,7 +141,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
 
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
-      
+
       onInputClear();
       onInspectedCodeClear();
       setStreamingMessage('');
@@ -214,13 +208,13 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
           setArtifactLoadingInfo(null);
         },
       });
-      
+
     } catch (error) {
       setLoading(false);
       setStreamingMessage('');
       setIsGeneratingArtifact(false);
       setArtifactLoadingInfo(null);
-      
+
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
       toast({
         title: 'Error',
@@ -231,6 +225,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
         position: 'top',
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     messages,
     setMessages,

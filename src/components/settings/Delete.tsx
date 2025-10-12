@@ -1,25 +1,18 @@
 'use client';
-// Chakra imports
 import {
   Button,
   useToast,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
   useDisclosure,
 } from '@chakra-ui/react';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { signOut } from 'next-auth/react';
 import Card from '@/components/card/Card';
+import { ConfirmDialog } from '@/components/ui';
 
 export default function Delete() {
   const [isDeleting, setIsDeleting] = useState(false);
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const cancelRef = useRef<HTMLButtonElement>(null);
 
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
@@ -40,8 +33,7 @@ export default function Delete() {
           duration: 3000,
           isClosable: true,
         });
-        
-        // Sign out and redirect to home after a brief delay
+
         setTimeout(() => {
           signOut({ callbackUrl: '/' });
         }, 1000);
@@ -86,39 +78,18 @@ export default function Delete() {
         </Button>
       </Card>
 
-      {/* Confirmation Dialog */}
-      <AlertDialog
+      {}
+      <ConfirmDialog
         isOpen={isOpen}
-        leastDestructiveRef={cancelRef}
         onClose={onClose}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Delete Account
-            </AlertDialogHeader>
-
-            <AlertDialogBody>
-              Are you sure you want to delete your account? This action cannot be
-              undone. All your data will be permanently removed.
-            </AlertDialogBody>
-
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={onClose}>
-                Cancel
-              </Button>
-              <Button
-                colorScheme="red"
-                onClick={handleDeleteAccount}
-                ml={3}
-                isLoading={isDeleting}
-              >
-                Delete
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
+        onConfirm={handleDeleteAccount}
+        title="Delete Account"
+        description="Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={isDeleting}
+        colorScheme="red"
+      />
     </>
   );
 }

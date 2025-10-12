@@ -29,6 +29,7 @@ import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
 import { ArtifactRenderer, ArtifactRendererRef } from './ArtifactRenderer';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { VersionComparison } from './VersionComparison';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface Props {
   artifact: ArtifactData | null;
@@ -73,7 +74,6 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const headerBg = useColorModeValue('gray.50', 'gray.900');
   const textColor = useColorModeValue('gray.800', 'white');
-  // Hoisted color mode values to comply with Rules of Hooks
   const selectorBg = useColorModeValue('gray.50', 'gray.900');
   const switchHoverBg = useColorModeValue('orange.50', 'orange.900');
   const switchActiveBg = useColorModeValue('orange.100', 'orange.800');
@@ -87,6 +87,8 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
   const { isOpen: isCompareOpen, onOpen: onCompareOpen, onClose: onCompareClose } = useDisclosure();
   const [compareVersions, setCompareVersions] = useState<[number, number]>([1, 2]);
   const [previewVersion, setPreviewVersion] = useState<number | null>(null);
+  const [artifactPendingDelete, setArtifactPendingDelete] = useState<ArtifactData | null>(null);
+  const [deletingArtifactId, setDeletingArtifactId] = useState<string | null>(null);
 
   const badgeColor = artifact ? getArtifactBadgeColor(artifact.type) : 'gray';
 
@@ -121,6 +123,21 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
     onHistoryClose();
   };
 
+  const handleArtifactDeleteConfirm = async () => {
+    if (!artifactPendingDelete || !onArtifactDelete) return;
+    const identifier = artifactPendingDelete.identifier;
+
+    try {
+      setDeletingArtifactId(identifier);
+      await Promise.resolve(onArtifactDelete(identifier));
+      setArtifactPendingDelete(null);
+    } catch (error) {
+      console.error('Error deleting artifact:', error);
+    } finally {
+      setDeletingArtifactId(null);
+    }
+  };
+
   const navigateVersion = (version: number) => {
     if (version >= 1 && version <= totalVersions) {
       setPreviewVersion(version);
@@ -149,7 +166,7 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
 
   return (
     <Flex direction="column" h="100%" bg={bgColor}>
-      {/* Header */}
+      {}
       <Flex
         p={4}
         borderBottom="1px solid"
@@ -188,7 +205,7 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
           </Box>
         </Flex>
 
-        {/* Version Navigation */}
+        {}
         {hasVersionHistory && (
           <HStack spacing={1} mr={2}>
             <Tooltip label="Previous Version">
@@ -272,7 +289,7 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
           </HStack>
         )}
 
-        {/* Save Version for document artifacts */}
+        {}
         {artifact.type === 'document' && (
           <Tooltip label="Save Version Snapshot">
             <IconButton
@@ -297,7 +314,7 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
         />
       </Flex>
 
-      {/* Artifact Selector - Show only if multiple artifacts */}
+      {}
       {artifacts.length > 1 && (
         <Flex
           px={4}
@@ -416,8 +433,8 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
                         icon={<Icon as={MdClose} boxSize={4} color="red.500" />}
                         onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
-                          if (confirm(`Delete "${art.title}"?`)) {
-                            onArtifactDelete?.(art.identifier);
+                          if (onArtifactDelete) {
+                            setArtifactPendingDelete(art);
                           }
                         }}
                         p={1}
@@ -425,6 +442,8 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
                         _hover={{ bg: 'red.50' }}
                         minH="auto"
                         minW="auto"
+                        opacity={onArtifactDelete ? 1 : 0.4}
+                        cursor={onArtifactDelete ? 'pointer' : 'not-allowed'}
                       />
                     </Flex>
                   </MenuItem>
@@ -438,7 +457,7 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
         </Flex>
       )}
 
-      {/* Artifact Content */}
+      {}
       <Box flex={1} overflow="hidden">
         <ArtifactRenderer
           ref={artifactRendererRef}
@@ -449,7 +468,28 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
         />
       </Box>
 
-      {/* Version History Modal */}
+      {}
+      <ConfirmDialog
+        isOpen={Boolean(artifactPendingDelete)}
+        onClose={() => {
+          if (!deletingArtifactId) {
+            setArtifactPendingDelete(null);
+          }
+        }}
+        onConfirm={handleArtifactDeleteConfirm}
+        title="Delete artifact"
+        description={
+          artifactPendingDelete
+            ? `This will permanently delete "${artifactPendingDelete.title}" from the workspace.`
+            : ''
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={Boolean(deletingArtifactId)}
+        colorScheme="red"
+      />
+
+      {}
       <Modal isOpen={isHistoryOpen} onClose={onHistoryClose} size="xl">
         <ModalOverlay />
         <ModalContent maxH="80vh">
@@ -465,7 +505,7 @@ export const ArtifactWorkspace = forwardRef<ArtifactWorkspaceRef, Props>(({
         </ModalContent>
       </Modal>
 
-      {/* Version Comparison Modal */}
+      {}
       <Modal isOpen={isCompareOpen} onClose={onCompareClose} size="full">
         <ModalOverlay />
         <ModalContent>

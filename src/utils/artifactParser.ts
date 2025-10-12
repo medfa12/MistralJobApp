@@ -4,29 +4,24 @@ export type ArtifactOperation = 'create' | 'edit' | 'delete' | 'revert';
 
 export interface ParsedArtifact extends ArtifactData {
   operation: ArtifactOperation;
-  revertToVersion?: number; // For revert operations
+  revertToVersion?: number;
 }
 
-/**
- * Parses artifact tags from model response
- * New Format: <artifact operation="create|edit|delete" type="react" title="Title">```code```</artifact>
- * Legacy Format: <artifact identifier="id" type="react" title="Title">```code```</artifact>
- */
 export function parseArtifacts(text: string): {
   cleanText: string;
   artifacts: ParsedArtifact[];
 } {
   const artifacts: ParsedArtifact[] = [];
-  
+
   const newFormatRegex = /<artifact\s+operation=["']([^"']+)["'](?:\s+type=["']([^"']+)["'])?(?:\s+title=["']([^"']+)["'])?(?:\s+version=["']([^"']+)["'])?>([\s\S]*?)<\/artifact>/g;
   const legacyFormatRegex = /<artifact\s+identifier=["']([^"']+)["']\s+type=["']([^"']+)["']\s+title=["']([^"']+)["']>([\s\S]*?)<\/artifact>/g;
-  
+
   let cleanText = text;
   let match;
-  
+
   while ((match = newFormatRegex.exec(text)) !== null) {
     const [fullMatch, operation, type, title, version, content] = match;
-    
+
     if (operation === 'delete') {
       artifacts.push({
         operation: 'delete',
@@ -37,12 +32,11 @@ export function parseArtifacts(text: string): {
         language: 'jsx',
         createdAt: new Date().toISOString(),
       });
-      
+
       cleanText = cleanText.replace(fullMatch, '\n\n[Artifact deleted]\n\n');
       continue;
     }
-    
-    // Handle revert operation
+
     if (operation === 'revert') {
       const versionNumber = version ? parseInt(version, 10) : undefined;
       artifacts.push({
@@ -55,28 +49,28 @@ export function parseArtifacts(text: string): {
         createdAt: new Date().toISOString(),
         revertToVersion: versionNumber,
       });
-      
+
       cleanText = cleanText.replace(fullMatch, `\n\n[Artifact reverted to version ${versionNumber}]\n\n`);
       continue;
     }
-    
+
     if (!type || !isValidArtifactType(type)) {
       console.warn(`Invalid or missing artifact type: ${type}`);
       continue;
     }
-    
+
     let code = extractCode(content.trim());
-    
+
     if (type === 'react' && !code.includes('window.App')) {
       code = autoFixReactExport(code);
     }
-    
+
     const validation = validateArtifactCode(code, type as ArtifactType);
     if (!validation.valid) {
       console.warn(`Artifact code validation warnings for ${type}:`, validation.errors);
       console.warn(`Code preview:`, code.substring(0, 200));
     }
-    
+
     const identifier = operation === 'create' 
       ? `artifact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       : 'current-artifact';
@@ -92,25 +86,25 @@ export function parseArtifacts(text: string): {
     };
 
     artifacts.push(artifact);
-    
+
     const operationLabel = operation === 'create' ? 'Created' : 'Updated';
     cleanText = cleanText.replace(fullMatch, `\n\n[Artifact ${operationLabel}: ${artifact.title}]\n\n`);
   }
-  
+
   while ((match = legacyFormatRegex.exec(text)) !== null) {
     const [fullMatch, identifier, type, title, content] = match;
-    
+
     if (!isValidArtifactType(type)) {
       console.warn(`Invalid artifact type: ${type}`);
       continue;
     }
 
     let code = extractCode(content.trim());
-    
+
     if (type === 'react' && !code.includes('window.App')) {
       code = autoFixReactExport(code);
     }
-    
+
     const validation = validateArtifactCode(code, type as ArtifactType);
     if (!validation.valid) {
       console.warn(`Invalid legacy artifact code for ${type}:`, validation.errors);
@@ -141,14 +135,14 @@ export function parseArtifacts(text: string): {
 function autoFixReactExport(code: string): string {
   const functionMatch = code.match(/function\s+([A-Z][a-zA-Z0-9]*)\s*\(/);
   const constMatch = code.match(/const\s+([A-Z][a-zA-Z0-9]*)\s*=/);
-  
+
   const componentName = functionMatch?.[1] || constMatch?.[1];
-  
+
   if (componentName) {
     console.warn(`Auto-fixing React artifact: Adding window.App = ${componentName}`);
     return `${code}\n\nwindow.App = ${componentName};`;
   }
-  
+
   console.warn('Could not auto-fix React artifact: No component found');
   return code;
 }
@@ -156,11 +150,11 @@ function autoFixReactExport(code: string): string {
 export function extractCode(text: string): string {
   const codeBlockRegex = /```(?:\w+)?\s*\n?([\s\S]*?)```/;
   const match = text.match(codeBlockRegex);
-  
+
   if (match) {
     return match[1].trim();
   }
-  
+
   return text.trim();
 }
 
@@ -178,7 +172,7 @@ export function validateArtifactCode(code: string, type: ArtifactType): {
   if (code.length > 50000) {
     errors.push('Code exceeds maximum length of 50KB');
   }
-  
+
   if (type !== 'markdown' && type !== 'document') {
     const dangerousPatterns = [
       { pattern: /\b(window\.top|top\.location|top\.document)\b/gi, name: 'top frame access' },
@@ -234,48 +228,32 @@ function getLanguageFromType(type: ArtifactType): string {
   return languageMap[type];
 }
 
-/**
- * Checks if text contains artifact tags (new or legacy format)
- */
 export function hasArtifacts(text: string): boolean {
   return /<artifact\s+(operation=|identifier=)/.test(text);
 }
 
-/**
- * Finds an artifact by identifier in a list
- */
 export function findArtifact(artifacts: ArtifactData[], identifier: string): ArtifactData | undefined {
   return artifacts.find(a => a.identifier === identifier);
 }
 
-/**
- * Updates an existing artifact or adds a new one
- */
 export function upsertArtifact(artifacts: ArtifactData[], newArtifact: ArtifactData): ArtifactData[] {
   const existing = findArtifact(artifacts, newArtifact.identifier);
-  
+
   if (existing) {
-    // Update existing artifact
     return artifacts.map(a => 
       a.identifier === newArtifact.identifier 
         ? { ...newArtifact, updatedAt: new Date().toISOString() }
         : a
     );
   } else {
-    // Add new artifact
     return [...artifacts, newArtifact];
   }
 }
 
-/**
- * Extracts element code from DOM element (for inspect feature)
- */
 export function extractElementCode(element: Element, sourceType: ArtifactType): string {
   if (sourceType === 'react') {
-    // For React, try to extract JSX-like representation
     return convertToJSX(element);
   } else {
-    // For HTML, just get outerHTML
     return formatHTML(element.outerHTML);
   }
 }
@@ -343,4 +321,3 @@ function formatHTML(html: string): string {
     .filter(line => line.length > 0)
     .join('\n');
 }
-

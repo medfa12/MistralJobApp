@@ -13,13 +13,6 @@ import {
   SimpleGrid,
   Text,
   useColorModeValue,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
   useDisclosure,
   FormControl,
   FormLabel,
@@ -28,6 +21,7 @@ import {
   useToast,
   Spinner,
 } from '@chakra-ui/react';
+import { Dialog } from '@/components/ui';
 import { MdApps, MdDashboard, MdAdd } from 'react-icons/md';
 
 interface Project {
@@ -47,7 +41,8 @@ export default function MyProjects() {
   const [creating, setCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
-  
+  const [apiKey, setApiKey] = useState('');
+
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [newProject, setNewProject] = useState({
     name: '',
@@ -67,12 +62,37 @@ export default function MyProjects() {
     { bg: 'whiteAlpha.200' },
   );
 
+  const syncApiKey = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const storedKey = localStorage.getItem('apiKey') || '';
+    setApiKey(storedKey);
+  }, []);
+
+  const getLatestApiKey = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return apiKey;
+    }
+    const storedKey = localStorage.getItem('apiKey') || '';
+    if (storedKey !== apiKey) {
+      setApiKey(storedKey);
+    }
+    return storedKey;
+  }, [apiKey]);
+
+  useEffect(() => {
+    syncApiKey();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', syncApiKey);
+      return () => window.removeEventListener('storage', syncApiKey);
+    }
+  }, [syncApiKey]);
+
   const loadProjects = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/projects/list');
       const data = await response.json();
-      
+
       if (data.success) {
         setProjects(data.projects);
       } else {
@@ -117,7 +137,9 @@ export default function MyProjects() {
       setCreating(true);
       const response = await fetch('/api/projects/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(newProject),
       });
 
@@ -194,7 +216,6 @@ export default function MyProjects() {
     }
   };
 
-  // Filter and sort projects
   const filteredProjects = projects
     .filter((project) =>
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -286,62 +307,57 @@ export default function MyProjects() {
         </SimpleGrid>
       )}
 
-      {/* Create Project Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} size="lg">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Create New Project</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            <FormControl>
-              <FormLabel>Emoji</FormLabel>
-              <Input
-                placeholder="📁"
-                value={newProject.emoji}
-                onChange={(e) =>
-                  setNewProject({ ...newProject, emoji: e.target.value })
-                }
-                maxLength={2}
-              />
-            </FormControl>
+      {}
+      <Dialog
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Create New Project"
+        size="lg"
+        primaryAction={{
+          label: 'Create Project',
+          onClick: handleCreateProject,
+          isLoading: creating,
+        }}
+        secondaryAction={{
+          label: 'Cancel',
+          onClick: onClose,
+        }}
+      >
+        <FormControl>
+          <FormLabel>Emoji</FormLabel>
+          <Input
+            placeholder="📁"
+            value={newProject.emoji}
+            onChange={(e) =>
+              setNewProject({ ...newProject, emoji: e.target.value })
+            }
+            maxLength={2}
+          />
+        </FormControl>
 
-            <FormControl mt={4} isRequired>
-              <FormLabel>Project Name</FormLabel>
-              <Input
-                placeholder="My Project"
-                value={newProject.name}
-                onChange={(e) =>
-                  setNewProject({ ...newProject, name: e.target.value })
-                }
-              />
-            </FormControl>
+        <FormControl mt={4} isRequired>
+          <FormLabel>Project Name</FormLabel>
+          <Input
+            placeholder="My Project"
+            value={newProject.name}
+            onChange={(e) =>
+              setNewProject({ ...newProject, name: e.target.value })
+            }
+          />
+        </FormControl>
 
-            <FormControl mt={4}>
-              <FormLabel>Description</FormLabel>
-              <Textarea
-                placeholder="Describe your project..."
-                value={newProject.description}
-                onChange={(e) =>
-                  setNewProject({ ...newProject, description: e.target.value })
-                }
-                rows={4}
-              />
-            </FormControl>
-          </ModalBody>
-
-          <ModalFooter>
-            <Button
-              variant="primary"
-              mr={3}
-              onClick={handleCreateProject}
-              isLoading={creating}
-            >
-              Create Project
-            </Button>
-            <Button onClick={onClose}>Cancel</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+        <FormControl mt={4}>
+          <FormLabel>Description</FormLabel>
+          <Textarea
+            placeholder="Describe your project..."
+            value={newProject.description}
+            onChange={(e) =>
+              setNewProject({ ...newProject, description: e.target.value })
+            }
+            rows={4}
+          />
+        </FormControl>
+      </Dialog>
     </Box>
   );
 }

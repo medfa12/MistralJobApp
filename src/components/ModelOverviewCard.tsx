@@ -196,4 +196,3 @@ export const ModelOverviewCard: React.FC<ModelOverviewCardProps> = ({
     </AnimatePresence>
   );
 };
-

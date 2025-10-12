@@ -15,7 +15,7 @@ cloudinary.config({
 
 export const config = {
   api: {
-    bodyParser: false, // Disable body parsing, formidable will handle it
+    bodyParser: false,
   },
 };
 
@@ -28,14 +28,12 @@ async function handler(
   }
 
   try {
-    // Get the current session
     const session = await getServerSession(req, res, authOptions);
 
     if (!session?.user?.email) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Check if Cloudinary is configured
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
       return res.status(500).json({ 
         error: 'Cloudinary not configured',
@@ -44,7 +42,7 @@ async function handler(
     }
 
     const form = formidable({
-      maxFileSize: 5 * 1024 * 1024, // 5MB limit
+      maxFileSize: 5 * 1024 * 1024,
       keepExtensions: true,
     });
 
@@ -55,12 +53,10 @@ async function handler(
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Validate file type
     if (!avatarFile.mimetype?.startsWith('image/')) {
       return res.status(400).json({ error: 'Only image files are allowed' });
     }
 
-    // Get current user to check for existing avatar
     const currentUser = await db.user.findUnique({
       where: { email: session.user.email },
       select: { avatar: true, id: true },
@@ -70,22 +66,18 @@ async function handler(
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Delete the old avatar from Cloudinary if it exists
-    // This ensures we don't accumulate unused images
     if (currentUser.avatar?.includes('cloudinary')) {
       try {
         const urlParts = currentUser.avatar.split('/');
-        const publicIdWithExt = urlParts.slice(7).join('/'); // Get path after /upload/
-        const publicId = publicIdWithExt.split('.')[0]; // Remove extension
+        const publicIdWithExt = urlParts.slice(7).join('/');
+        const publicId = publicIdWithExt.split('.')[0];
         await cloudinary.uploader.destroy(publicId);
         console.log('Successfully deleted old avatar:', publicId);
       } catch (error) {
         console.error('Error deleting old avatar:', error);
-        // Continue even if deletion fails - new upload is more important
       }
     }
 
-    // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(avatarFile.filepath, {
       folder: 'mistral/avatars',
       public_id: `user_${currentUser.id}`,
@@ -97,7 +89,6 @@ async function handler(
       overwrite: true,
     });
 
-    // Update user avatar in database
     const updatedUser = await db.user.update({
       where: { email: session.user.email },
       data: {
@@ -109,7 +100,6 @@ async function handler(
       },
     });
 
-    // Clean up temporary file
     fs.unlinkSync(avatarFile.filepath);
 
     return res.status(200).json({
@@ -127,5 +117,4 @@ async function handler(
   }
 }
 
-// Apply upload rate limiting: 5 uploads per hour
 export default uploadRateLimit(handler);

@@ -44,7 +44,7 @@ function SidebarContent(props: SidebarContent) {
   const [hasApiKey, setHasApiKey] = React.useState(false);
   const [isApiModalOpen, setIsApiModalOpen] = React.useState(false);
   const { colorMode, toggleColorMode } = useColorMode();
-  
+
   const textColor = useColorModeValue('navy.700', 'white');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
   const bgColor = useColorModeValue('white', 'navy.700');
@@ -82,7 +82,6 @@ function SidebarContent(props: SidebarContent) {
   };
 
   if (isCollapsed) {
-    // Collapsed sidebar - only show icons
     return (
       <Flex
         direction="column"
@@ -108,8 +107,8 @@ function SidebarContent(props: SidebarContent) {
           onExternalClose={() => setIsApiModalOpen(false)}
           onApiKeySet={handleApiKeySet}
         />
-        
-        {/* User section in collapsed state */}
+
+        {}
         <Flex
           mt="20px"
           direction="column"
@@ -139,7 +138,7 @@ function SidebarContent(props: SidebarContent) {
               </Box>
             </Tooltip>
           ) : null}
-          
+
           <Menu id="sidebar-menu">
             <Tooltip label="Settings" placement="right" hasArrow>
               <MenuButton
@@ -285,7 +284,7 @@ function SidebarContent(props: SidebarContent) {
               </Box>
             </MenuList>
           </Menu>
-          
+
           <Tooltip label="Logout" placement="right" hasArrow>
             <Button
               variant="transparent"
@@ -307,8 +306,7 @@ function SidebarContent(props: SidebarContent) {
       </Flex>
     );
   }
-  
-  // Normal expanded sidebar
+
   return (
     <Flex
       direction="column"

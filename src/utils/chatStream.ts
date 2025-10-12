@@ -14,10 +14,8 @@ export const MistralStream = async (
   useToolCalling: boolean = true,
   libraryId?: string,
 ) => {
-  // Check if this is a reasoning model
   const isReasoningModel = model.includes('magistral');
 
-  // Use appropriate system prompt based on model type
   const systemPromptWithIdentity = getSystemPromptForModel(model);
 
   let apiMessages: Message[];
@@ -55,8 +53,6 @@ export const MistralStream = async (
     stream: true,
   };
 
-  // For reasoning models, set prompt_mode to null since we're using a custom system prompt
-  // This prevents the default reasoning prompt from being added on top of our artifact prompt
   if (isReasoningModel) {
     body.prompt_mode = null;
   }
@@ -64,13 +60,9 @@ export const MistralStream = async (
   if (useToolCalling) {
     const tools = [...ARTIFACT_TOOLS];
 
-    // Add document_library tool if libraryId is provided
-    if (libraryId) {
-      tools.push({
-        type: 'document_library',
-        library_ids: [libraryId],
-      } as any);
-    }
+    // Note: document_library is only supported in Agents API, not in chat completions
+    // For RAG, we would need to implement Agents API or do manual retrieval
+    // For now, we only use artifact tools in project chat
 
     body.tools = tools;
     body.tool_choice = 'auto';
@@ -93,18 +85,14 @@ export const MistralStream = async (
     let errorMessage = `Mistral API error (${res.status})`;
 
     try {
-      // Try to read and parse the error response body
       const result = await res.body?.getReader().read();
       if (result?.value) {
         const errorText = decoder.decode(result.value);
 
-        // Try to parse as JSON to get detailed error info
         try {
           const errorJson = JSON.parse(errorText);
-          // Mistral API typically returns errors in this format
           errorMessage = errorJson.message || errorJson.error || errorJson.detail || errorText;
         } catch (e) {
-          // If not JSON, use the raw text
           errorMessage = errorText || statusText;
         }
       }
@@ -137,11 +125,11 @@ export const MistralStream = async (
           try {
             const json = JSON.parse(data);
             const delta = json.choices?.[0]?.delta;
-            
+
             if (delta?.tool_calls) {
               for (const toolCallDelta of delta.tool_calls) {
                 const index = toolCallDelta.index;
-                
+
                 if (!accumulatedToolCalls[index]) {
                   accumulatedToolCalls[index] = {
                     id: toolCallDelta.id || `call_${index}`,
@@ -166,7 +154,7 @@ export const MistralStream = async (
                 }
               }
             }
-            
+
             if (delta?.content && Array.isArray(delta.content)) {
               for (const contentBlock of delta.content) {
                 if (contentBlock.type === 'thinking' && contentBlock.thinking) {

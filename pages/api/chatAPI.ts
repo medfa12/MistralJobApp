@@ -31,10 +31,8 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error) {
     console.error('Chat API Error:', error);
 
-    // Extract error message
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
 
-    // Return detailed error response
     return new Response(
       JSON.stringify({
         error: errorMessage,
@@ -51,4 +49,3 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 export default handler;
-

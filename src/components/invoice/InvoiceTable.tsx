@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable */
 
 import {
   Box,
@@ -31,7 +30,6 @@ type RowObj = {
 
 const columnHelper = createColumnHelper<RowObj>();
 
-// const columns = columnsDataCheck;
 export default function InvoiceTable(props: { tableData: any }) {
   const { tableData } = props;
   const [sorting, setSorting] = React.useState<SortingState>([]);

@@ -3,8 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -15,7 +13,7 @@ export default async function handler(
 
   try {
     const session = await getServerSession(req, res, authOptions);
-    
+
     if (!session?.user?.email) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -30,47 +28,20 @@ export default async function handler(
 
     const { name, description, emoji } = req.body;
 
-    if (!name) {
+    if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Project name is required' });
     }
 
-    // Create library in Mistral
-    const mistralResponse = await fetch('https://api.mistral.ai/v1/libraries', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${MISTRAL_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name,
-        description: description || `Project: ${name}`,
-      }),
-    });
-
-    if (!mistralResponse.ok) {
-      const errorData = await mistralResponse.json();
-      console.error('Mistral API error:', errorData);
-      return res.status(500).json({ 
-        error: 'Failed to create library in Mistral',
-        details: errorData 
-      });
+    if (name.trim().length > 200) {
+      return res.status(400).json({ error: 'Project name is too long (max 200 characters)' });
     }
 
-    const mistralLibrary = await mistralResponse.json();
-
-    // Create project in database
     const project = await prisma.project.create({
       data: {
         userId: user.id,
-        name,
-        description: description || null,
-        emoji: emoji || null,
-        mistralLibraryId: mistralLibrary.id,
-        generatedName: mistralLibrary.generated_name || null,
-        generatedDescription: mistralLibrary.generated_description || null,
-        totalSize: mistralLibrary.total_size || 0,
-        documentCount: mistralLibrary.nb_documents || 0,
+        name: name.trim(),
+        description: description?.trim() || null,
+        emoji: emoji?.trim() || null,
       },
     });
 
@@ -81,7 +52,6 @@ export default async function handler(
         name: project.name,
         description: project.description,
         emoji: project.emoji,
-        mistralLibraryId: project.mistralLibraryId,
         documentCount: project.documentCount,
         totalSize: project.totalSize,
         createdAt: project.createdAt,
@@ -96,4 +66,3 @@ export default async function handler(
     });
   }
 }
-

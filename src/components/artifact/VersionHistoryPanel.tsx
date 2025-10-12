@@ -57,11 +57,11 @@ export const VersionHistoryPanel: FC<Props> = ({
 
   const getVersionDiff = (version: ArtifactVersion, prevVersion?: ArtifactVersion | null) => {
     if (!prevVersion) return { added: 0, removed: 0 };
-    
+
     const currentLines = version.code.split('\n').length;
     const prevLines = prevVersion.code.split('\n').length;
     const diff = currentLines - prevLines;
-    
+
     return {
       added: diff > 0 ? diff : 0,
       removed: diff < 0 ? Math.abs(diff) : 0,
@@ -132,7 +132,7 @@ export const VersionHistoryPanel: FC<Props> = ({
                   _hover={{ bg: isActive ? activeBg : hoverBg }}
                   position="relative"
                 >
-                  {/* Version Badge */}
+                  {}
                   <Flex justify="space-between" align="center" mb={2}>
                     <HStack spacing={2}>
                       <Badge
@@ -170,18 +170,18 @@ export const VersionHistoryPanel: FC<Props> = ({
                     )}
                   </Flex>
 
-                  {/* Timestamp */}
+                  {}
                   <Text fontSize="xs" color={mutedColor} mb={2}>
                     {formatDate(version.data.timestamp)}
                   </Text>
 
-                  {/* Code Stats */}
+                  {}
                   <HStack spacing={4} fontSize="xs" color={textColor}>
                     <HStack spacing={1}>
                       <Icon as={MdCode} boxSize={3} />
                       <Text>{version.data.code.split('\n').length} lines</Text>
                     </HStack>
-                    
+
                     {(diff.added > 0 || diff.removed > 0) && (
                       <>
                         {diff.added > 0 && (
@@ -198,7 +198,7 @@ export const VersionHistoryPanel: FC<Props> = ({
                     )}
                   </HStack>
 
-                  {/* Active Indicator */}
+                  {}
                   {isActive && (
                     <Box
                       position="absolute"
@@ -219,4 +219,3 @@ export const VersionHistoryPanel: FC<Props> = ({
     </VStack>
   );
 };
-

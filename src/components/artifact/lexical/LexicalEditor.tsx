@@ -40,7 +40,6 @@ function MarkdownImportPlugin({ initialMarkdown }: { initialMarkdown: string }) 
         });
       } catch (e) {
         console.error('Failed to import markdown into editor:', e);
-        // Leave editor empty rather than crashing
       }
     }
   }, [initialMarkdown, editor]);
@@ -144,7 +143,7 @@ export function LexicalEditor({ initialMarkdown, onContentChange, readOnly = fal
             }
             ErrorBoundary={LexicalErrorBoundary}
           />
-          
+
           <HistoryPlugin />
           <LinkPlugin />
           <ListPlugin />

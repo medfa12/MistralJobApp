@@ -20,7 +20,6 @@ async function handler(
   }
 
   try {
-    // ✅ AUTHENTICATE USER
     const session = await getServerSession(req, res, authOptions);
 
     if (!session?.user?.email) {
@@ -30,7 +29,6 @@ async function handler(
       });
     }
 
-    // ✅ VERIFY USER EXISTS IN DATABASE
     const user = await db.user.findUnique({
       where: { email: session.user.email },
       select: {
@@ -49,7 +47,6 @@ async function handler(
       });
     }
 
-    // ✅ VALIDATE INPUT
     const { priceId } = req.body;
 
     if (!priceId || typeof priceId !== "string") {
@@ -59,7 +56,6 @@ async function handler(
       });
     }
 
-    // Validate price ID format
     if (!priceId.startsWith('price_')) {
       return res.status(400).json({ 
         success: false,
@@ -67,7 +63,6 @@ async function handler(
       });
     }
 
-    // ✅ USE EXISTING CUSTOMER OR CREATE NEW ONE
     let customerId = user.stripeCustomerId;
 
     if (!customerId) {
@@ -85,7 +80,6 @@ async function handler(
 
       customerId = customer.id;
 
-      // Save customer ID to database
       await db.user.update({
         where: { id: user.id },
         data: { stripeCustomerId: customerId },
@@ -94,7 +88,6 @@ async function handler(
       console.log(`Created Stripe customer: ${customerId} for user: ${user.id}`);
     }
 
-    // ✅ CREATE CHECKOUT SESSION
     const success_url = `${host}/my-plan?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancel_url = `${host}/my-plan?canceled=true`;
 
@@ -129,7 +122,7 @@ async function handler(
     });
   } catch (err: any) {
     console.error("Error creating checkout session:", err);
-    
+
     return res.status(500).json({
       success: false,
       error: "Failed to create checkout session",
@@ -138,8 +131,7 @@ async function handler(
   }
 }
 
-// Apply rate limiting: 10 subscription attempts per hour
 export default withRateLimit(handler, {
   limit: 10,
-  windowMs: 3600000 // 1 hour
+  windowMs: 3600000
 });

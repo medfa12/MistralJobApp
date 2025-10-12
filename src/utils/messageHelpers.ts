@@ -9,4 +9,3 @@ export function getMessageText(content: any): string {
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
-

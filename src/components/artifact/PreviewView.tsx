@@ -74,7 +74,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
   const overlayBg = useColorModeValue('rgba(0, 0, 0, 0.02)', 'rgba(255, 255, 255, 0.02)');
   const previewBg = useColorModeValue('white', 'gray.900');
   const glassBg = useColorModeValue(glassEffects.light, glassEffects.dark);
-  
+
   const inspectBoxBg = useColorModeValue('rgba(255, 255, 255, 0.75)', 'rgba(26, 32, 44, 0.75)');
   const inspectBoxBorder = useColorModeValue('rgba(255, 255, 255, 0.5)', 'rgba(255, 255, 255, 0.1)');
   const inspectBoxShadow = useColorModeValue('0 4px 16px rgba(0, 0, 0, 0.08)', '0 4px 16px rgba(0, 0, 0, 0.3)');
@@ -117,7 +117,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
     const rect = element.getBoundingClientRect();
     const iframeWindow = iframeRef.current?.contentWindow;
     const computed = iframeWindow?.getComputedStyle(element);
-    
+
     return {
       tagName: element.tagName.toLowerCase(),
       id: element.id || undefined,
@@ -151,7 +151,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
     const y = e.clientY - iframeRect.top;
 
     const element = iframeDoc.elementFromPoint(x, y);
-    
+
     if (!element || element.tagName === 'HTML' || element.tagName === 'BODY') {
       setHoveredElement(null);
       setHighlightBox(null);
@@ -159,7 +159,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
     }
 
     const elementRect = element.getBoundingClientRect();
-    
+
     setHighlightBox({
       top: elementRect.top,
       left: elementRect.left,
@@ -185,7 +185,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
     const y = e.clientY - iframeRect.top;
 
     const element = iframeDoc.elementFromPoint(x, y);
-    
+
     if (!element || element.tagName === 'HTML' || element.tagName === 'BODY') {
       return;
     }
@@ -196,7 +196,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
     if (onCodeAttach) {
       const code = extractElementCode(element, artifact.type);
       const computed = iframeRef.current?.contentWindow?.getComputedStyle(element);
-      
+
       const importantStyles = ['backgroundColor', 'color', 'padding', 'margin', 'fontSize', 'fontWeight'];
       const styles = importantStyles
         .map(prop => {
@@ -247,7 +247,6 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
     let errorHandler: ((event: ErrorEvent) => void) | null = null;
     let messageHandler: ((event: MessageEvent) => void) | null = null;
 
-    // Listen for error messages from iframe
     messageHandler = (event: MessageEvent) => {
       if (event.data?.type === 'preview-error') {
         setError(event.data.error || 'Unknown error in artifact code');
@@ -294,7 +293,6 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
               <body>
                 <script>
                   window.onerror = function(message, source, lineno, colno, error) {
-                    // Create enhanced error display
                     const errorContainer = document.createElement('div');
                     errorContainer.style.cssText = \`
                       position: fixed;
@@ -335,7 +333,6 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
 
                     document.body.insertBefore(errorContainer, document.body.firstChild);
 
-                    // Notify parent window
                     window.parent.postMessage({
                       type: 'preview-error',
                       error: message,
@@ -394,7 +391,6 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
                   } catch (e) {
                     console.error('Render error:', e);
 
-                    // Create enhanced error display
                     const errorContainer = document.createElement('div');
                     errorContainer.style.cssText = \`
                       position: fixed;
@@ -408,7 +404,6 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
                       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
                     \`;
 
-                    // Error header
                     const header = document.createElement('div');
                     header.style.cssText = \`
                       background: #fff;
@@ -430,7 +425,6 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
                       </p>
                     \`;
 
-                    // Error message
                     const messageBox = document.createElement('div');
                     messageBox.style.cssText = \`
                       background: #fff;
@@ -448,7 +442,6 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
                       </p>
                     \`;
 
-                    // Stack trace
                     if (e.stack) {
                       const stackBox = document.createElement('div');
                       stackBox.style.cssText = \`
@@ -471,7 +464,6 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
                       errorContainer.appendChild(messageBox);
                     }
 
-                    // Add helpful tips
                     const tipsBox = document.createElement('div');
                     tipsBox.style.cssText = \`
                       background: #fff;
@@ -497,7 +489,6 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
 
                     document.getElementById('root').appendChild(errorContainer);
 
-                    // Notify parent window
                     window.parent.postMessage({ type: 'preview-error', error: e.message, stack: e.stack }, '*');
                   }
                 </script>
@@ -552,7 +543,7 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
       iframeDoc.write(htmlContent);
       iframeDoc.close();
       setError(null);
-      
+
       errorHandler = (event: ErrorEvent) => {
         if (!event.error && !event.message) {
           return;
@@ -574,9 +565,9 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
           setError(`Error: ${event.message}`);
         }
       };
-      
+
       iframe.contentWindow?.addEventListener('error', errorHandler);
-      
+
     } catch (err) {
       console.error('Preview render error:', err);
       setError(err instanceof Error ? err.message : 'Failed to render preview');

@@ -22,12 +22,10 @@ export function StreamingArtifactPreview({ streamingCode, type, title }: Props) 
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const codeBg = useColorModeValue('gray.50', 'gray.900');
-  // Hoisted values used in conditional branches
   const headerBg = useColorModeValue('gray.50', 'gray.900');
   const headerTextColor = useColorModeValue('gray.700', 'gray.200');
   const codeTextColor = useColorModeValue('gray.800', 'gray.200');
 
-  // Simulate typing effect for streaming code
   useEffect(() => {
     if (streamingCode.length > displayCode.length) {
       const timer = setTimeout(() => {
@@ -39,7 +37,6 @@ export function StreamingArtifactPreview({ streamingCode, type, title }: Props) 
     }
   }, [streamingCode, displayCode]);
 
-  // Try to render preview for code artifacts
   useEffect(() => {
     if (!iframeRef.current || !displayCode || type === 'markdown' || type === 'document') return;
 
@@ -153,7 +150,6 @@ export function StreamingArtifactPreview({ streamingCode, type, title }: Props) 
     }
   }, [displayCode, type]);
 
-  // Listen for errors from iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'error') {
@@ -179,7 +175,7 @@ export function StreamingArtifactPreview({ streamingCode, type, title }: Props) 
       overflow="hidden"
       position="relative"
     >
-      {/* Header */}
+      {}
       <Flex
         p={3}
         borderBottom="1px solid"
@@ -198,7 +194,7 @@ export function StreamingArtifactPreview({ streamingCode, type, title }: Props) 
         </Text>
       </Flex>
 
-      {/* Error Alert */}
+      {}
       <AnimatePresence>
         {hasError && (
           <MotionBox
@@ -220,11 +216,11 @@ export function StreamingArtifactPreview({ streamingCode, type, title }: Props) 
         )}
       </AnimatePresence>
 
-      {/* Content */}
+      {}
       <Box h="calc(100% - 60px)" overflow="hidden">
         {isCodeType ? (
           <Flex h="100%" gap={0}>
-            {/* Code View */}
+            {}
             <Box w="50%" h="100%" overflow="auto" bg={codeBg} p={4}>
               <Code
                 display="block"
@@ -253,7 +249,7 @@ export function StreamingArtifactPreview({ streamingCode, type, title }: Props) 
               </Code>
             </Box>
 
-            {/* Preview */}
+            {}
             <Box w="50%" h="100%" borderLeft="1px solid" borderColor={borderColor}>
               <iframe
                 ref={iframeRef}

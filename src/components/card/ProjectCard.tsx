@@ -1,5 +1,5 @@
 'use client';
-// Chakra imports
+import { useState } from 'react';
 import {
   Flex,
   useColorModeValue,
@@ -15,8 +15,9 @@ import {
 import Card from '@/components/card/Card';
 import { IoMdTime, IoMdDocument } from 'react-icons/io';
 import { IoEllipsisHorizontal } from 'react-icons/io5';
-import { MdDelete, MdEdit, MdFolder } from 'react-icons/md';
+import { MdDelete, MdFolder } from 'react-icons/md';
 import { useRouter } from 'next/navigation';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 export default function ProjectCard(props: {
   projectId: string;
@@ -33,9 +34,22 @@ export default function ProjectCard(props: {
   const gray = useColorModeValue('gray.500', 'white');
   const cardBg = useColorModeValue('white', 'navy.800');
   const hoverBg = useColorModeValue('gray.50', 'navy.700');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleCardClick = () => {
     router.push(`/my-projects/${projectId}`);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (isDeleting) return;
+    try {
+      setIsDeleting(true);
+      await Promise.resolve(onDelete());
+      setConfirmOpen(false);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -84,9 +98,7 @@ export default function ProjectCard(props: {
                 color="red.500"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm('Are you sure you want to delete this project?')) {
-                    onDelete();
-                  }
+                  setConfirmOpen(true);
                 }}
               >
                 Delete
@@ -94,7 +106,7 @@ export default function ProjectCard(props: {
             </MenuList>
           </Menu>
         </Flex>
-        
+
         <Flex w="100%" align="center" justify="space-between" mt="auto">
           <Flex align="center">
             <Icon w="18px" h="18px" me="10px" as={IoMdTime} color={gray} />
@@ -108,6 +120,22 @@ export default function ProjectCard(props: {
           </Badge>
         </Flex>
       </Flex>
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => {
+          if (!isDeleting) {
+            setConfirmOpen(false);
+          }
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete project"
+        description={`This will permanently delete "${title}" and all its documents.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={isDeleting}
+        colorScheme="red"
+      />
     </Card>
   );
 }

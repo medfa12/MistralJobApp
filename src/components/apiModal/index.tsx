@@ -54,7 +54,7 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean; externalOpen?: boo
   useEffect(() => {
     const storedKey = localStorage.getItem('apiKey');
     const storedDate = localStorage.getItem('apiKeyDate');
-    
+
     if (storedKey) {
       setExistingKey(storedKey);
       setKeyDate(storedDate);
@@ -74,10 +74,10 @@ function APIModal(props: { setApiKey: any; sidebar?: boolean; externalOpen?: boo
     const newDate = new Date().toISOString();
     localStorage.setItem('apiKey', value);
     localStorage.setItem('apiKeyDate', newDate);
-    
+
     setExistingKey(value);
     setKeyDate(newDate);
-    
+
     if (onApiKeySet) {
       onApiKeySet();
     }

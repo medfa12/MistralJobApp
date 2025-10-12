@@ -14,9 +14,7 @@ export function SearchBar(props: {
   value?: string | number;
   [x: string]: any;
 }) {
-  // Pass the computed styles into the `__css` prop
   const { variant, children, borderRadius, ...rest } = props;
-  // Chakra Color Mode
   const searchIconColor = useColorModeValue('gray.700', 'white');
   const searchColor = useColorModeValue('gray.700', 'white');
   const inputBg = useColorModeValue('transparent', 'navy.800');

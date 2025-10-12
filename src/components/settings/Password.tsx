@@ -1,5 +1,4 @@
 'use client';
-// Chakra imports
 import {
   Flex,
   FormControl,
@@ -21,7 +20,6 @@ export default function Password() {
   const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
 
-  // Chakra Color Mode
   const textColorPrimary = useColorModeValue('navy.700', 'white');
   const textColorSecondary = 'gray.500';
 
@@ -29,7 +27,6 @@ export default function Password() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Validate passwords match
     if (formData.newPassword !== formData.confirmPassword) {
       toast({
         title: 'Error',
@@ -42,7 +39,6 @@ export default function Password() {
       return;
     }
 
-    // Validate password length
     if (formData.newPassword.length < 6) {
       toast({
         title: 'Error',
@@ -77,7 +73,6 @@ export default function Password() {
           duration: 3000,
           isClosable: true,
         });
-        // Clear form
         setFormData({
           oldPassword: '',
           newPassword: '',

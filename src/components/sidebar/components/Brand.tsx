@@ -1,12 +1,10 @@
 'use client';
-// Chakra imports
 import { Flex, useColorModeValue, Text, Image } from '@chakra-ui/react';
 import { useState, useEffect } from 'react';
 
 import { HSeparator } from '@/components/separator/Separator';
 
 export function SidebarBrand({ isCollapsed = false }: { isCollapsed?: boolean }) {
-  //   Chakra color mode
   const [mounted, setMounted] = useState(false);
   let logoColor = useColorModeValue('navy.700', 'white');
   let logoSrc = useColorModeValue('/img/m-boxed/m-boxed-orange.svg', '/img/m/m-white.svg');

@@ -1,5 +1,4 @@
 'use client';
-// Chakra imports
 import { Flex, Text, useColorModeValue } from '@chakra-ui/react';
 
 import Card from '@/components/card/Card';
@@ -14,7 +13,6 @@ export default function Statistics(props: {
 }) {
   const { illustration, focused, title, value, detail, ...rest } = props;
 
-  // Chakra Color Mode
   const textColor = useColorModeValue('navy.700', 'white');
   const textColorSecondary = useColorModeValue('gray.500', 'secondaryGray.500');
 

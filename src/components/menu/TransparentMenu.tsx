@@ -30,8 +30,6 @@ export default function Banner(props: {
     onClose: onClose1,
   } = useDisclosure();
 
-  // Chakra color mode
-
   const textColor = useColorModeValue('gray.500', 'white');
   const textHover = useColorModeValue(
     { color: 'navy.700', bg: 'unset' },

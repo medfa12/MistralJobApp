@@ -28,12 +28,11 @@ export function useChatAPI() {
 
     try {
       const apiKey = localStorage.getItem('apiKey');
-      
+
       if (!apiKey) {
         throw new Error('API key not found');
       }
 
-      // Abort any existing request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -58,14 +57,14 @@ export function useChatAPI() {
       if (!response.ok) {
         const errorText = await response.text();
         let errorMessage = 'Something went wrong when fetching from the API. Make sure to use a valid API key.';
-        
+
         try {
           const errorJson = JSON.parse(errorText);
           errorMessage = errorJson.message || errorJson.error || errorMessage;
         } catch (e) {
           console.warn('Failed to parse error response:', e);
         }
-        
+
         toast({
           title: 'API Error',
           description: errorMessage,
@@ -74,7 +73,7 @@ export function useChatAPI() {
           isClosable: true,
           position: 'top',
         });
-        
+
         throw new Error(errorMessage);
       }
 
@@ -104,7 +103,7 @@ export function useChatAPI() {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         const chunkValue = decoder.decode(value);
-        
+
         if (chunkValue.includes('__TOOL_CALLS__:')) {
           const toolCallMatch = chunkValue.match(/__TOOL_CALLS__:(.+)/);
           if (toolCallMatch) {
@@ -119,7 +118,7 @@ export function useChatAPI() {
         } else {
           accumulatedResponse += chunkValue;
         }
-        
+
         const streamingState = detectArtifactInStream(accumulatedResponse, {
           isGeneratingArtifact,
           artifactLoadingInfo,
@@ -139,16 +138,16 @@ export function useChatAPI() {
 
       onComplete(accumulatedResponse, accumulatedToolCalls);
       abortControllerRef.current = null;
-      
+
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('Request aborted');
         abortControllerRef.current = null;
         return;
       }
-      
+
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      
+
       toast({
         title: 'Error',
         description: errorMessage,
@@ -157,7 +156,7 @@ export function useChatAPI() {
         isClosable: true,
         position: 'top',
       });
-      
+
       onError(error as Error);
       abortControllerRef.current = null;
     }
