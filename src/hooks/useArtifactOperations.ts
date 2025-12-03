@@ -207,7 +207,7 @@ export function useArtifactOperations() {
     });
 
     return artifactData;
-  }, [pruneArtifacts, saveArtifactToDatabase, currentConversationId, toast]);
+  }, [pruneArtifacts, saveArtifactToDatabase, currentConversationId]);
 
   const handleEdit = useCallback(async (artifact: ArtifactInput): Promise<ArtifactData | null> => {
     const targetIdentifier = (artifact.identifier && artifact.identifier !== 'current-artifact')
@@ -276,7 +276,7 @@ export function useArtifactOperations() {
 
     return artifactData;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artifacts, currentArtifactId, isArtifactPanelOpen, updateArtifactInDatabase, toast, handleCreate]);
+  }, [artifacts, currentArtifactId, isArtifactPanelOpen, updateArtifactInDatabase, handleCreate]);
 
   const handleRevert = async (targetVersion: number | undefined): Promise<ArtifactData | null> => {
     if (!currentArtifact) {
@@ -373,7 +373,7 @@ export function useArtifactOperations() {
       isClosable: true,
       position: 'top',
     });
-  }, [artifacts, currentArtifactId, toast]);
+  }, [artifacts, currentArtifactId]);
 
   const processArtifactResponse = async (response: string, toolCalls?: ToolCallData[]): Promise<ArtifactOperationResult> => {
     let artifactData: ArtifactData | undefined;
@@ -439,7 +439,7 @@ export function useArtifactOperations() {
     });
     setCurrentArtifactId(artifactData.identifier);
     setIsArtifactPanelOpen(true);
-  }, [pruneArtifacts, toast]);
+  }, [pruneArtifacts]);
 
   const switchArtifact = useCallback((identifier: string) => {
     setCurrentArtifactId(identifier);
@@ -468,7 +468,7 @@ export function useArtifactOperations() {
         position: 'top',
       });
     }
-  }, [currentArtifact, isArtifactPanelOpen, updateArtifactInDatabase, toast]);
+  }, [currentArtifact, isArtifactPanelOpen, updateArtifactInDatabase]);
 
   const deleteArtifact = useCallback((identifier: string) => {
     handleDelete(identifier);
@@ -514,7 +514,7 @@ export function useArtifactOperations() {
     });
 
     return updated;
-  }, [currentArtifact, isArtifactPanelOpen, updateArtifactInDatabase, toast]);
+  }, [currentArtifact, isArtifactPanelOpen, updateArtifactInDatabase]);
 
   const peekVersion = useCallback((version: number): ArtifactData | null => {
     if (!currentArtifact) return null;

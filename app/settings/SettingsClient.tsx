@@ -11,7 +11,6 @@ import defaultAvatar from '../../public/img/avatars/avatar.png';
 
 type UserData = {
   id: string;
-  username: string | null;
   firstName: string | null;
   lastName: string | null;
   email: string;
@@ -25,7 +24,7 @@ type UserData = {
 export default function SettingsClient({ user }: { user: UserData }) {
   const [currentAvatar, setCurrentAvatar] = useState<string | null>(user.avatar);
 
-  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || 'User';
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'User';
 
   const avatarSrc = currentAvatar || defaultAvatar;
 
@@ -49,8 +48,7 @@ export default function SettingsClient({ user }: { user: UserData }) {
             role={user.role}
             onAvatarUpdate={handleAvatarUpdate}
           />
-          <Info 
-            username={user.username || ''}
+          <Info
             email={user.email}
             firstName={user.firstName || ''}
             lastName={user.lastName || ''}

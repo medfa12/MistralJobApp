@@ -1,13 +1,15 @@
-import type { GetServerSidePropsContext, InferGetServerSidePropsType } from "next";
-import { getProviders, signIn } from "next-auth/react"
 import Image from "next/image"
-import { getServerSession } from "next-auth/next"
 import Link from "next/link"
-import { authOptions } from "../../lib/auth";
+import dynamic from "next/dynamic"
 import { cn } from "../../lib/utils"
 import { buttonVariants } from "@/components/button"
-import { MainNav } from "@/components/main-nav"
-import hero from "../../public/img/hero.png"
+
+const MainNav = dynamic(() => import("@/components/main-nav").then(mod => mod.MainNav), { ssr: false })
+
+export const getServerSideProps = async () => {
+  return { props: {} };
+};
+
 export default function LandingPage() {
   return (
     <>

@@ -34,7 +34,7 @@ export interface SidebarProps extends PropsWithChildren {
 }
 
 function Sidebar(props: SidebarProps) {
-  const { routes, setApiKey } = props;
+  const { routes } = props;
   const { isCollapsed, setIsCollapsed } = useContext(SidebarContext);
 
   let variantChange = '0.2s linear';
@@ -92,7 +92,7 @@ function Sidebar(props: SidebarProps) {
             renderThumbVertical={renderThumb}
             renderView={renderView}
           >
-            <Content setApiKey={setApiKey} routes={routes} isCollapsed={isCollapsed} />
+            <Content routes={routes} isCollapsed={isCollapsed} />
           </Scrollbars>
         </Box>
       </Box>

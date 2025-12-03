@@ -39,7 +39,6 @@ function SignUp() {
   const [show, setShow] = React.useState(false);
   const [firstName, setFirstName] = React.useState('');
   const [lastName, setLastName] = React.useState('');
-  const [username, setUsername] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
@@ -50,10 +49,32 @@ function SignUp() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password || !confirmPassword) {
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
       toast({
         title: 'Error',
-        description: 'Please fill in required fields',
+        description: 'Please fill in all required fields',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    if (firstName.trim().length === 0) {
+      toast({
+        title: 'Error',
+        description: 'First name cannot be empty',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    if (lastName.trim().length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Last name cannot be empty',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -72,10 +93,10 @@ function SignUp() {
       return;
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       toast({
         title: 'Error',
-        description: 'Password must be at least 6 characters',
+        description: 'Password must be at least 8 characters',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -91,12 +112,11 @@ function SignUp() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          firstName: firstName || undefined,
-          lastName: lastName || undefined,
-          username: username || undefined,
-          email, 
-          password 
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email,
+          password
         }),
       });
 
@@ -197,9 +217,10 @@ function SignUp() {
               color={textColor}
               mb="8px"
             >
-              First Name
+              First Name<Text color={brandStars}>*</Text>
             </FormLabel>
             <Input
+              isRequired={true}
               variant="auth"
               id="firstName"
               fontSize="sm"
@@ -224,9 +245,10 @@ function SignUp() {
               color={textColor}
               mb="8px"
             >
-              Last Name
+              Last Name<Text color={brandStars}>*</Text>
             </FormLabel>
             <Input
+              isRequired={true}
               variant="auth"
               id="lastName"
               fontSize="sm"
@@ -240,33 +262,6 @@ function SignUp() {
               fontWeight="500"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-            />
-            <FormLabel
-              cursor="pointer"
-              htmlFor="username"
-              display="flex"
-              ms="4px"
-              fontSize="sm"
-              fontWeight="500"
-              color={textColor}
-              mb="8px"
-            >
-              Username
-            </FormLabel>
-            <Input
-              variant="auth"
-              id="username"
-              fontSize="sm"
-              type="text"
-              placeholder="@username (optional)"
-              mb="24px"
-              size="lg"
-              borderColor={borderColor}
-              h="54px"
-              _placeholder={placeholderColor}
-              fontWeight="500"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
             />
             <FormLabel
               cursor="pointer"
@@ -296,7 +291,7 @@ function SignUp() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            {}
+
             <FormLabel
               cursor="pointer"
               ms="4px"
@@ -307,6 +302,9 @@ function SignUp() {
               display="flex"
             >
               Password<Text color={brandStars}>*</Text>
+              <Text fontSize="xs" color={textColorSecondary} ml="2">
+                (Min. 8 characters)
+              </Text>
             </FormLabel>
             <InputGroup size="md">
               <Input
@@ -334,7 +332,7 @@ function SignUp() {
                 />
               </InputRightElement>
             </InputGroup>
-            {}
+
             <FormLabel
               cursor="pointer"
               htmlFor="confirm"

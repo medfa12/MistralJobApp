@@ -25,10 +25,9 @@ import { isWindowAvailable } from '@/utils/navigation';
 
 interface MobileSidebarButtonProps {
   routes: IRoute[];
-  setApiKey?: any;
 }
 
-export default function MobileSidebarButton({ routes, setApiKey }: MobileSidebarButtonProps) {
+export default function MobileSidebarButton({ routes }: MobileSidebarButtonProps) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const sidebarBackgroundColor = useColorModeValue('white', 'navy.800');
   const buttonBg = useColorModeValue('white', 'navy.800');
@@ -106,7 +105,7 @@ export default function MobileSidebarButton({ routes, setApiKey }: MobileSidebar
               renderThumbVertical={renderThumb}
               renderView={renderView}
             >
-              <Content routes={routes} setApiKey={setApiKey} />
+              <Content routes={routes} />
             </Scrollbars>
           </DrawerBody>
         </DrawerContent>

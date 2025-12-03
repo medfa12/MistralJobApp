@@ -49,7 +49,6 @@ async function handler(
 
     const passwordValidation = validatePasswordWithContext(newPassword, {
       email: user.email,
-      username: user.username || undefined,
       firstName: user.firstName || undefined,
       lastName: user.lastName || undefined,
     });

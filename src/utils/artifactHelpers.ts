@@ -25,7 +25,7 @@ ${'' }
 
 export function getToolSuggestion(hasArtifact: boolean): string {
   if (hasArtifact) {
-    return `\n\n[System Context: User has an active artifact. If they're asking to modify/improve/add features, use <artifact operation=\"edit\">. If they want to undo changes, use <artifact operation=\"revert\" version=\"N\">. Do not delete unless the user explicitly says so (e.g., \"delete\", \"remove\").]`;
+    return `\n\n[System Context: User has an active artifact. If they're asking to modify/improve/add features, use the edit_artifact tool. If they want to undo changes, use the revert_artifact tool. For quick markdown/document updates, use update_content. Do not delete unless the user explicitly says so (e.g., "delete", "remove").]`;
   }
-  return `\n\n[System Context: No artifact exists. If the user requests a component/widget/document/interactive demo, use <artifact operation=\"create\"> with a supported type.]`;
+  return `\n\n[System Context: No artifact exists. If the user requests a component/widget/document/interactive demo, use the create_artifact tool with a supported type (react, html, javascript, vue, markdown, document).]`;
 }

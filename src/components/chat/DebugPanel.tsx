@@ -90,37 +90,7 @@ export default function DebugPanel({
       return;
     }
 
-    const apiKey = typeof window !== 'undefined' 
-      ? localStorage.getItem('apiKey') 
-      : null;
-
-    if (!apiKey) {
-      alert('No API key found in localStorage. Please set your API key in settings.');
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `https://api.mistral.ai/v1/libraries/${mistralLibraryId}/documents`,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Mistral API returned ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('📚 Mistral Library Documents:', data);
-      alert(`✅ Connected to Mistral!\n\nFound ${data.data?.length || 0} documents in library`);
-    } catch (error) {
-      console.error('❌ Mistral API Error:', error);
-      alert(`❌ Failed to connect to Mistral API\n\n${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    alert('⚠️ This feature is deprecated.\n\nAPI key is now managed server-side. Use the project chat directly to test connectivity.');
   };
 
   // Log debug state to console

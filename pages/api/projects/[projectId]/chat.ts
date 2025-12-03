@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getMistralApiKeyFromRequest } from '@/lib/mistral';
+import { getMistralApiKey } from '@/lib/mistral';
 import { createEmbeddings, findTopKSimilar } from '@/lib/embedding';
 import { apiError } from '@/lib/api-helpers';
 import { sanitizeTextForContext } from '@/lib/api-helpers';
@@ -10,8 +10,6 @@ import { VECTOR_SEARCH, DOCUMENT_PROCESSING, CONVERSATION } from '@/lib/constant
 import { logger } from '@/lib/logger';
 import { checkRateLimit } from '@/lib/rate-limiter';
 import { cache, getCacheKey } from '@/lib/cache';
-
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 
 export default async function handler(
   req: NextApiRequest,
@@ -57,10 +55,10 @@ export default async function handler(
       return apiError(res, 400, 'Message is required');
     }
 
-    const apiKey = getMistralApiKeyFromRequest(req) || MISTRAL_API_KEY;
+    const apiKey = getMistralApiKey();
 
     if (!apiKey) {
-      return apiError(res, 400, 'Mistral API key is required');
+      return apiError(res, 500, 'Mistral API key not configured on server');
     }
 
     let conversation;

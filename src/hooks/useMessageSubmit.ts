@@ -29,6 +29,10 @@ interface UseMessageSubmitOptions {
   setIsGeneratingArtifact: (generating: boolean) => void;
   setArtifactLoadingInfo: (info: { operation: string; title?: string; type?: string } | null) => void;
   setStreamingArtifactCode: (code: string) => void;
+  onStreamStart?: () => void;
+  onTokenUpdate?: (content: string | number) => void;
+  onStreamEnd?: () => void;
+  onStreamAbort?: () => void;
 }
 
 interface SubmitMessageOptions {
@@ -58,6 +62,10 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     setIsGeneratingArtifact,
     setArtifactLoadingInfo,
     setStreamingArtifactCode,
+    onStreamStart,
+    onTokenUpdate,
+    onStreamEnd,
+    onStreamAbort,
   } = options;
 
   const toast = useToast();
@@ -73,7 +81,10 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     setIsGeneratingArtifact(false);
     setArtifactLoadingInfo(null);
     setStreamingArtifactCode('');
-  }, [abortStream, setArtifactLoadingInfo, setIsGeneratingArtifact, setLoading, setStreamingArtifactCode, setStreamingMessage]);
+    if (onStreamAbort) {
+      onStreamAbort();
+    }
+  }, [abortStream, setArtifactLoadingInfo, setIsGeneratingArtifact, setLoading, setStreamingArtifactCode, setStreamingMessage, onStreamAbort]);
 
   const submitMessage = useCallback(async (submitOptions: SubmitMessageOptions) => {
     const {
@@ -168,6 +179,9 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
         apiMessages,
         model,
         libraryId,
+        onStreamStart,
+        onTokenUpdate,
+        onStreamEnd,
         onStreamUpdate: (response, isGenerating, loadingInfo, streamingCode) => {
           setIsGeneratingArtifact(isGenerating);
           setArtifactLoadingInfo(loadingInfo);
@@ -245,7 +259,6 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     buildApiMessages,
     sendMessage,
     processArtifactResponse,
-    toast,
   ]);
 
   return {

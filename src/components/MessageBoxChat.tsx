@@ -28,6 +28,7 @@ import CodeSnippet from '@/components/CodeSnippet';
 import { processLatex } from '@/utils/latexProcessor';
 import { ArtifactToggleButton } from '@/components/artifact';
 import { useChatState } from '@/contexts/ChatStateContext';
+import { MessageTokenBadge } from '@/components/chat/MessageTokenBadge';
 
 export default function MessageBox(props: {
   output: string;
@@ -98,6 +99,9 @@ export default function MessageBox(props: {
   const attachmentBg = useColorModeValue('gray.50', 'whiteAlpha.100');
   const attachmentBorder = useColorModeValue('gray.200', 'whiteAlpha.200');
 
+  const imageCount = attachments?.filter(a => a.type === 'image').length || 0;
+  const documentCount = attachments?.filter(a => a.type === 'document').length || 0;
+
   return (
     <Card
       display={(output || inspectedCodeAttachment || thinking) ? 'flex' : 'none'}
@@ -110,6 +114,14 @@ export default function MessageBox(props: {
       fontWeight="500"
       flexDirection="column"
     >
+      <Flex justify="flex-end" mb="10px">
+        <MessageTokenBadge
+          content={output}
+          hasAttachments={(attachments && attachments.length > 0) || !!inspectedCodeAttachment}
+          imageCount={imageCount}
+          documentCount={documentCount}
+        />
+      </Flex>
       {attachments && attachments.length > 0 && (
         <Box mb="20px">
           <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing="12px">
@@ -233,7 +245,8 @@ export default function MessageBox(props: {
         <Accordion
           allowToggle
           mb="20px"
-          index={isExpanded ? [0] : []}
+          defaultIndex={[]}
+          index={isExpanded ? [0] : undefined}
           onChange={() => messageIndex !== undefined && toggleThinking(messageIndex)}
         >
           <AccordionItem
@@ -263,23 +276,30 @@ export default function MessageBox(props: {
                       },
                     }}
                   >
-                    Thinking Process
+                    🧠 Thinking Process
                   </Text>
                   <Text ml="10px" fontSize="xs" color="gray.500">
-                    (Click to expand)
+                    (Click to expand reasoning)
                   </Text>
                 </Flex>
               </Box>
               <AccordionIcon />
             </AccordionButton>
             <AccordionPanel pb={4}>
-              <ReactMarkdown
-                className="font-medium"
-                remarkPlugins={[remarkMath]}
-                rehypePlugins={[rehypeKatex]}
+              <Box
+                borderLeft="3px solid"
+                borderColor="orange.400"
+                pl={4}
+                py={2}
               >
-                {thinking}
-              </ReactMarkdown>
+                <ReactMarkdown
+                  className="font-medium"
+                  remarkPlugins={[remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                >
+                  {thinking}
+                </ReactMarkdown>
+              </Box>
             </AccordionPanel>
           </AccordionItem>
         </Accordion>

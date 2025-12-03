@@ -38,7 +38,6 @@ export interface ChatBody {
   inputCode?: string;
   messages?: Message[];
   model: MistralModel;
-  apiKey?: string | undefined | null;
   projectId?: string;
   libraryId?: string;
 }

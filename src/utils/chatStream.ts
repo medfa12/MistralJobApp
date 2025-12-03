@@ -108,11 +108,28 @@ export const MistralStream = async (
       let accumulatedToolCalls: any[] = [];
       let currentToolCallIndex: number | null = null;
 
+      let totalGeneratedChars = 0;
+      let lastMetricsTime = Date.now();
+      const METRICS_INTERVAL_MS = 150;
+      const METRICS_MARKER = '__STREAM_METRICS__:';
+
+      const emitMetrics = () => {
+        const now = Date.now();
+        if (now - lastMetricsTime >= METRICS_INTERVAL_MS) {
+          const metricsData = JSON.stringify({ chars: totalGeneratedChars, ts: now });
+          controller.enqueue(encoder.encode(`${METRICS_MARKER}${metricsData}\n`));
+          lastMetricsTime = now;
+        }
+      };
+
       const onParse = (event: ParsedEvent | ReconnectInterval) => {
         if (event.type === 'event') {
           const data = event.data;
 
           if (data === '[DONE]') {
+            const finalMetrics = JSON.stringify({ chars: totalGeneratedChars, ts: Date.now(), done: true });
+            controller.enqueue(encoder.encode(`${METRICS_MARKER}${finalMetrics}\n`));
+
             if (accumulatedToolCalls.length > 0) {
               const toolCallMarker = `__TOOL_CALLS__:${JSON.stringify({ tool_calls: accumulatedToolCalls })}`;
               const queue = encoder.encode(toolCallMarker);
@@ -147,6 +164,8 @@ export const MistralStream = async (
 
                 if (toolCallDelta.function?.arguments) {
                   accumulatedToolCalls[index].function.arguments += toolCallDelta.function.arguments;
+                  totalGeneratedChars += toolCallDelta.function.arguments.length;
+                  emitMetrics();
                 }
 
                 if (toolCallDelta.id) {
@@ -162,20 +181,26 @@ export const MistralStream = async (
                     .map((t: any) => t.text)
                     .join('');
                   if (thinkingText) {
+                    totalGeneratedChars += thinkingText.length;
                     const thinkingFormatted = `<think>\n${thinkingText}\n</think>\n`;
                     const queue = encoder.encode(thinkingFormatted);
                     controller.enqueue(queue);
+                    emitMetrics();
                   }
                 } else if (contentBlock.type === 'text' && contentBlock.text) {
+                  totalGeneratedChars += contentBlock.text.length;
                   const queue = encoder.encode(contentBlock.text);
                   controller.enqueue(queue);
+                  emitMetrics();
                 }
               }
             } else {
               const text = delta?.content;
               if (text) {
+                totalGeneratedChars += text.length;
                 const queue = encoder.encode(text);
                 controller.enqueue(queue);
+                emitMetrics();
               }
             }
           } catch (e) {

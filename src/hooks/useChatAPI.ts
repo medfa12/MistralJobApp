@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { ChatBody, MistralModel, ToolCallData } from '@/types/types';
-import { detectArtifactInStream } from '@/utils/streamingHelpers';
+import { detectArtifactInStream, isToolCallComplete, extractToolCallData, extractStreamMetrics } from '@/utils/streamingHelpers';
 
 interface StreamOptions {
   apiMessages: any[];
@@ -10,6 +10,9 @@ interface StreamOptions {
   onStreamUpdate: (response: string, isGeneratingArtifact: boolean, artifactLoadingInfo: any, streamingCode?: string) => void;
   onComplete: (response: string, toolCalls?: ToolCallData[]) => void;
   onError: (error: Error) => void;
+  onStreamStart?: () => void;
+  onTokenUpdate?: (content: string | number) => void;
+  onStreamEnd?: () => void;
 }
 
 export function useChatAPI() {
@@ -24,15 +27,9 @@ export function useChatAPI() {
   }, []);
 
   const sendMessage = useCallback(async (options: StreamOptions) => {
-    const { apiMessages, model, libraryId, onStreamUpdate, onComplete, onError } = options;
+    const { apiMessages, model, libraryId, onStreamUpdate, onComplete, onError, onStreamStart, onTokenUpdate, onStreamEnd } = options;
 
     try {
-      const apiKey = localStorage.getItem('apiKey');
-
-      if (!apiKey) {
-        throw new Error('API key not found');
-      }
-
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -41,7 +38,6 @@ export function useChatAPI() {
       const body: ChatBody = {
         messages: apiMessages,
         model,
-        apiKey,
         libraryId,
       };
 
@@ -56,7 +52,7 @@ export function useChatAPI() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        let errorMessage = 'Something went wrong when fetching from the API. Make sure to use a valid API key.';
+        let errorMessage = 'Something went wrong when fetching from the API.';
 
         try {
           const errorJson = JSON.parse(errorText);
@@ -95,31 +91,54 @@ export function useChatAPI() {
       const decoder = new TextDecoder();
       let done = false;
       let accumulatedResponse = '';
+      let fullContentForTokens = '';
       let isGeneratingArtifact = false;
       let artifactLoadingInfo: any = null;
       let accumulatedToolCalls: ToolCallData[] = [];
+      let hasReceivedMetrics = false;
+
+      if (onStreamStart) {
+        onStreamStart();
+      }
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         const chunkValue = decoder.decode(value);
 
-        if (chunkValue.includes('__TOOL_CALLS__:')) {
-          const toolCallMatch = chunkValue.match(/__TOOL_CALLS__:(.+)/);
-          if (toolCallMatch) {
+        const { metrics, cleanBuffer } = extractStreamMetrics(chunkValue);
+
+        if (metrics) {
+          hasReceivedMetrics = true;
+          if (onTokenUpdate) {
+            onTokenUpdate(metrics.chars);
+          }
+        }
+
+        fullContentForTokens += cleanBuffer;
+
+        if (!hasReceivedMetrics && onTokenUpdate) {
+           onTokenUpdate(fullContentForTokens);
+        }
+
+        if (isToolCallComplete(fullContentForTokens)) {
+          const { toolCallJson, textContent } = extractToolCallData(fullContentForTokens);
+          accumulatedResponse = textContent;
+
+          if (toolCallJson) {
             try {
-              const toolCallData = JSON.parse(toolCallMatch[1]);
+              const toolCallData = JSON.parse(toolCallJson);
               accumulatedToolCalls = toolCallData.tool_calls || [];
-              accumulatedResponse += chunkValue.replace(/__TOOL_CALLS__:.+/, '');
-            } catch (e) {
-              accumulatedResponse += chunkValue;
+            } catch {
+              accumulatedToolCalls = [];
             }
           }
         } else {
-          accumulatedResponse += chunkValue;
+          const { textContent } = extractToolCallData(fullContentForTokens);
+          accumulatedResponse = textContent;
         }
 
-        const streamingState = detectArtifactInStream(accumulatedResponse, {
+        const streamingState = detectArtifactInStream(fullContentForTokens, {
           isGeneratingArtifact,
           artifactLoadingInfo,
           toolCalls: accumulatedToolCalls,
@@ -136,12 +155,15 @@ export function useChatAPI() {
         );
       }
 
+      if (onStreamEnd) {
+        onStreamEnd();
+      }
+
       onComplete(accumulatedResponse, accumulatedToolCalls);
       abortControllerRef.current = null;
 
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Request aborted');
         abortControllerRef.current = null;
         return;
       }
@@ -160,7 +182,7 @@ export function useChatAPI() {
       onError(error as Error);
       abortControllerRef.current = null;
     }
-  }, [toast]);
+  }, []);
 
   return {
     sendMessage,

@@ -1,5 +1,6 @@
 import { ChatBody } from '@/types/types';
 import { MistralStream } from '@/utils/chatStream';
+import { getToken } from 'next-auth/jwt';
 
 export const config = {
   runtime: 'edge',
@@ -7,13 +8,43 @@ export const config = {
 
 const handler = async (req: Request): Promise<Response> => {
   try {
-    const { inputCode, messages, model, apiKey, libraryId } = (await req.json()) as ChatBody;
+    const token = await getToken({
+      req: req as any,
+      secret: process.env.NEXTAUTH_SECRET
+    });
 
-    let apiKeyFinal;
-    if (apiKey) {
-      apiKeyFinal = apiKey;
-    } else {
-      apiKeyFinal = process.env.MISTRAL_API_KEY;
+    if (!token?.email) {
+      return new Response(
+        JSON.stringify({
+          error: 'Unauthorized',
+          message: 'Authentication required'
+        }),
+        {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+    }
+
+    const { inputCode, messages, model, libraryId } = (await req.json()) as ChatBody;
+
+    const apiKey = process.env.MISTRAL_API_KEY;
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({
+          error: 'Mistral API key not configured',
+          message: 'Mistral API key not configured on server'
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
     }
 
     const useToolCalling = process.env.USE_FUNCTION_CALLING_ARTIFACTS !== 'false';
@@ -22,7 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
     const stream = await MistralStream(
       messagesOrInput,
       model,
-      apiKeyFinal,
+      apiKey,
       useToolCalling,
       libraryId
     );

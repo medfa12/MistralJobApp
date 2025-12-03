@@ -39,7 +39,7 @@ export const authOptions: NextAuthOptions = {
         // Construct full name from firstName and lastName
         const fullName = [user.firstName, user.lastName]
           .filter(Boolean)
-          .join(' ') || user.username || 'User';
+          .join(' ') || 'User';
 
         return {
           id: user.id,

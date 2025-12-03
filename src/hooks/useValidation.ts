@@ -19,22 +19,9 @@ export function useValidation() {
   const toast = useToast();
 
   const validateApiKey = useCallback((): ValidationResult => {
-    const apiKey = localStorage.getItem('apiKey');
-
-    if (!apiKey) {
-      toast({
-        title: 'API Key Required',
-        description: 'Please enter a Mistral API key from https://console.mistral.ai/.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-        position: 'top',
-      });
-      return { isValid: false, error: 'API key required' };
-    }
-
+    // API key is now managed server-side, no client-side validation needed
     return { isValid: true };
-  }, [toast]);
+  }, []);
 
   const validateModel = useCallback((model: MistralModel): ValidationResult => {
     const modelInfo = getModelInfo(model);

@@ -3,6 +3,21 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth';
 import { db } from '../../../lib/db';
 
+function sanitizeInput(input: string | undefined | null): string | null {
+  if (!input || typeof input !== 'string') return null;
+  return input
+    .replace(/[<>]/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+=/gi, '')
+    .trim()
+    .slice(0, 500);
+}
+
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  return emailRegex.test(email) && email.length <= 254;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -18,7 +33,7 @@ export default async function handler(
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { username, email, firstName, lastName, job, bio } = req.body;
+    const { email, firstName, lastName, job, bio } = req.body;
 
     const currentUser = await db.user.findUnique({
       where: { email: session.user.email },
@@ -28,17 +43,11 @@ export default async function handler(
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (username && username !== currentUser.username) {
-      const existingUser = await db.user.findUnique({
-        where: { username },
-      });
-
-      if (existingUser) {
-        return res.status(400).json({ error: 'Username already taken' });
-      }
-    }
-
     if (email && email !== currentUser.email) {
+      if (!isValidEmail(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
       const existingUser = await db.user.findUnique({
         where: { email },
       });
@@ -48,19 +57,22 @@ export default async function handler(
       }
     }
 
+    const sanitizedFirstName = sanitizeInput(firstName);
+    const sanitizedLastName = sanitizeInput(lastName);
+    const sanitizedJob = sanitizeInput(job);
+    const sanitizedBio = sanitizeInput(bio);
+
     const updatedUser = await db.user.update({
       where: { email: session.user.email },
       data: {
-        username: username || currentUser.username,
-        email: email || currentUser.email,
-        firstName: firstName || currentUser.firstName,
-        lastName: lastName || currentUser.lastName,
-        job: job || currentUser.job,
-        bio: bio || currentUser.bio,
+        email: email && isValidEmail(email) ? email : currentUser.email,
+        firstName: sanitizedFirstName ?? currentUser.firstName,
+        lastName: sanitizedLastName ?? currentUser.lastName,
+        job: sanitizedJob ?? currentUser.job,
+        bio: sanitizedBio ?? currentUser.bio,
       },
       select: {
         id: true,
-        username: true,
         firstName: true,
         lastName: true,
         email: true,

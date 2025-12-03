@@ -21,6 +21,7 @@ import { useAttachments } from '@/hooks/useAttachments';
 import { useArtifactOperations } from '@/hooks/useArtifactOperations';
 import { useMessageSubmit } from '@/hooks/useMessageSubmit';
 import { useResizable } from '@/hooks/useResizable';
+import { useStreamingPerformance } from '@/hooks/useStreamingPerformance';
 import { ChatStateProvider, useChatState } from '@/contexts/ChatStateContext';
 import {
   ModelSelector,
@@ -30,6 +31,7 @@ import {
   AttachmentPreview,
   InspectedCodePreview,
 } from '@/components/chat';
+import { StreamingSpeedIndicator } from '@/components/chat/StreamingSpeedIndicator';
 
 function ChatContent() {
   const searchParams = useSearchParams();
@@ -38,8 +40,10 @@ function ChatContent() {
 
   const [inputCode, setInputCode] = useState<string>('');
   const [messages, setMessages] = useState<MessageType[]>([]);
-  const [model, setModel] = useState<MistralModel>('mistral-small-latest');
+  const [model, setModel] = useState<MistralModel>('magistral-medium-latest');
   const [inspectedCodeAttachment, setInspectedCodeAttachment] = useState<InspectedCodeAttachment | null>(null);
+
+  const { metrics, startStreaming, updateTokenCount, stopStreaming, resetMetrics } = useStreamingPerformance();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -118,6 +122,10 @@ function ChatContent() {
     setIsGeneratingArtifact,
     setArtifactLoadingInfo,
     setStreamingArtifactCode,
+    onStreamStart: startStreaming,
+    onTokenUpdate: updateTokenCount,
+    onStreamEnd: stopStreaming,
+    onStreamAbort: stopStreaming,
   });
 
   const currentTokens = useMemo(() => {
@@ -172,7 +180,7 @@ function ChatContent() {
 
   useEffect(() => {
     setArtifactConversationId(currentConversationId);
-  }, [currentConversationId, setArtifactConversationId]);
+  }, [currentConversationId]);
 
   useEffect(() => {
     if (chatContainerRef.current && !isLoadingHistory) {
@@ -221,7 +229,7 @@ function ChatContent() {
 
     setCurrentConversationId(conversationId);
     setArtifactConversationId(conversationId);
-  }, [conversationId, loadConversation, clearAttachments, setCurrentConversationId, setArtifactConversationId, resetArtifacts, restoreArtifact, resetChatState]);
+  }, [conversationId, loadConversation, clearAttachments, resetArtifacts, restoreArtifact, resetChatState]);
 
   useEffect(() => {
     return () => {
@@ -332,6 +340,14 @@ function ChatContent() {
             selectedModel={model}
             onModelChange={setModel}
           />
+          {(loading || metrics.totalTokens > 0) && (
+            <StreamingSpeedIndicator
+              tokensPerSecond={metrics.tokensPerSecond}
+              totalTokens={metrics.totalTokens}
+              elapsedTime={metrics.elapsedTime}
+              isStreaming={metrics.isStreaming}
+            />
+          )}
         </Flex>
 
         <Flex
