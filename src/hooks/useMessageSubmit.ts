@@ -33,6 +33,7 @@ interface UseMessageSubmitOptions {
   onTokenUpdate?: (content: string | number) => void;
   onStreamEnd?: () => void;
   onStreamAbort?: () => void;
+  getCurrentMetrics?: () => { tokensPerSecond: number; totalTokens: number; elapsedTime: number };
 }
 
 interface SubmitMessageOptions {
@@ -66,6 +67,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     onTokenUpdate,
     onStreamEnd,
     onStreamAbort,
+    getCurrentMetrics,
   } = options;
 
   const toast = useToast();
@@ -120,7 +122,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
           duration: 5000,
           isClosable: true,
           position: 'top',
-        });
+          });
         return;
       }
     }
@@ -198,11 +200,18 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
 
           const finalContent = cleanContent.trim() || (toolCallData ? '[Tool call executed]' : '');
 
+          const metrics = getCurrentMetrics ? getCurrentMetrics() : undefined;
+
           const assistantMessage: MessageType = { 
             role: 'assistant', 
             content: finalContent,
             artifact: artifactData,
             toolCall: toolCallData,
+            metrics: metrics ? {
+              tokens: metrics.totalTokens,
+              time: metrics.elapsedTime,
+              speed: metrics.tokensPerSecond
+            } : undefined
           };
 
           setMessages((prev) => [...prev, assistantMessage]);

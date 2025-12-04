@@ -31,7 +31,6 @@ import {
   AttachmentPreview,
   InspectedCodePreview,
 } from '@/components/chat';
-import { StreamingSpeedIndicator } from '@/components/chat/StreamingSpeedIndicator';
 
 function ChatContent() {
   const searchParams = useSearchParams();
@@ -40,10 +39,10 @@ function ChatContent() {
 
   const [inputCode, setInputCode] = useState<string>('');
   const [messages, setMessages] = useState<MessageType[]>([]);
-  const [model, setModel] = useState<MistralModel>('magistral-medium-latest');
+  const [model, setModel] = useState<MistralModel>('mistral-medium-latest');
   const [inspectedCodeAttachment, setInspectedCodeAttachment] = useState<InspectedCodeAttachment | null>(null);
 
-  const { metrics, startStreaming, updateTokenCount, stopStreaming, resetMetrics } = useStreamingPerformance();
+  const { metrics, startStreaming, updateTokenCount, stopStreaming, resetMetrics, getCurrentMetrics } = useStreamingPerformance();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -126,6 +125,7 @@ function ChatContent() {
     onTokenUpdate: updateTokenCount,
     onStreamEnd: stopStreaming,
     onStreamAbort: stopStreaming,
+    getCurrentMetrics,
   });
 
   const currentTokens = useMemo(() => {
@@ -340,14 +340,6 @@ function ChatContent() {
             selectedModel={model}
             onModelChange={setModel}
           />
-          {(loading || metrics.totalTokens > 0) && (
-            <StreamingSpeedIndicator
-              tokensPerSecond={metrics.tokensPerSecond}
-              totalTokens={metrics.totalTokens}
-              elapsedTime={metrics.elapsedTime}
-              isStreaming={metrics.isStreaming}
-            />
-          )}
         </Flex>
 
         <Flex

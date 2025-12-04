@@ -1,9 +1,8 @@
 export type MistralModel =
-  | 'mistral-small-latest'
   | 'mistral-medium-latest'
-  | 'mistral-large-latest'
-  | 'magistral-small-latest'
-  | 'magistral-medium-latest';
+  | 'magistral-medium-latest'
+  | 'codestral-latest'
+  | 'devstral-medium-latest';
 
 export type MessageContent = 
   | string 
@@ -25,6 +24,12 @@ export interface Attachment {
   createdAt?: string;
 }
 
+export interface MessageMetrics {
+  tokens: number;
+  time: number; // in seconds
+  speed: number; // tokens per second
+}
+
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: MessageContent;
@@ -32,6 +37,7 @@ export interface Message {
   artifact?: ArtifactData;
   toolCall?: ToolCall;
   inspectedCodeAttachment?: InspectedCodeAttachment;
+  metrics?: MessageMetrics;
 }
 
 export interface ChatBody {

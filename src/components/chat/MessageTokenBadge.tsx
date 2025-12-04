@@ -9,6 +9,11 @@ interface MessageTokenBadgeProps {
   hasAttachments?: boolean;
   imageCount?: number;
   documentCount?: number;
+  metrics?: {
+    tokens: number;
+    time: number;
+    speed: number;
+  };
 }
 
 export const MessageTokenBadge: React.FC<MessageTokenBadgeProps> = ({
@@ -16,11 +21,12 @@ export const MessageTokenBadge: React.FC<MessageTokenBadgeProps> = ({
   hasAttachments = false,
   imageCount = 0,
   documentCount = 0,
+  metrics,
 }) => {
   const badgeBg = useColorModeValue('gray.100', 'whiteAlpha.200');
   const badgeColor = useColorModeValue('gray.700', 'gray.300');
 
-  const tokens = useMemo(() => {
+  const estimatedTokens = useMemo(() => {
     let total = estimateTokens(content);
 
     // Add estimated tokens for attachments
@@ -31,11 +37,14 @@ export const MessageTokenBadge: React.FC<MessageTokenBadgeProps> = ({
   }, [content, imageCount, documentCount]);
 
   const tooltipLabel = useMemo(() => {
-    const parts = [`${tokens} tokens from text`];
+    if (metrics) {
+      return `Generated ${metrics.tokens} tokens in ${metrics.time}s (${metrics.speed} tokens/sec)`;
+    }
+    const parts = [`${estimatedTokens} tokens from text`];
     if (imageCount > 0) parts.push(`${imageCount} image(s) (~${imageCount * 170} tokens)`);
     if (documentCount > 0) parts.push(`${documentCount} document(s) (~${documentCount * 500} tokens)`);
     return parts.join(' + ');
-  }, [tokens, imageCount, documentCount]);
+  }, [estimatedTokens, imageCount, documentCount, metrics]);
 
   return (
     <Tooltip label={tooltipLabel} placement="top" hasArrow>
@@ -49,7 +58,11 @@ export const MessageTokenBadge: React.FC<MessageTokenBadgeProps> = ({
         fontWeight="500"
         cursor="help"
       >
-        ~{tokens.toLocaleString()} tokens
+        {metrics ? (
+          `${metrics.tokens.toLocaleString()} tokens • ${metrics.time}s • ${metrics.speed} t/s`
+        ) : (
+          `~${estimatedTokens.toLocaleString()} tokens`
+        )}
       </Badge>
     </Tooltip>
   );

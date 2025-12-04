@@ -4,21 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { 
-  useColorModeValue, 
-  Accordion,
-  AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
-  Box,
-  Text,
-  Flex,
-  Icon,
-  Image,
-  SimpleGrid,
-  Badge
-} from '@chakra-ui/react';
+import { useColorModeValue, Box, Text, Flex, Icon, Image, SimpleGrid, Badge, Collapse, Button } from '@chakra-ui/react';
 import Card from '@/components/card/Card';
 import { useState, useEffect, Fragment } from 'react';
 import { MdDescription, MdCode } from 'react-icons/md';
@@ -39,8 +25,13 @@ export default function MessageBox(props: {
   onArtifactClick?: () => void;
   isArtifactOpen?: boolean;
   messageIndex?: number;
+  metrics?: {
+    tokens: number;
+    time: number;
+    speed: number;
+  };
 }) {
-  const { output, attachments, toolCall, artifact, inspectedCodeAttachment, onArtifactClick, isArtifactOpen, messageIndex } = props
+  const { output, attachments, toolCall, artifact, inspectedCodeAttachment, onArtifactClick, isArtifactOpen, messageIndex, metrics } = props
   const textColor = useColorModeValue('navy.700', 'white')
   const thinkingBg = useColorModeValue('orange.50', 'whiteAlpha.100')
   const thinkingBorder = useColorModeValue('orange.200', 'orange.500')
@@ -120,6 +111,7 @@ export default function MessageBox(props: {
           hasAttachments={(attachments && attachments.length > 0) || !!inspectedCodeAttachment}
           imageCount={imageCount}
           documentCount={documentCount}
+          metrics={metrics}
         />
       </Flex>
       {attachments && attachments.length > 0 && (
@@ -242,67 +234,66 @@ export default function MessageBox(props: {
       )}
 
       {thinking && (
-        <Accordion
-          allowToggle
+        <Box
           mb="20px"
-          defaultIndex={[]}
-          index={isExpanded ? [0] : undefined}
-          onChange={() => messageIndex !== undefined && toggleThinking(messageIndex)}
+          borderRadius="14px"
+          border="1px solid"
+          borderColor={thinkingBorder}
+          bgGradient="linear(to-r, orange.50, orange.100)"
+          _dark={{ bgGradient: 'linear(to-r, whiteAlpha.100, orange.900)' }}
+          p={4}
         >
-          <AccordionItem
-            border="1px solid"
-            borderColor={thinkingBorder}
-            borderRadius="12px"
-            bg={thinkingBg}
-          >
-            <AccordionButton
-              _hover={{ bg: 'transparent' }}
-              borderRadius="12px"
-            >
-              <Box flex="1" textAlign="left">
-                <Flex align="center">
-                  <Text
-                    fontWeight="700"
-                    fontSize="md"
-                    color={textColor}
-                    bgGradient="linear(to-r, orange.500, orange.400, orange.500)"
-                    bgClip="text"
-                    bgSize="200% auto"
-                    animation="shimmer 3s linear infinite"
-                    sx={{
-                      '@keyframes shimmer': {
-                        '0%': { backgroundPosition: '0% center' },
-                        '100%': { backgroundPosition: '200% center' },
-                      },
-                    }}
-                  >
-                    🧠 Thinking Process
-                  </Text>
-                  <Text ml="10px" fontSize="xs" color="gray.500">
-                    (Click to expand reasoning)
-                  </Text>
-                </Flex>
-              </Box>
-              <AccordionIcon />
-            </AccordionButton>
-            <AccordionPanel pb={4}>
+          <Flex align="center" justify="space-between" gap={3} flexWrap="wrap">
+            <Flex align="center" gap={3}>
               <Box
-                borderLeft="3px solid"
-                borderColor="orange.400"
-                pl={4}
-                py={2}
+                w="40px"
+                h="40px"
+                borderRadius="full"
+                display="grid"
+                placeItems="center"
+                bg="orange.500"
+                color="white"
+                fontWeight="700"
               >
-                <ReactMarkdown
-                  className="font-medium"
-                  remarkPlugins={[remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                >
-                  {thinking}
-                </ReactMarkdown>
+                🧠
               </Box>
-            </AccordionPanel>
-          </AccordionItem>
-        </Accordion>
+              <Box>
+                <Text fontWeight="800" fontSize="md" color={textColor}>
+                  Thinking Trace
+                </Text>
+                <Text fontSize="xs" color="gray.500">
+                  Transparent reasoning — open to inspect, hidden by default.
+                </Text>
+              </Box>
+            </Flex>
+            <Button
+              size="sm"
+              variant="outline"
+              colorScheme="orange"
+              onClick={() => messageIndex !== undefined && toggleThinking(messageIndex)}
+            >
+              {isExpanded ? 'Hide reasoning' : 'Show reasoning'}
+            </Button>
+          </Flex>
+          <Collapse in={isExpanded} animateOpacity>
+            <Box
+              mt="12px"
+              borderRadius="12px"
+              border="1px solid"
+              borderColor={thinkingBorder}
+              bg={thinkingBg}
+              p={3}
+            >
+              <ReactMarkdown
+                className="font-medium"
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+              >
+                {thinking}
+              </ReactMarkdown>
+            </Box>
+          </Collapse>
+        </Box>
       )}
 
       {(() => {

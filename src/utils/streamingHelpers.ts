@@ -11,6 +11,7 @@ export interface StreamMetrics {
   chars: number;
   ts: number;
   done?: boolean;
+  phase?: 'text' | 'tool';
 }
 
 export const TOOL_CALL_DELIMITER = '__TOOL_CALLS__:';

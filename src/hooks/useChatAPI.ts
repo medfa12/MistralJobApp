@@ -96,6 +96,7 @@ export function useChatAPI() {
       let artifactLoadingInfo: any = null;
       let accumulatedToolCalls: ToolCallData[] = [];
       let hasReceivedMetrics = false;
+      let lastServerPhase: 'text' | 'tool' = 'text';
 
       if (onStreamStart) {
         onStreamStart();
@@ -110,6 +111,9 @@ export function useChatAPI() {
 
         if (metrics) {
           hasReceivedMetrics = true;
+          if (metrics.phase) {
+            lastServerPhase = metrics.phase;
+          }
           if (onTokenUpdate) {
             onTokenUpdate(metrics.chars);
           }
@@ -144,8 +148,19 @@ export function useChatAPI() {
           toolCalls: accumulatedToolCalls,
         });
 
-        isGeneratingArtifact = streamingState.isGeneratingArtifact;
-        artifactLoadingInfo = streamingState.artifactLoadingInfo;
+        // If server says we are in tool phase, override isGeneratingArtifact
+        if (lastServerPhase === 'tool') {
+          isGeneratingArtifact = true;
+          // If we don't have specific info yet (because tool call is buffered), show generic message
+          if (!streamingState.artifactLoadingInfo && !artifactLoadingInfo) {
+             artifactLoadingInfo = { operation: 'create_artifact', title: 'Generating...' };
+          } else if (streamingState.artifactLoadingInfo) {
+             artifactLoadingInfo = streamingState.artifactLoadingInfo;
+          }
+        } else {
+          isGeneratingArtifact = streamingState.isGeneratingArtifact;
+          artifactLoadingInfo = streamingState.artifactLoadingInfo;
+        }
 
         onStreamUpdate(
           accumulatedResponse,

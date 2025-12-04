@@ -25,6 +25,8 @@ export const artifactSystemPrompt = endent`
   - revert_artifact: Restore previous version
   - update_content: Quick update for markdown/document artifacts (content only)
 
+  When the user requests UI/code/doc changes, prefer a tool call over freeform text. Do not mix partial tool output with prose—finish the tool operation first, then summarize changes briefly.
+
   **NOT SUPPORTED:** Svelte, Python, Rust, Go, Java, C++, or any server-side language. For these, provide code in a formatted code block instead.
 
   ## REACT ARTIFACTS - CRITICAL RULES

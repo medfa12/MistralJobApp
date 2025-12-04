@@ -54,7 +54,7 @@ export const MistralStream = async (
   };
 
   if (isReasoningModel) {
-    body.prompt_mode = null;
+    body.prompt_mode = 'reasoning';
   }
 
   if (useToolCalling) {
@@ -113,10 +113,14 @@ export const MistralStream = async (
       const METRICS_INTERVAL_MS = 150;
       const METRICS_MARKER = '__STREAM_METRICS__:';
 
-      const emitMetrics = () => {
+      let currentPhase: 'text' | 'tool' = 'text';
+
+      const emitMetrics = (phase?: 'text' | 'tool') => {
         const now = Date.now();
+        if (phase) currentPhase = phase;
+        
         if (now - lastMetricsTime >= METRICS_INTERVAL_MS) {
-          const metricsData = JSON.stringify({ chars: totalGeneratedChars, ts: now });
+          const metricsData = JSON.stringify({ chars: totalGeneratedChars, ts: now, phase: currentPhase });
           controller.enqueue(encoder.encode(`${METRICS_MARKER}${metricsData}\n`));
           lastMetricsTime = now;
         }
@@ -127,7 +131,7 @@ export const MistralStream = async (
           const data = event.data;
 
           if (data === '[DONE]') {
-            const finalMetrics = JSON.stringify({ chars: totalGeneratedChars, ts: Date.now(), done: true });
+            const finalMetrics = JSON.stringify({ chars: totalGeneratedChars, ts: Date.now(), done: true, phase: currentPhase });
             controller.enqueue(encoder.encode(`${METRICS_MARKER}${finalMetrics}\n`));
 
             if (accumulatedToolCalls.length > 0) {
@@ -165,7 +169,7 @@ export const MistralStream = async (
                 if (toolCallDelta.function?.arguments) {
                   accumulatedToolCalls[index].function.arguments += toolCallDelta.function.arguments;
                   totalGeneratedChars += toolCallDelta.function.arguments.length;
-                  emitMetrics();
+                  emitMetrics('tool');
                 }
 
                 if (toolCallDelta.id) {
@@ -185,13 +189,13 @@ export const MistralStream = async (
                     const thinkingFormatted = `<think>\n${thinkingText}\n</think>\n`;
                     const queue = encoder.encode(thinkingFormatted);
                     controller.enqueue(queue);
-                    emitMetrics();
+                    emitMetrics('text');
                   }
                 } else if (contentBlock.type === 'text' && contentBlock.text) {
                   totalGeneratedChars += contentBlock.text.length;
                   const queue = encoder.encode(contentBlock.text);
                   controller.enqueue(queue);
-                  emitMetrics();
+                  emitMetrics('text');
                 }
               }
             } else {
@@ -200,7 +204,7 @@ export const MistralStream = async (
                 totalGeneratedChars += text.length;
                 const queue = encoder.encode(text);
                 controller.enqueue(queue);
-                emitMetrics();
+                emitMetrics('text');
               }
             }
           } catch (e) {

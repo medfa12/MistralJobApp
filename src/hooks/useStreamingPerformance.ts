@@ -122,11 +122,24 @@ export function useStreamingPerformance() {
     });
   }, []);
 
+  const getCurrentMetrics = useCallback(() => {
+    const elapsed = (performance.now() - startTimeRef.current) / 1000;
+    const tokens = tokenCountRef.current;
+    const tokensPerSec = elapsed > 0 ? tokens / elapsed : 0;
+    
+    return {
+      tokensPerSecond: Math.round(tokensPerSec * 10) / 10,
+      totalTokens: tokens,
+      elapsedTime: Math.round(elapsed * 10) / 10,
+    };
+  }, []);
+
   return {
     metrics,
     startStreaming,
     updateTokenCount,
     stopStreaming,
     resetMetrics,
+    getCurrentMetrics,
   };
 }

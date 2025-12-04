@@ -193,7 +193,7 @@ Given the context information and not prior knowledge, answer the query.`;
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'mistral-large-latest',
+        model: 'mistral-medium-latest',
         messages,
         stream: true,
       }),
@@ -277,7 +277,7 @@ Given the context information and not prior knowledge, answer the query.`;
         await prisma.usageLog.create({
           data: {
             userId: user.id,
-            model: 'mistral-large-latest',
+            model: 'mistral-medium-latest',
             inputTokens: inputTokens || Math.ceil(context.length / 4),
             outputTokens: outputTokens || Math.ceil(assistantMessage.length / 4),
             totalTokens: (inputTokens || Math.ceil(context.length / 4)) + (outputTokens || Math.ceil(assistantMessage.length / 4)),
