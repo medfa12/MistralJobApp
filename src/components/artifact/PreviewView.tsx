@@ -373,20 +373,39 @@ export const PreviewView = forwardRef<PreviewViewRef, Props>(({ artifact, onCode
                 <div id="root"></div>
                 <script>
                   window.onerror = function(message, source, lineno, colno, error) {
+                    if (message === 'Script error.' && lineno === 0 && colno === 0) {
+                      return false;
+                    }
+
+                    if (message && message.includes && message.includes('ResizeObserver')) {
+                      return false;
+                    }
+
                     const errorDiv = document.createElement('div');
                     errorDiv.style.cssText = 'padding: 20px; background: #fee; border: 2px solid #f00; border-radius: 8px; margin: 20px; font-family: monospace;';
                     errorDiv.innerHTML = '<h3 style="color: #c00; margin-top: 0;">⚠️ Code Error</h3><p><strong>Message:</strong> ' + message + '</p><p><strong>Line:</strong> ' + lineno + ':' + colno + '</p>';
-                    document.body.appendChild(errorDiv);
+
+                    const root = document.getElementById('root');
+                    if (root) {
+                      root.appendChild(errorDiv);
+                    } else {
+                      document.body.appendChild(errorDiv);
+                    }
                     return true;
                   };
                 </script>
                 <script type="text/babel">
-                  try {
-                    ${artifact.code}
+                  const { useState, useEffect, useRef, useCallback, useMemo, useReducer, useContext, createContext, Fragment } = React;
 
+                  ${artifact.code}
+
+                  try {
                     const App = typeof module !== 'undefined' && module.exports ? module.exports.default : window.App;
                     if (App) {
-                      ReactDOM.render(React.createElement(App), document.getElementById('root'));
+                      const root = document.getElementById('root');
+                      ReactDOM.render(React.createElement(App), root);
+                    } else {
+                      throw new Error('No App component found. Make sure your React component exports to window.App');
                     }
                   } catch (e) {
                     console.error('Render error:', e);

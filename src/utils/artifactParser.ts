@@ -67,8 +67,9 @@ export function parseArtifacts(text: string): {
 
     const validation = validateArtifactCode(code, type as ArtifactType);
     if (!validation.valid) {
-      console.warn(`Artifact code validation warnings for ${type}:`, validation.errors);
-      console.warn(`Code preview:`, code.substring(0, 200));
+      console.warn(`Artifact code rejected for ${type}:`, validation.errors);
+      cleanText = cleanText.replace(fullMatch, `\n\n[Artifact blocked: invalid ${type} code]\n\n`);
+      continue;
     }
 
     const identifier = operation === 'create' 

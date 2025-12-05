@@ -29,6 +29,17 @@ interface LexicalEditorProps {
   readOnly?: boolean;
 }
 
+function sanitizeMarkdownInput(markdown: string): string {
+  if (!markdown) return '';
+
+  const blockTagPattern = /<\s*(script|style|iframe|object|embed|link|meta)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi;
+  const selfClosingPattern = /<\s*(script|style|iframe|object|embed|link|meta)[^>]*\/?>/gi;
+
+  return markdown
+    .replace(blockTagPattern, '')
+    .replace(selfClosingPattern, '');
+}
+
 function MarkdownImportPlugin({ initialMarkdown }: { initialMarkdown: string }) {
   const [editor] = useLexicalComposerContext();
 
@@ -66,6 +77,7 @@ export function LexicalEditor({ initialMarkdown, onContentChange, readOnly = fal
   };
 
   const debounceRef = useRef<number | undefined>(undefined);
+  const safeInitialMarkdown = sanitizeMarkdownInput(initialMarkdown);
 
   const handleEditorChange = (editorState: EditorState) => {
     if (readOnly || !onContentChange) return;
@@ -149,7 +161,7 @@ export function LexicalEditor({ initialMarkdown, onContentChange, readOnly = fal
           <ListPlugin />
           <MarkdownShortcutPlugin />
           <OnChangePlugin onChange={handleEditorChange} />
-          <MarkdownImportPlugin initialMarkdown={initialMarkdown} />
+          <MarkdownImportPlugin initialMarkdown={safeInitialMarkdown} />
         </Box>
       </LexicalComposer>
     </Box>

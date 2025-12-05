@@ -1,17 +1,44 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { Message, Attachment, MistralModel, ArtifactData, ToolCall, InspectedCodeAttachment } from '@/types/types';
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENTS_SIZE = 25 * 1024 * 1024;
+
+async function fetchAttachmentWithSizeCheck(url: string, maxSize: number): Promise<Blob | null> {
+  const response = await fetch(url);
+
+  const contentLength = response.headers.get('content-length');
+  if (contentLength && parseInt(contentLength, 10) > maxSize) {
+    return null;
+  }
+
+  const blob = await response.blob();
+  if (blob.size > maxSize) {
+    return null;
+  }
+
+  return blob;
+}
 
 export function useChatConversation() {
   const toast = useToast();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadConversation = useCallback(async (convId: string) => {
     setIsLoadingHistory(true);
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
-      const response = await fetch(`/api/chat/messages?conversationId=${convId}`);
+      const response = await fetch(`/api/chat/messages?conversationId=${convId}`, {
+        signal: abortControllerRef.current.signal,
+      });
       if (response.ok) {
         const messagesData = await response.json();
         const formattedMessages = await Promise.all(
@@ -24,10 +51,25 @@ export function useChatConversation() {
 
             if (msg.attachments && msg.attachments.length > 0) {
               const content: any[] = [{ type: 'text', text: msg.content }];
+              let totalSize = 0;
 
-              const attachmentPromises = msg.attachments.map(async (att: any) => {
-                const fileResponse = await fetch(att.cloudinaryUrl);
-                const blob = await fileResponse.blob();
+              const processedAttachments: { att: any; base64: string }[] = [];
+
+              for (const att of msg.attachments) {
+                if (totalSize >= MAX_TOTAL_ATTACHMENTS_SIZE) {
+                  break;
+                }
+
+                const blob = await fetchAttachmentWithSizeCheck(att.cloudinaryUrl, MAX_ATTACHMENT_SIZE);
+                if (!blob) {
+                  continue;
+                }
+
+                totalSize += blob.size;
+                if (totalSize > MAX_TOTAL_ATTACHMENTS_SIZE) {
+                  break;
+                }
+
                 const base64 = await new Promise<string>((resolve) => {
                   const reader = new FileReader();
                   reader.onloadend = () => {
@@ -36,12 +78,11 @@ export function useChatConversation() {
                   };
                   reader.readAsDataURL(blob);
                 });
-                return { att, base64 };
-              });
 
-              const attachmentResults = await Promise.all(attachmentPromises);
+                processedAttachments.push({ att, base64 });
+              }
 
-              attachmentResults.forEach(({ att, base64 }) => {
+              processedAttachments.forEach(({ att, base64 }) => {
                 if (att.type === 'image') {
                   content.push({
                     type: 'image_url',
@@ -87,6 +128,9 @@ export function useChatConversation() {
         return null;
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return null;
+      }
       console.error('Error loading conversation:', error);
       toast({
         title: 'Error loading conversation',

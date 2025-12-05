@@ -14,7 +14,6 @@ import InputField from '@/components/fields/InputField';
 import TextField from '@/components/fields/TextField';
 
 type InfoProps = {
-  username: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -23,10 +22,9 @@ type InfoProps = {
 };
 
 export default function Info(props: InfoProps) {
-  const { username, email, firstName, lastName, job, bio } = props;
+  const { email, firstName, lastName, job, bio } = props;
 
   const [formData, setFormData] = useState({
-    username,
     email,
     firstName,
     lastName,
@@ -97,17 +95,6 @@ export default function Info(props: InfoProps) {
           columns={{ sm: 1, md: 2 }}
           spacing={{ base: '20px', xl: '20px' }}
         >
-          <InputField
-            mb="10px"
-            me="30px"
-            id="username"
-            label="Username"
-            placeholder="@username"
-            value={formData.username}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setFormData({ ...formData, username: e.target.value })
-            }
-          />
           <InputField
             mb="10px"
             id="email"

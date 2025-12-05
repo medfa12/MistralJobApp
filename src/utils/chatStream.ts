@@ -6,6 +6,7 @@ import {
 import { Message, ToolCallData } from '@/types/types';
 import { getSystemPromptForModel } from './systemPrompt';
 import { ARTIFACT_TOOLS } from '@/config/artifactTools';
+import { estimateTokens } from './messageHelpers';
 
 export const MistralStream = async (
   messages: Message[] | string,
@@ -54,7 +55,7 @@ export const MistralStream = async (
   };
 
   if (isReasoningModel) {
-    body.prompt_mode = null;
+    body.prompt_mode = 'reasoning';
   }
 
   if (useToolCalling) {
@@ -108,14 +109,41 @@ export const MistralStream = async (
       let accumulatedToolCalls: any[] = [];
       let currentToolCallIndex: number | null = null;
 
+      let totalGeneratedChars = 0;
+      let totalGeneratedTokens = 0;
+      const startTime = Date.now();
+      let lastMetricsTime = Date.now();
+      const METRICS_INTERVAL_MS = 150;
+      const METRICS_MARKER = '__STREAM_METRICS__:';
+
+      let currentPhase: 'text' | 'tool' = 'text';
+
+      const emitMetrics = (phase?: 'text' | 'tool') => {
+        const now = Date.now();
+        if (phase) currentPhase = phase;
+        
+        if (now - lastMetricsTime >= METRICS_INTERVAL_MS) {
+          const elapsedMs = now - startTime;
+          const tps = elapsedMs > 0 ? totalGeneratedTokens / (elapsedMs / 1000) : 0;
+          const metricsData = JSON.stringify({ chars: totalGeneratedChars, tokens: totalGeneratedTokens, elapsedMs, ts: now, tps, phase: currentPhase });
+          controller.enqueue(encoder.encode(`${METRICS_MARKER}${metricsData}\n`));
+          lastMetricsTime = now;
+        }
+      };
+
       const onParse = (event: ParsedEvent | ReconnectInterval) => {
         if (event.type === 'event') {
-          const data = event.data;
+            const data = event.data;
 
-          if (data === '[DONE]') {
-            if (accumulatedToolCalls.length > 0) {
-              const toolCallMarker = `__TOOL_CALLS__:${JSON.stringify({ tool_calls: accumulatedToolCalls })}`;
-              const queue = encoder.encode(toolCallMarker);
+            if (data === '[DONE]') {
+              const finalElapsed = Date.now() - startTime;
+              const finalTps = finalElapsed > 0 ? totalGeneratedTokens / (finalElapsed / 1000) : 0;
+              const finalMetrics = JSON.stringify({ chars: totalGeneratedChars, tokens: totalGeneratedTokens, elapsedMs: finalElapsed, ts: Date.now(), done: true, tps: finalTps, phase: currentPhase });
+              controller.enqueue(encoder.encode(`${METRICS_MARKER}${finalMetrics}\n`));
+
+              if (accumulatedToolCalls.length > 0) {
+                const toolCallMarker = `__TOOL_CALLS__:${JSON.stringify({ tool_calls: accumulatedToolCalls })}`;
+                const queue = encoder.encode(toolCallMarker);
               controller.enqueue(queue);
             }
             controller.close();
@@ -147,6 +175,9 @@ export const MistralStream = async (
 
                 if (toolCallDelta.function?.arguments) {
                   accumulatedToolCalls[index].function.arguments += toolCallDelta.function.arguments;
+                  totalGeneratedChars += toolCallDelta.function.arguments.length;
+                  totalGeneratedTokens += estimateTokens(toolCallDelta.function.arguments);
+                  emitMetrics('tool');
                 }
 
                 if (toolCallDelta.id) {
@@ -162,20 +193,29 @@ export const MistralStream = async (
                     .map((t: any) => t.text)
                     .join('');
                   if (thinkingText) {
+                    totalGeneratedChars += thinkingText.length;
+                    totalGeneratedTokens += estimateTokens(thinkingText);
                     const thinkingFormatted = `<think>\n${thinkingText}\n</think>\n`;
                     const queue = encoder.encode(thinkingFormatted);
                     controller.enqueue(queue);
+                    emitMetrics('text');
                   }
                 } else if (contentBlock.type === 'text' && contentBlock.text) {
+                  totalGeneratedChars += contentBlock.text.length;
+                  totalGeneratedTokens += estimateTokens(contentBlock.text);
                   const queue = encoder.encode(contentBlock.text);
                   controller.enqueue(queue);
+                  emitMetrics('text');
                 }
               }
             } else {
               const text = delta?.content;
               if (text) {
+                totalGeneratedChars += text.length;
+                totalGeneratedTokens += estimateTokens(text);
                 const queue = encoder.encode(text);
                 controller.enqueue(queue);
+                emitMetrics('text');
               }
             }
           } catch (e) {

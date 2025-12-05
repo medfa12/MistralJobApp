@@ -19,30 +19,23 @@ import { SidebarContext } from '@/contexts/SidebarContext';
 
 function LayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [apiKey, setApiKey] = useState('');
   const { sidebarWidth } = useContext(SidebarContext);
-
-  useEffect(() => {
-    const initialKey = localStorage.getItem('apiKey');
-    if (initialKey && apiKey !== initialKey) {
-      setApiKey(initialKey);
-    }
-  }, [apiKey]);
 
   const contentWidth = sidebarWidth ? `calc(100% - ${sidebarWidth + 5}px)` : 'calc(100% - 290px)';
 
   return (
     <>
-      {pathname?.includes('auth/login') || 
-       pathname?.includes('auth/signin') || 
+      {pathname?.includes('auth/login') ||
+       pathname?.includes('auth/signin') ||
+       pathname?.includes('auth/register') ||
        pathname?.includes('others/register') ||
        pathname?.includes('others/sign-in') ||
        pathname?.includes('landing') ? (
         children
       ) : (
         <Box>
-          <Sidebar setApiKey={setApiKey} routes={routes} />
-          <MobileSidebarButton setApiKey={setApiKey} routes={routes} />
+          <Sidebar routes={routes} />
+          <MobileSidebarButton routes={routes} />
           <Box
             pt={{ base: '20px', md: '20px' }}
             float="right"

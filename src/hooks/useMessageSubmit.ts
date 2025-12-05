@@ -29,6 +29,11 @@ interface UseMessageSubmitOptions {
   setIsGeneratingArtifact: (generating: boolean) => void;
   setArtifactLoadingInfo: (info: { operation: string; title?: string; type?: string } | null) => void;
   setStreamingArtifactCode: (code: string) => void;
+  onStreamStart?: () => void;
+  onTokenUpdate?: (content: string | number | { tokens: number; elapsedMs?: number; tps?: number }) => void;
+  onStreamEnd?: () => void;
+  onStreamAbort?: () => void;
+  getCurrentMetrics?: () => { tokensPerSecond: number; totalTokens: number; elapsedTime: number };
 }
 
 interface SubmitMessageOptions {
@@ -58,6 +63,11 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     setIsGeneratingArtifact,
     setArtifactLoadingInfo,
     setStreamingArtifactCode,
+    onStreamStart,
+    onTokenUpdate,
+    onStreamEnd,
+    onStreamAbort,
+    getCurrentMetrics,
   } = options;
 
   const toast = useToast();
@@ -73,7 +83,10 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     setIsGeneratingArtifact(false);
     setArtifactLoadingInfo(null);
     setStreamingArtifactCode('');
-  }, [abortStream, setArtifactLoadingInfo, setIsGeneratingArtifact, setLoading, setStreamingArtifactCode, setStreamingMessage]);
+    if (onStreamAbort) {
+      onStreamAbort();
+    }
+  }, [abortStream, setArtifactLoadingInfo, setIsGeneratingArtifact, setLoading, setStreamingArtifactCode, setStreamingMessage, onStreamAbort]);
 
   const submitMessage = useCallback(async (submitOptions: SubmitMessageOptions) => {
     const {
@@ -109,7 +122,7 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
           duration: 5000,
           isClosable: true,
           position: 'top',
-        });
+          });
         return;
       }
     }
@@ -168,6 +181,9 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
         apiMessages,
         model,
         libraryId,
+        onStreamStart,
+        onTokenUpdate,
+        onStreamEnd,
         onStreamUpdate: (response, isGenerating, loadingInfo, streamingCode) => {
           setIsGeneratingArtifact(isGenerating);
           setArtifactLoadingInfo(loadingInfo);
@@ -184,11 +200,18 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
 
           const finalContent = cleanContent.trim() || (toolCallData ? '[Tool call executed]' : '');
 
+          const metrics = getCurrentMetrics ? getCurrentMetrics() : undefined;
+
           const assistantMessage: MessageType = { 
             role: 'assistant', 
             content: finalContent,
             artifact: artifactData,
             toolCall: toolCallData,
+            metrics: metrics ? {
+              tokens: metrics.totalTokens,
+              time: metrics.elapsedTime,
+              speed: metrics.tokensPerSecond
+            } : undefined
           };
 
           setMessages((prev) => [...prev, assistantMessage]);
@@ -245,7 +268,6 @@ export function useMessageSubmit(options: UseMessageSubmitOptions) {
     buildApiMessages,
     sendMessage,
     processArtifactResponse,
-    toast,
   ]);
 
   return {

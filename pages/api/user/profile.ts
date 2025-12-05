@@ -22,7 +22,6 @@ export default async function handler(
       where: { email: session.user.email },
       select: {
         id: true,
-        username: true,
         firstName: true,
         lastName: true,
         email: true,

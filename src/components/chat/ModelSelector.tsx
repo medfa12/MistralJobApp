@@ -1,16 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import {
-  Box,
-  Button,
-  Flex,
-  Icon,
-  Text,
-  Collapse,
-  useColorModeValue,
-} from '@chakra-ui/react';
-import { MdAutoAwesome, MdBolt, MdPsychology, MdExpandMore, MdExpandLess } from 'react-icons/md';
+import { Box, Button, Flex, Icon, Text, Collapse, useColorModeValue } from '@chakra-ui/react';
+import { MdBolt, MdCode, MdExpandLess, MdExpandMore, MdPsychology, MdWork } from 'react-icons/md';
 import { MistralModel } from '@/types/types';
 import { MISTRAL_MODELS, getModelInfo } from '@/config/models';
 import { ModelOverviewCard } from '@/components/ModelOverviewCard';
@@ -21,10 +13,10 @@ interface ModelSelectorProps {
 }
 
 const modelConfigs = [
-  { id: 'mistral-small-latest' as MistralModel, label: 'Mistral Small', icon: MdAutoAwesome, width: '174px' },
-  { id: 'mistral-large-latest' as MistralModel, label: 'Mistral Large', icon: MdBolt, width: '164px' },
-  { id: 'magistral-small-latest' as MistralModel, label: 'Magistral Small', icon: MdPsychology, width: '200px' },
-  { id: 'magistral-medium-latest' as MistralModel, label: 'Magistral Medium', icon: MdPsychology, width: '220px' },
+  { id: 'mistral-medium-latest' as MistralModel, label: 'Mistral Medium', icon: MdBolt, width: '190px' },
+  { id: 'magistral-medium-latest' as MistralModel, label: 'Magistral Medium', icon: MdPsychology, width: '210px' },
+  { id: 'codestral-latest' as MistralModel, label: 'Codestral (Code)', icon: MdCode, width: '210px' },
+  { id: 'devstral-medium-latest' as MistralModel, label: 'Devstral Medium', icon: MdWork, width: '220px' },
 ];
 
 export const ModelSelector: React.FC<ModelSelectorProps> = ({

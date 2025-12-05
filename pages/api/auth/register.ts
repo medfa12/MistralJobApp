@@ -13,10 +13,18 @@ async function handler(
   }
 
   try {
-    const { firstName, lastName, username, email, password } = req.body;
+    const { firstName, lastName, email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ message: "First name, last name, email and password are required" });
+    }
+
+    if (firstName.trim().length === 0) {
+      return res.status(400).json({ message: "First name cannot be empty" });
+    }
+
+    if (lastName.trim().length === 0) {
+      return res.status(400).json({ message: "Last name cannot be empty" });
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,7 +34,6 @@ async function handler(
 
     const passwordValidation = validatePasswordWithContext(password, {
       email,
-      username,
       firstName,
       lastName,
     });
@@ -49,25 +56,12 @@ async function handler(
       return res.status(400).json({ message: "User already exists" });
     }
 
-    if (username) {
-      const existingUsername = await db.user.findUnique({
-        where: {
-          username: username,
-        },
-      });
-
-      if (existingUsername) {
-        return res.status(400).json({ message: "Username already taken" });
-      }
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await db.user.create({
       data: {
-        firstName: firstName || null,
-        lastName: lastName || null,
-        username: username || null,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         email,
         password: hashedPassword,
         role: "member",
@@ -76,7 +70,7 @@ async function handler(
 
     const fullName = [user.firstName, user.lastName]
       .filter(Boolean)
-      .join(' ') || user.username || 'User';
+      .join(' ') || 'User';
 
     return res.status(201).json({
       success: true,

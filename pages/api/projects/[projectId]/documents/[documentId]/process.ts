@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getMistralApiKeyFromRequest } from '@/lib/mistral';
+import { getMistralApiKey } from '@/lib/mistral';
 import { extractTextFromDocument, chunkText, estimateTokenCount } from '@/lib/document-processing';
 import { createEmbeddings } from '@/lib/embedding';
 import { apiError, apiSuccess } from '@/lib/api-helpers';
@@ -17,70 +17,81 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 const BATCH_INSERT_SIZE = 100;
+const MAX_REDIRECTS = 5;
+const REQUEST_TIMEOUT = 30000;
 
 async function fetchDocumentBuffer(cloudinaryUrl: string, cloudinaryPublicId: string): Promise<Buffer> {
-  try {
-    const https = require('https');
-    const http = require('http');
-    
-    logger.debug('Attempting to download from Cloudinary', {
-      cloudinaryPublicId,
-      cloudinaryUrl,
-    });
+  const https = require('https');
+  const http = require('http');
 
+  logger.debug('Attempting to download from Cloudinary', {
+    cloudinaryPublicId,
+    cloudinaryUrl,
+  });
+
+  const fetchWithRedirects = (url: string, redirectCount: number = 0): Promise<Buffer> => {
     return new Promise<Buffer>((resolve, reject) => {
-      const protocol = cloudinaryUrl.startsWith('https') ? https : http;
-      
-      protocol.get(cloudinaryUrl, (response: any) => {
+      if (redirectCount > MAX_REDIRECTS) {
+        reject(new Error(`Too many redirects (max: ${MAX_REDIRECTS})`));
+        return;
+      }
+
+      const protocol = url.startsWith('https') ? https : http;
+
+      const request = protocol.get(url, { timeout: REQUEST_TIMEOUT }, (response: any) => {
         if (response.statusCode === 200) {
-          const chunks: Buffer[] = [];
-          
-          response.on('data', (chunk: Buffer) => {
+          const chunks: ArrayBuffer[] = [];
+          let totalLength = 0;
+
+          response.on('data', (chunk: ArrayBuffer) => {
             chunks.push(chunk);
+            totalLength += chunk.byteLength;
           });
-          
+
           response.on('end', () => {
-            resolve(Buffer.concat(chunks));
+            const result = new Uint8Array(totalLength);
+            let offset = 0;
+            for (const chunk of chunks) {
+              result.set(new Uint8Array(chunk), offset);
+              offset += chunk.byteLength;
+            }
+            resolve(Buffer.from(result));
           });
-          
+
           response.on('error', (error: Error) => {
             reject(error);
           });
-        } else if (response.statusCode === 301 || response.statusCode === 302) {
+        } else if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 307) {
           const redirectUrl = response.headers.location;
-          logger.info('Following redirect', { redirectUrl });
-          
-          protocol.get(redirectUrl, (redirectResponse: any) => {
-            if (redirectResponse.statusCode === 200) {
-              const chunks: Buffer[] = [];
-              
-              redirectResponse.on('data', (chunk: Buffer) => {
-                chunks.push(chunk);
-              });
-              
-              redirectResponse.on('end', () => {
-                resolve(Buffer.concat(chunks));
-              });
-              
-              redirectResponse.on('error', (error: Error) => {
-                reject(error);
-              });
-            } else {
-              reject(new Error(`Redirect failed: ${redirectResponse.statusCode}`));
-            }
-          });
+          if (!redirectUrl) {
+            reject(new Error('Redirect response missing location header'));
+            return;
+          }
+
+          logger.info('Following redirect', { redirectUrl, redirectCount: redirectCount + 1 });
+          fetchWithRedirects(redirectUrl, redirectCount + 1).then(resolve).catch(reject);
         } else {
           reject(new Error(`Failed to fetch: ${response.statusCode} ${response.statusMessage}`));
         }
-      }).on('error', (error: Error) => {
+      });
+
+      request.on('error', (error: Error) => {
         reject(error);
       });
+
+      request.on('timeout', () => {
+        request.destroy();
+        reject(new Error('Request timed out'));
+      });
     });
+  };
+
+  try {
+    return await fetchWithRedirects(cloudinaryUrl, 0);
   } catch (error) {
-    logger.error('Failed to fetch document from Cloudinary', { 
-      cloudinaryUrl, 
+    logger.error('Failed to fetch document from Cloudinary', {
+      cloudinaryUrl,
       cloudinaryPublicId,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -133,9 +144,9 @@ export default async function handler(
       data: { processingStatus: 'processing' },
     });
 
-    const apiKey = getMistralApiKeyFromRequest(req) || MISTRAL_API_KEY;
+    const apiKey = getMistralApiKey();
     if (!apiKey) {
-      throw new Error('Mistral API key is required');
+      throw new Error('Mistral API key not configured on server');
     }
 
     logger.debug('Fetching document from Cloudinary', {

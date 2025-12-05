@@ -224,6 +224,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
                   onArtifactClick={message.artifact ? () => onArtifactClick(message.artifact!) : undefined}
                   isArtifactOpen={!!(currentArtifact && message.artifact && currentArtifact.identifier === message.artifact.identifier && isArtifactPanelOpen)}
                   messageIndex={index}
+                  metrics={message.metrics}
                 />
               </Box>
             </Flex>

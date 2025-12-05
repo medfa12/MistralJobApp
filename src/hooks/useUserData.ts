@@ -1,9 +1,8 @@
 import { useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 type UserData = {
   id: string;
-  username: string | null;
   firstName: string | null;
   lastName: string | null;
   email: string;
@@ -17,30 +16,57 @@ export function useUserData() {
   const { data: session, status } = useSession();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (status === 'unauthenticated') {
+      setUserData(null);
+      setLoading(false);
+      return;
+    }
+
+    if (status === 'loading') {
+      return;
+    }
+
     async function fetchUserData() {
       if (status === 'authenticated' && session?.user?.email) {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
         try {
-          const response = await fetch(`/api/user/profile`);
+          const response = await fetch(`/api/user/profile`, {
+            signal: abortControllerRef.current.signal,
+          });
           if (response.ok) {
             const data = await response.json();
             setUserData(data);
+          } else {
+            setUserData(null);
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
+          if (error instanceof Error && error.name !== 'AbortError') {
+            console.error('Error fetching user data:', error);
+          }
+          setUserData(null);
         }
       }
       setLoading(false);
     }
 
     fetchUserData();
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [session, status]);
 
   const fullName = userData
-    ? [userData.firstName, userData.lastName].filter(Boolean).join(' ') ||
-      userData.username ||
-      'User'
+    ? [userData.firstName, userData.lastName].filter(Boolean).join(' ') || 'User'
     : session?.user?.name || 'User';
 
   const initials = fullName
