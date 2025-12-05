@@ -161,6 +161,8 @@ export function MarkdownView({ markdown }: MarkdownViewProps) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
+        skipHtml
+        disallowedElements={['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta']}
       >
         {markdown}
       </ReactMarkdown>

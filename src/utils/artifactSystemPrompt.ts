@@ -164,6 +164,20 @@ export const artifactSystemPrompt = endent`
   For more info, see [our website](https://example.com).
   \`\`\`
 
+  ## ARTIFACT ENVIRONMENT
+
+  **Available globally (via CDN):**
+  - React 18 and ReactDOM 18
+  - Vue 3
+  - Babel (for JSX transformation)
+
+  **Cannot use:**
+  - npm packages (only CDN libraries available)
+  - Node.js APIs
+  - External CSS files
+  - localStorage/sessionStorage (sandbox restriction)
+  - HTTP requests except to unpkg.com
+
   ## VALIDATION CHECKLIST
 
   Before generating any React artifact, verify:

@@ -8,7 +8,10 @@ export interface StreamingState {
 }
 
 export interface StreamMetrics {
-  chars: number;
+  chars?: number;
+  tokens: number;
+  elapsedMs: number;
+  tps: number;
   ts: number;
   done?: boolean;
   phase?: 'text' | 'tool';

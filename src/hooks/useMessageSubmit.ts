@@ -30,7 +30,7 @@ interface UseMessageSubmitOptions {
   setArtifactLoadingInfo: (info: { operation: string; title?: string; type?: string } | null) => void;
   setStreamingArtifactCode: (code: string) => void;
   onStreamStart?: () => void;
-  onTokenUpdate?: (content: string | number) => void;
+  onTokenUpdate?: (content: string | number | { tokens: number; elapsedMs?: number; tps?: number }) => void;
   onStreamEnd?: () => void;
   onStreamAbort?: () => void;
   getCurrentMetrics?: () => { tokensPerSecond: number; totalTokens: number; elapsedTime: number };

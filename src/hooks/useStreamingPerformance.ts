@@ -17,9 +17,9 @@ export function useStreamingPerformance() {
 
   const startTimeRef = useRef<number>(0);
   const tokenCountRef = useRef<number>(0);
-  const lastUpdateRef = useRef<number>(0);
   const animationFrameRef = useRef<number>();
   const resetTimeoutRef = useRef<NodeJS.Timeout>();
+  const isStreamingRef = useRef<boolean>(false);
 
   useEffect(() => {
     return () => {
@@ -33,6 +33,8 @@ export function useStreamingPerformance() {
   }, []);
 
   const startStreaming = useCallback(() => {
+    if (isStreamingRef.current) return;
+
     if (resetTimeoutRef.current) {
       clearTimeout(resetTimeoutRef.current);
       resetTimeoutRef.current = undefined;
@@ -40,7 +42,7 @@ export function useStreamingPerformance() {
 
     startTimeRef.current = performance.now();
     tokenCountRef.current = 0;
-    lastUpdateRef.current = performance.now();
+    isStreamingRef.current = true;
 
     setMetrics({
       tokensPerSecond: 0,
@@ -50,6 +52,8 @@ export function useStreamingPerformance() {
     });
 
     const updateMetrics = () => {
+      if (!isStreamingRef.current) return;
+
       const now = performance.now();
       const elapsed = (now - startTimeRef.current) / 1000;
       const tokens = tokenCountRef.current;
@@ -68,7 +72,15 @@ export function useStreamingPerformance() {
     animationFrameRef.current = requestAnimationFrame(updateMetrics);
   }, []);
 
-  const updateTokenCount = useCallback((countOrContent: string | number) => {
+  const updateTokenCount = useCallback((countOrContent: string | number | { tokens: number; elapsedMs?: number; tps?: number }) => {
+    if (typeof countOrContent === 'object' && countOrContent !== null && 'tokens' in countOrContent) {
+      tokenCountRef.current = countOrContent.tokens;
+      if (typeof countOrContent.elapsedMs === 'number') {
+        startTimeRef.current = performance.now() - countOrContent.elapsedMs;
+      }
+      return;
+    }
+
     const charCount = typeof countOrContent === 'number' ? countOrContent : countOrContent.length;
     const estimatedTokens = Math.ceil(charCount / 4);
     tokenCountRef.current = estimatedTokens;
@@ -78,6 +90,8 @@ export function useStreamingPerformance() {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
+
+    isStreamingRef.current = false;
 
     const elapsed = (performance.now() - startTimeRef.current) / 1000;
     const tokens = tokenCountRef.current;
@@ -110,9 +124,9 @@ export function useStreamingPerformance() {
       resetTimeoutRef.current = undefined;
     }
 
+    isStreamingRef.current = false;
     startTimeRef.current = 0;
     tokenCountRef.current = 0;
-    lastUpdateRef.current = 0;
 
     setMetrics({
       tokensPerSecond: 0,
@@ -123,6 +137,14 @@ export function useStreamingPerformance() {
   }, []);
 
   const getCurrentMetrics = useCallback(() => {
+    if (!startTimeRef.current) {
+      return {
+        tokensPerSecond: 0,
+        totalTokens: 0,
+        elapsedTime: 0,
+      };
+    }
+
     const elapsed = (performance.now() - startTimeRef.current) / 1000;
     const tokens = tokenCountRef.current;
     const tokensPerSec = elapsed > 0 ? tokens / elapsed : 0;

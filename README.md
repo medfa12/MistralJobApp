@@ -2,17 +2,24 @@
 
 ![Next.js](https://img.shields.io/badge/Next.js-15.5.4-black) ![TypeScript](https://img.shields.io/badge/TypeScript-4.9.5-blue) ![MongoDB](https://img.shields.io/badge/MongoDB-Prisma_5.7.1-green)
 
-Production-ready chat application with Mistral AI's function calling and interactive artifacts system. Generate React, HTML, Vue, and JavaScript components that render live in-panel.
+Production-ready chat application with Mistral AI's function calling, real-time streaming, and interactive artifacts.
+
+## Assignment Coverage
+
+- **Chatbot with LLM**: Next.js + React chat UI talking to Mistral (LLM of choice) with streaming and inline animations.
+- **UX**: Clean, mobile-friendly interface, live typing stream, artifact previews, and smooth transitions.
+- **Authentication + Database**: NextAuth backed by Prisma/MongoDB; users sign in and own their data.
+- **Persistent Messages**: Conversations and messages (plus attachments and artifacts) are stored in the database via `pages/api/chat/conversations.ts` and `pages/api/chat/messages.ts`.
+- **Token Metrics Bonus**: Live tokens-per-second, token count, and elapsed time stream from the backend and display beside messages; this comes from server-side token counting during the Mistral stream.
+- **Metric Caveat**: Tokens/s varies by tokenizer/model, ignores time-to-first-token and network variance, and doesn’t fully represent perceived UX.
 
 ## Key Features
 
-- **Interactive Artifacts** - Generate live code components (React, HTML, Vue, JS) via Mistral function calling
-- **Multi-Modal Chat** - Images & PDF support with real-time streaming
-- **Full Auth System** - NextAuth with user management
-- **Stripe Integration** - Complete subscription management with webhooks
-- **Admin Dashboard** - User management and usage analytics
-- **Version Control** - Artifact history with edit/revert
-- **Dark/Light Mode** - Theme toggle with Mistral branding
+- Interactive artifacts (React, HTML, Vue, JS) via function calling
+- Multi-modal chat: images/PDFs with real-time streaming
+- Authenticated chat with stored history and attachments
+- Versioned artifacts with edit/revert
+- Dark/Light mode with Mistral branding
 
 ## Tech Stack
 
@@ -104,26 +111,10 @@ Optional: Cloudinary (file uploads), Stripe (subscriptions)
 
 ## Deployment
 
-**Vercel** (recommended):
-1. Push to GitHub
-2. Import to Vercel
-3. Add environment variables
-4. Deploy
-
-**Other platforms**: Netlify, Railway, AWS, Render
-
-## Documentation
-
-Run the docs site:
-```bash
-cd docs
-npm install
-npm start
-```
+- Vercel: import repo, add env vars, deploy.
 
 ## License
 
 MIT
 
 **Built with Mistral AI**
-

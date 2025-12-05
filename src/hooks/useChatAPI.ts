@@ -11,7 +11,7 @@ interface StreamOptions {
   onComplete: (response: string, toolCalls?: ToolCallData[]) => void;
   onError: (error: Error) => void;
   onStreamStart?: () => void;
-  onTokenUpdate?: (content: string | number) => void;
+  onTokenUpdate?: (content: string | number | { tokens: number; elapsedMs?: number; tps?: number }) => void;
   onStreamEnd?: () => void;
 }
 
@@ -115,7 +115,7 @@ export function useChatAPI() {
             lastServerPhase = metrics.phase;
           }
           if (onTokenUpdate) {
-            onTokenUpdate(metrics.chars);
+            onTokenUpdate({ tokens: metrics.tokens, elapsedMs: metrics.elapsedMs, tps: metrics.tps });
           }
         }
 
