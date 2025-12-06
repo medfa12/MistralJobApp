@@ -15,7 +15,7 @@ import { useState, useCallback } from 'react';
 import { VoiceRecorder } from './VoiceRecorder';
 import { TranscribingIndicator } from './TranscribingIndicator';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
-import { motion } from 'framer-motion';
+import { motion } from '@/lib/motion';
 
 interface ChatInputProps {
   value: string;

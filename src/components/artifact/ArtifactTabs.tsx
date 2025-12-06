@@ -13,7 +13,7 @@ import {
   HStack,
 } from '@chakra-ui/react';
 import { MdClose, MdPushPin, MdCode } from 'react-icons/md';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from '@/lib/motion';
 import { ArtifactInstance } from '@/hooks/useMultipleArtifacts';
 
 interface Props {

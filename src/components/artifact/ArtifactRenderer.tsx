@@ -2,7 +2,7 @@
 
 import { forwardRef, useState, useRef, useImperativeHandle } from 'react';
 import { Box, Flex, Icon, useColorModeValue, Tooltip } from '@chakra-ui/react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from '@/lib/motion';
 import { MdCode, MdVisibility } from 'react-icons/md';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
 import { CodeView } from './CodeView';

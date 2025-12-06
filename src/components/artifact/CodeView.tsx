@@ -9,7 +9,7 @@ import CodeMirror from '@uiw/react-codemirror';
 import { FC, useState } from 'react';
 import { Box, Button, Flex, Icon, useToast } from '@chakra-ui/react';
 import { MdContentCopy, MdCheck } from 'react-icons/md';
-import { motion } from 'framer-motion';
+import { motion } from '@/lib/motion';
 import { ArtifactData } from '@/types/types';
 
 interface Props {

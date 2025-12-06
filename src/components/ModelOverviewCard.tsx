@@ -2,7 +2,7 @@
 
 import { ModelInfo, AttachmentType } from '@/config/models';
 import { Box, Flex, Text, Icon, Badge, useColorModeValue } from '@chakra-ui/react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from '@/lib/motion';
 import { MdImage, MdAudiotrack, MdDescription, MdCheck } from 'react-icons/md';
 
 interface ModelOverviewCardProps {

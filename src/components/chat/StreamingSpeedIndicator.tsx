@@ -1,6 +1,6 @@
 import { Flex, Text, Badge, Icon, useColorModeValue } from '@chakra-ui/react';
 import { MdSpeed } from 'react-icons/md';
-import { motion } from 'framer-motion';
+import { motion } from '@/lib/motion';
 
 interface StreamingSpeedIndicatorProps {
   tokensPerSecond: number;
