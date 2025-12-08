@@ -17,7 +17,7 @@ import {
   Code,
 } from '@chakra-ui/react';
 import { MdSearch, MdSearchOff, MdRefresh } from 'react-icons/md';
-import { motion, AnimatePresence } from '@/lib/motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
 import { InspectorPanel } from './InspectorPanel';
 import { glassEffects } from '@/theme/effects';

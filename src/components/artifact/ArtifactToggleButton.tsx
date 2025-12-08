@@ -10,7 +10,7 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 import { MdCode, MdExpandMore, MdExpandLess } from 'react-icons/md';
-import { motion } from '@/lib/motion';
+import { motion } from 'framer-motion';
 import { ArtifactData } from '@/types/types';
 
 interface Props {

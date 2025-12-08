@@ -10,7 +10,7 @@ import {
   Divider,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { motion, AnimatePresence } from '@/lib/motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { inspectorPanelVariants } from './animations';
 import { InspectedElement } from './PreviewView';
 

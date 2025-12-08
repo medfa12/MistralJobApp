@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Text, Flex, Spinner, useColorModeValue, Icon, Code } from '@chakra-ui/react';
 import { MdCode, MdWarning } from 'react-icons/md';
-import { motion, AnimatePresence } from '@/lib/motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
   streamingCode: string;

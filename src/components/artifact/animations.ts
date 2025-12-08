@@ -1,4 +1,4 @@
-import { Variants } from '@/lib/motion';
+import { Variants } from 'framer-motion';
 
 export const tabContentVariants: Variants = {
   hidden: { 

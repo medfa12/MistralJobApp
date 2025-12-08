@@ -16,7 +16,7 @@ import {
 } from '@chakra-ui/react';
 import { MdHistory, MdRestore, MdCheck, MdCode } from 'react-icons/md';
 import { ArtifactData, ArtifactVersion } from '@/types/types';
-import { motion } from '@/lib/motion';
+import { motion } from 'framer-motion';
 
 interface Props {
   artifact: ArtifactData;

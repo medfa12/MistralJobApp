@@ -11,7 +11,7 @@ import {
   Icon,
 } from '@chakra-ui/react';
 import { MdClose, MdCode } from 'react-icons/md';
-import { motion, AnimatePresence } from '@/lib/motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArtifactData, InspectedCodeAttachment } from '@/types/types';
 import { ArtifactRenderer } from './ArtifactRenderer';
 

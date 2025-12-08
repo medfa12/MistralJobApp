@@ -60,7 +60,7 @@
     "eventsource-parser": "^1.0.0",
     "file-type": "^16.5.4",
     "formidable": "^3.5.4",
-    "framer-motion": "^4.1.17",
+    "framer-motion": "^10.18.0",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
     "lexical": "^0.36.2",

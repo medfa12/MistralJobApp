@@ -3,7 +3,7 @@
 import { FC, useState } from 'react';
 import { Box, Button, Flex, Icon, useToast, useColorModeValue, Badge, Text } from '@chakra-ui/react';
 import { MdContentCopy, MdCheck, MdCode } from 'react-icons/md';
-import { motion } from '@/lib/motion';
+import { motion } from 'framer-motion';
 import CodeMirror from '@uiw/react-codemirror';
 import { tokyoNight } from '@uiw/codemirror-theme-tokyo-night';
 import { javascript } from '@codemirror/lang-javascript';

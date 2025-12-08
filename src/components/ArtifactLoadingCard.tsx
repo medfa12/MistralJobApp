@@ -3,7 +3,7 @@
 import { FC } from 'react';
 import { Box, Flex, Text, useColorModeValue, Icon, Spinner } from '@chakra-ui/react';
 import { MdCode } from 'react-icons/md';
-import { motion } from '@/lib/motion';
+import { motion } from 'framer-motion';
 
 const MotionBox = motion(Box);
 
